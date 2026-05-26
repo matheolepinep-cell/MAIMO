@@ -2,14 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Users, Plus, Search, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, Building2, Search, Users, Settings, LogOut } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 
 const navItems = [
-  { href: '/app/clients', icon: Users, label: 'Clients' },
-  { href: '/app/search', icon: Search, label: 'Recherche' },
+  { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/app/accounts', icon: Building2, label: 'Entreprises' },
+  { href: '/app/search', icon: Search, label: 'Recherche IA' },
+  { href: '/app/team', icon: Users, label: 'Équipe' },
 ]
 
 export function Sidebar() {
@@ -26,7 +28,6 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-[#1E2761] min-h-screen">
-      {/* Logo */}
       <div className="px-6 py-6 border-b border-white/10">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
@@ -36,7 +37,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {navItems.map(({ href, icon: Icon, label }) => (
           <Link
@@ -53,26 +53,24 @@ export function Sidebar() {
             {label}
           </Link>
         ))}
+      </nav>
 
+      <div className="px-3 py-4 border-t border-white/10 space-y-1">
         {profile?.role === 'admin' && (
           <Link
-            href="/app/admin"
+            href="/app/settings"
             className={clsx(
               'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-              pathname.startsWith('/app/admin')
+              pathname.startsWith('/app/settings')
                 ? 'bg-white/20 text-white'
                 : 'text-white/60 hover:text-white hover:bg-white/10'
             )}
           >
             <Settings className="w-5 h-5" />
-            Admin
+            Paramètres
           </Link>
         )}
-      </nav>
-
-      {/* User + Logout */}
-      <div className="px-3 py-4 border-t border-white/10">
-        <div className="px-3 py-2 mb-1">
+        <div className="px-3 py-2">
           <p className="text-white text-sm font-medium truncate">{profile?.full_name}</p>
           <p className="text-white/50 text-xs truncate">{profile?.email}</p>
         </div>

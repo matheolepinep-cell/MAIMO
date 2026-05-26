@@ -13,17 +13,42 @@ export interface UserProfile {
 export interface Company {
   id: string
   name: string
+  invite_code: string | null
   created_at: string
 }
 
-export interface Client {
+export interface Account {
   id: string
   company_id: string
   name: string
   description: string | null
+  siret: string | null
+  address: string | null
+  city: string | null
+  postal_code: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  industry: string | null
+  revenue: string | null
+  employees: string | null
+  notes_general: string | null
   created_at: string
   last_note_at: string | null
-  notes_count?: number
+}
+
+export interface Contact {
+  id: string
+  company_id: string
+  account_id: string
+  first_name: string
+  last_name: string
+  role: string | null
+  phone: string | null
+  email: string | null
+  notes: string | null
+  is_main_contact: boolean
+  created_at: string
 }
 
 export interface Note {
@@ -31,6 +56,7 @@ export interface Note {
   client_id: string
   company_id: string
   user_id: string
+  title: string | null
   content: string
   source: 'vocal' | 'text'
   is_deleted: boolean
@@ -45,6 +71,7 @@ export interface Document {
   file_name: string
   file_url: string
   file_type: 'pdf' | 'docx' | 'xlsx'
+  title: string | null
   is_indexed: boolean
   created_at: string
 }
@@ -57,7 +84,6 @@ export interface Chunk {
   source_id: string
   content: string
   embedding: number[]
-  metadata: Record<string, unknown>
   created_at: string
 }
 
@@ -68,4 +94,14 @@ export interface Permission {
   company_id: string
   can_read: boolean
   created_at: string
+}
+
+export interface SearchSource {
+  type: 'note' | 'document'
+  id: string
+  title: string
+  date?: string
+  author?: string
+  file_name?: string
+  url?: string
 }

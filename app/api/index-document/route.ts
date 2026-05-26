@@ -76,11 +76,17 @@ export async function POST(request: Request) {
       source_id: document_id,
       content: chunk,
       embedding: embeddings[i],
-      metadata: { document_id },
     }))
 
     await supabase.from('chunks').insert(rows)
     await supabase.from('documents').update({ is_indexed: true }).eq('id', document_id)
+
+    // Trigger auto-extraction in background (non-blocking)
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/extract-account-info`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: request.headers.get('cookie') ?? '' },
+      body: JSON.stringify({ document_id, client_id, company_id }),
+    }).catch(() => {})
 
     return NextResponse.json({ success: true, chunks: rows.length })
   } catch (err) {
