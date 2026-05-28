@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Building2, Search, Users, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, Building2, Briefcase, Search, Users, Settings, LogOut } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -10,6 +10,7 @@ import { useUser } from '@/contexts/UserContext'
 const navItems = [
   { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/app/accounts', icon: Building2, label: 'Entreprises' },
+  { href: '/app/portfolio', icon: Briefcase, label: 'Portefeuille' },
   { href: '/app/search', icon: Search, label: 'Recherche IA' },
   { href: '/app/team', icon: Users, label: 'Équipe' },
 ]

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, FileText, Upload, Users, Plus, Search, ChevronRight, Mic, Type, Copy, Check, Key } from 'lucide-react'
+import { Building2, FileText, Upload, Users, Plus, Search, ChevronRight, Mic, Type, Copy, Check, Key, Briefcase } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -13,6 +13,7 @@ import type { Note, Document } from '@/types/database'
 interface Stats { accounts: number; notes: number; documents: number; team: number }
 interface RecentNote extends Note { account_name?: string; author_name?: string }
 interface RecentDoc extends Document { account_name?: string }
+interface PortfolioItem { id: string; account_id: string; accounts: { name: string; status: 'client' | 'prospect' } | null }
 
 function formatDate(d: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
@@ -27,6 +28,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [codeCopied, setCodeCopied] = useState(false)
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([])
 
   useEffect(() => {
     if (profileLoading) return
@@ -75,6 +77,17 @@ export default function DashboardPage() {
       }
 
       setLoading(false)
+
+      // Portfolio
+      if (profile?.id) {
+        const { data: pf } = await supabase
+          .from('portfolio')
+          .select('id, account_id, accounts(name, status)')
+          .eq('user_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(5)
+        setPortfolioItems((pf as unknown as PortfolioItem[]) ?? [])
+      }
     }
     fetch()
   }, [profileLoading, profile])
@@ -160,6 +173,63 @@ export default function DashboardPage() {
             <Search className="w-4 h-4" />
             <span className="text-xs">Rechercher</span>
           </Button>
+        </div>
+
+        {/* Portfolio section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#1E293B]">Mon portefeuille</h2>
+            <button
+              onClick={() => router.push('/app/portfolio')}
+              className="text-xs text-[#3B82F6] hover:underline font-medium"
+            >
+              Voir tout
+            </button>
+          </div>
+          {loading ? (
+            <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+          ) : portfolioItems.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
+              <Briefcase className="w-8 h-8 text-gray-200 shrink-0" />
+              <div>
+                <p className="text-sm text-[#64748B]">Votre portefeuille est vide.</p>
+                <button onClick={() => router.push('/app/portfolio')} className="text-xs text-[#3B82F6] hover:underline">Ajouter des entreprises</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 mb-3">
+                {(() => {
+                  const clients = portfolioItems.filter((p) => p.accounts?.status === 'client').length
+                  const prospects = portfolioItems.filter((p) => p.accounts?.status === 'prospect').length
+                  return <>
+                    {clients > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{clients} client{clients !== 1 ? 's' : ''}</span>}
+                    {prospects > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">{prospects} prospect{prospects !== 1 ? 's' : ''}</span>}
+                  </>
+                })()}
+              </div>
+              <div className="space-y-2">
+                {portfolioItems.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => router.push(`/app/accounts/${item.account_id}`)}
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 cursor-pointer hover:border-gray-200 hover:shadow-sm transition-all duration-150"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-[#1E2761]/10 flex items-center justify-center shrink-0">
+                      <Building2 className="w-3.5 h-3.5 text-[#1E2761]" />
+                    </div>
+                    <p className="flex-1 text-sm font-medium text-[#1E293B] truncate">{item.accounts?.name ?? '—'}</p>
+                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                      item.accounts?.status === 'prospect' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'
+                    }`}>
+                      {item.accounts?.status === 'prospect' ? 'Prospect' : 'Client'}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">

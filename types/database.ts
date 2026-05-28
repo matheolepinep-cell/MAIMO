@@ -97,6 +97,15 @@ export interface Permission {
   created_at: string
 }
 
+export interface Portfolio {
+  id: string
+  company_id: string
+  user_id: string
+  account_id: string
+  is_private: boolean
+  created_at: string
+}
+
 export interface SearchSource {
   type: 'note' | 'document'
   id: string
