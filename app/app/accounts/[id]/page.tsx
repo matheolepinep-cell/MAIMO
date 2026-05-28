@@ -142,6 +142,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setSavingContact(false)
   }
 
+  const handleStatusToggle = async () => {
+    if (!account) return
+    const newStatus = account.status === 'prospect' ? 'client' : 'prospect'
+    const supabase = createClient()
+    await supabase.from('accounts').update({ status: newStatus }).eq('id', id)
+    setAccount((prev) => prev ? { ...prev, status: newStatus } : prev)
+  }
+
   const handleDeleteContact = async (contactId: string) => {
     const supabase = createClient()
     await supabase.from('contacts').delete().eq('id', contactId)
@@ -373,7 +381,19 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-[#1E293B] truncate">{account.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-bold text-[#1E293B] truncate">{account.name}</h1>
+            <button
+              onClick={handleStatusToggle}
+              className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all ${
+                account.status === 'prospect'
+                  ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                  : 'bg-green-100 text-green-600 hover:bg-green-200'
+              }`}
+            >
+              {account.status === 'prospect' ? 'Prospect' : 'Client'}
+            </button>
+          </div>
           {account.city && <p className="text-xs text-[#64748B]">{account.city}{account.industry ? ` · ${account.industry}` : ''}</p>}
         </div>
       </div>

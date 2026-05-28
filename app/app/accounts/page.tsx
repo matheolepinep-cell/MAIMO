@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Building2, ChevronRight, MapPin, Briefcase } from 'lucide-react'
+import { Plus, Building2, ChevronRight, MapPin, Briefcase, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -24,6 +24,9 @@ export default function AccountsPage() {
   const [newIndustry, setNewIndustry] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'client' | 'prospect'>('all')
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchAccounts = async () => {
     const supabase = createClient()
@@ -59,7 +62,35 @@ export default function AccountsPage() {
     setCreating(false)
   }
 
-  const filtered = accounts.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
+  const handleDelete = async (accountId: string) => {
+    setDeleting(true)
+    const supabase = createClient()
+
+    const [{ data: docs }, { data: notes }] = await Promise.all([
+      supabase.from('documents').select('id, file_url').eq('account_id', accountId),
+      supabase.from('notes').select('id').eq('account_id', accountId),
+    ])
+
+    const docIds = (docs ?? []).map((d) => d.id)
+    const fileUrls = (docs ?? []).map((d) => d.file_url).filter(Boolean)
+    const noteIds = (notes ?? []).map((n) => n.id)
+    const sourceIds = [...docIds, ...noteIds]
+
+    if (fileUrls.length > 0) await supabase.storage.from('documents').remove(fileUrls)
+    if (sourceIds.length > 0) await supabase.from('chunks').delete().in('source_id', sourceIds)
+    if (docIds.length > 0) await supabase.from('documents').delete().eq('account_id', accountId)
+    await supabase.from('notes').delete().eq('account_id', accountId)
+    await supabase.from('contacts').delete().eq('account_id', accountId)
+    await supabase.from('accounts').delete().eq('id', accountId)
+
+    setAccounts((prev) => prev.filter((a) => a.id !== accountId))
+    setDeleteConfirmId(null)
+    setDeleting(false)
+  }
+
+  const filtered = accounts
+    .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((a) => statusFilter === 'all' || a.status === statusFilter)
 
   return (
     <div>
@@ -70,6 +101,20 @@ export default function AccountsPage() {
           <Button onClick={() => setModalOpen(true)} size="sm" className="ml-auto">
             <Plus className="w-4 h-4 mr-1.5" />Nouvelle entreprise
           </Button>
+        </div>
+
+        <div className="flex gap-2 mb-3">
+          {(['all', 'client', 'prospect'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setStatusFilter(f)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 ${
+                statusFilter === f ? 'bg-[#1E2761] text-white' : 'bg-white border border-gray-200 text-[#64748B] hover:bg-gray-50'
+              }`}
+            >
+              {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
+            </button>
+          ))}
         </div>
 
         <div className="mb-4">
@@ -91,7 +136,14 @@ export default function AccountsPage() {
                   <Building2 className="w-5 h-5 text-[#1E2761]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#1E293B] truncate">{account.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-[#1E293B] truncate">{account.name}</p>
+                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                      account.status === 'prospect' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'
+                    }`}>
+                      {account.status === 'prospect' ? 'Prospect' : 'Client'}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                     {account.city && (
                       <span className="flex items-center gap-1 text-xs text-[#64748B]">
@@ -105,12 +157,40 @@ export default function AccountsPage() {
                     )}
                   </div>
                 </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(account.id) }}
+                  className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150 shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
                 <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      <Modal
+        open={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        title="Supprimer l'entreprise"
+      >
+        <p className="text-sm text-[#64748B] mb-4">
+          Supprimer <span className="font-semibold text-[#1E293B]">{accounts.find((a) => a.id === deleteConfirmId)?.name}</span> ?
+          Cette action supprimera aussi toutes les notes, documents et contacts associés.
+          Cette action est irréversible.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setDeleteConfirmId(null)} className="flex-1">Annuler</Button>
+          <Button
+            onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+            loading={deleting}
+            className="flex-1 bg-red-500 hover:bg-red-600 border-red-500"
+          >
+            Supprimer
+          </Button>
+        </div>
+      </Modal>
 
       <Modal open={modalOpen} onClose={() => { setModalOpen(false); setCreateError('') }} title="Nouvelle entreprise">
         <form onSubmit={handleCreate} className="space-y-4">

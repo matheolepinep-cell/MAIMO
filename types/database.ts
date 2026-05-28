@@ -33,6 +33,7 @@ export interface Account {
   revenue: string | null
   employees: string | null
   notes_general: string | null
+  status: 'client' | 'prospect'
   created_at: string
   last_note_at: string | null
 }
