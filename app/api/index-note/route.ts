@@ -10,9 +10,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { note_id, content, client_id, company_id } = await request.json()
+  const { note_id, content, account_id, company_id } = await request.json()
 
-  if (!note_id || !content || !client_id) {
+  if (!note_id || !content || !account_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   const rows = chunks.map((chunk, i) => ({
     company_id: company_id ?? null,
-    client_id,
+    account_id,
     source_type: 'note' as const,
     source_id: note_id,
     content: chunk,

@@ -62,7 +62,7 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
         body: JSON.stringify({
           note_id: note.id,
           content: note.content,
-          client_id: clientId,
+          account_id: clientId,
           company_id: profile?.company_id ?? null,
         }),
       }).catch(console.error)

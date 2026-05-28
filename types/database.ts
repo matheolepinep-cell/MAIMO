@@ -79,7 +79,7 @@ export interface Document {
 export interface Chunk {
   id: string
   company_id: string
-  client_id: string
+  account_id: string
   source_type: 'note' | 'document'
   source_id: string
   content: string

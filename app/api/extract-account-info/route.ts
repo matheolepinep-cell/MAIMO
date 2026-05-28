@@ -34,9 +34,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { document_id, client_id, company_id } = await request.json()
+  const { document_id, account_id, company_id } = await request.json()
 
-  if (!document_id || !client_id || !company_id) {
+  if (!document_id || !account_id || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
@@ -115,7 +115,7 @@ Réponds uniquement avec le JSON, sans texte avant ou après.`,
   const { data: account } = await supabase
     .from('accounts')
     .select('*')
-    .eq('id', client_id)
+    .eq('id', account_id)
     .single()
 
   const updates: Record<string, string> = {}
@@ -129,7 +129,7 @@ Réponds uniquement avec le JSON, sans texte avant ou après.`,
   }
 
   if (Object.keys(updates).length > 0) {
-    await supabase.from('accounts').update(updates).eq('id', client_id)
+    await supabase.from('accounts').update(updates).eq('id', account_id)
   }
 
   // Insert new contacts (skip if same name already exists)
@@ -138,7 +138,7 @@ Réponds uniquement avec le JSON, sans texte avant ou après.`,
     const { data: existingContacts } = await supabase
       .from('contacts')
       .select('first_name, last_name')
-      .eq('account_id', client_id)
+      .eq('account_id', account_id)
 
     const existingNames = new Set(
       (existingContacts ?? []).map((c) => `${c.first_name.toLowerCase()} ${c.last_name.toLowerCase()}`)
@@ -153,7 +153,7 @@ Réponds uniquement avec le JSON, sans texte avant ou après.`,
       await supabase.from('contacts').insert(
         newContacts.map((c) => ({
           ...c,
-          account_id: client_id,
+          account_id: account_id,
           company_id,
           is_main_contact: c.is_main_contact ?? false,
         }))

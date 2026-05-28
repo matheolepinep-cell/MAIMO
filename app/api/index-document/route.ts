@@ -58,9 +58,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { document_id, file_url, file_type, client_id, company_id } = await request.json()
+  const { document_id, file_url, file_type, account_id, company_id } = await request.json()
 
-  if (!document_id || !file_url || !file_type || !client_id || !company_id) {
+  if (!document_id || !file_url || !file_type || !account_id || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
 
     const rows = chunks.map((chunk, i) => ({
       company_id,
-      client_id,
+      account_id,
       source_type: 'document' as const,
       source_id: document_id,
       content: chunk,
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/extract-account-info`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: request.headers.get('cookie') ?? '' },
-      body: JSON.stringify({ document_id, client_id, company_id }),
+      body: JSON.stringify({ document_id, account_id, company_id }),
     }).catch(() => {})
 
     return NextResponse.json({ success: true, chunks: rows.length })

@@ -170,7 +170,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       fetch('/api/index-note', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: note.id, content: note.content, client_id: id, company_id: profile?.company_id }),
+        body: JSON.stringify({ note_id: note.id, content: note.content, account_id: id, company_id: profile?.company_id }),
       }).catch(console.error)
     }
     setSavingNote(false)
@@ -249,12 +249,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           await fetch('/api/index-document', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ document_id: doc.id, file_url: storagePath, file_type: typeMap[file.type], client_id: id, company_id: profile.company_id }),
+            body: JSON.stringify({ document_id: doc.id, file_url: storagePath, file_type: typeMap[file.type], account_id: id, company_id: profile.company_id }),
           })
           const extractRes = await fetch('/api/extract-account-info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ document_id: doc.id, client_id: id, company_id: profile.company_id }),
+            body: JSON.stringify({ document_id: doc.id, account_id: id, company_id: profile.company_id }),
           })
           const extractData = await extractRes.json()
           lastMsg = extractData.message ?? ''
