@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import type { Client } from '@/types/database'
+import type { Account } from '@/types/database'
 
 function formatDate(date: string | null) {
   if (!date) return 'Aucune note'
@@ -20,7 +20,7 @@ function formatDate(date: string | null) {
 export default function ClientsPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
-  const [clients, setClients] = useState<Client[]>([])
+  const [clients, setClients] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -128,12 +128,6 @@ export default function ClientsPage() {
                     <span className="text-xs text-[#64748B]">
                       Dernière note : {formatDate(client.last_note_at)}
                     </span>
-                    {client.notes_count !== undefined && client.notes_count > 0 && (
-                      <span className="flex items-center gap-1 text-xs text-[#64748B]">
-                        <FileText className="w-3 h-3" />
-                        {client.notes_count}
-                      </span>
-                    )}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />

@@ -9,13 +9,13 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import type { UserProfile, Client, Permission } from '@/types/database'
+import type { UserProfile, Account, Permission } from '@/types/database'
 
 export default function AdminPage() {
   const router = useRouter()
   const { profile, loading } = useUser()
   const [users, setUsers] = useState<UserProfile[]>([])
-  const [clients, setClients] = useState<Pick<Client, 'id' | 'name'>[]>([])
+  const [clients, setClients] = useState<Pick<Account, 'id' | 'name'>[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [tab, setTab] = useState<'users' | 'permissions'>('users')
   const [modalOpen, setModalOpen] = useState(false)

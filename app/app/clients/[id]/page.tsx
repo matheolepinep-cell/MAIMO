@@ -8,13 +8,13 @@ import { useUser } from '@/contexts/UserContext'
 import { NoteInput } from '@/components/notes/NoteInput'
 import { NoteCard } from '@/components/notes/NoteCard'
 import { Button } from '@/components/ui/Button'
-import type { Client, Note } from '@/types/database'
+import type { Account, Note } from '@/types/database'
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
-  const [client, setClient] = useState<Client | null>(null)
+  const [client, setClient] = useState<Account | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
