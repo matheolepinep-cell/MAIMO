@@ -84,12 +84,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const { data: doc } = await supabase
       .from('documents')
       .insert({
-        client_id: id,
+        account_id: id,
         company_id: profile.company_id,
         user_id: profile.id,
         file_name: file.name,
         file_url: publicUrl,
         file_type: fileTypeMap[file.type],
+        title: file.name.replace(/\.[^.]+$/, ''),
         is_deleted: false,
       })
       .select()
