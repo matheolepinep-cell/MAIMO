@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Search, Mic, MicOff, Volume2, FileText, Upload, ExternalLink } from 'lucide-react'
+import { Search, Mic, MicOff, Volume2, FileText, Upload, ExternalLink, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -16,6 +16,8 @@ declare global {
   }
 }
 
+type Scope = 'account' | 'clients' | 'prospects' | 'all'
+
 function fmt(d?: string) {
   if (!d) return ''
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
@@ -24,7 +26,9 @@ function fmt(d?: string) {
 export default function SearchPage() {
   const { profile, loading: profileLoading } = useUser()
   const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
+  const [scope, setScope] = useState<Scope>('account')
   const [selectedId, setSelectedId] = useState('')
+  const [city, setCity] = useState('')
   const [query, setQuery] = useState('')
   const [answer, setAnswer] = useState('')
   const [sources, setSources] = useState<SearchSource[]>([])
@@ -43,9 +47,12 @@ export default function SearchPage() {
       .then(({ data }) => setAccounts(data ?? []))
   }, [profileLoading, profile])
 
+  const isReady = query.trim() && (scope !== 'account' || selectedId)
+
   const handleSearch = useCallback(async (q?: string) => {
     const searchQuery = q ?? query
-    if (!searchQuery.trim() || !selectedId || !profile) return
+    if (!searchQuery.trim() || !profile) return
+    if (scope === 'account' && !selectedId) return
 
     setLoading(true)
     setAnswer('')
@@ -55,7 +62,13 @@ export default function SearchPage() {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery, client_id: selectedId, company_id: profile.company_id }),
+        body: JSON.stringify({
+          query: searchQuery,
+          scope,
+          client_id: scope === 'account' ? selectedId : undefined,
+          city: city.trim() || undefined,
+          company_id: profile.company_id,
+        }),
       })
       const data = await res.json()
       setAnswer(data.answer ?? '')
@@ -71,7 +84,7 @@ export default function SearchPage() {
     } finally {
       setLoading(false)
     }
-  }, [query, selectedId, profile, recording])
+  }, [query, scope, selectedId, city, profile, recording])
 
   const startVoice = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -103,26 +116,74 @@ export default function SearchPage() {
     window.speechSynthesis.speak(utterance)
   }
 
+  const scopeOptions: { value: Scope; label: string }[] = [
+    { value: 'account', label: 'Une entreprise' },
+    { value: 'clients', label: 'Tous les clients' },
+    { value: 'prospects', label: 'Tous les prospects' },
+    { value: 'all', label: 'Toutes les entreprises' },
+  ]
+
   return (
     <div>
       <Header title="Recherche IA" />
       <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-4">
         <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Recherche IA</h1>
 
+        {/* Scope selector */}
         <div>
-          <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Entreprise</label>
-          <select
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150"
-          >
-            <option value="">Sélectionner une entreprise...</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
+          <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Périmètre</label>
+          <div className="flex flex-wrap gap-2">
+            {scopeOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setScope(opt.value)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 ${
+                  scope === opt.value
+                    ? 'bg-[#1E2761] text-white'
+                    : 'bg-white border border-gray-200 text-[#64748B] hover:bg-gray-50'
+                }`}
+              >
+                {opt.label}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
+        {/* Company dropdown — only for 'account' scope */}
+        {scope === 'account' && (
+          <div>
+            <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Entreprise</label>
+            <div className="relative">
+              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+              <select
+                value={selectedId}
+                onChange={(e) => setSelectedId(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150"
+              >
+                <option value="">Sélectionner une entreprise...</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* City filter */}
+        <div>
+          <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
+            Ville <span className="text-[#94A3B8] font-normal">(optionnel)</span>
+          </label>
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Lyon, Paris..."
+            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150"
+          />
+        </div>
+
+        {/* Question input */}
         <div>
           <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Question</label>
           <div className="flex gap-2">
@@ -148,7 +209,7 @@ export default function SearchPage() {
         <Button
           onClick={() => handleSearch()}
           loading={loading}
-          disabled={!query.trim() || !selectedId}
+          disabled={!isReady}
           className="w-full"
           size="lg"
         >

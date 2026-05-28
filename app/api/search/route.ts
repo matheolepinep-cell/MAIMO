@@ -21,12 +21,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { query, client_id, company_id } = await request.json()
+  const { query, scope = 'account', client_id, city, company_id } = await request.json()
 
-  if (!query || !client_id || !company_id) {
+  if (!query || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
-
+  if (scope === 'account' && !client_id) {
+    return NextResponse.json({ error: 'Missing client_id for account scope' }, { status: 400 })
+  }
   if (company_id !== user.company_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -36,41 +38,55 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Vectorize query
   const queryEmbedding = await embed(query)
 
-  // Search chunks via Supabase RPC
-  const { data: chunks, error } = await supabase.rpc('search_chunks', {
-    query_embedding: queryEmbedding,
-    match_client_id: client_id,
-    match_company_id: company_id,
-    match_count: 5,
-  })
+  let rawChunks: SearchChunk[]
 
-  if (error) {
-    console.error('Search error:', error)
-    return NextResponse.json({ error: 'Search failed' }, { status: 500 })
+  if (scope === 'account') {
+    const { data, error } = await supabase.rpc('search_chunks', {
+      query_embedding: queryEmbedding,
+      match_client_id: client_id,
+      match_company_id: company_id,
+      match_count: 5,
+    })
+    if (error) {
+      console.error('Search error:', error)
+      return NextResponse.json({ error: 'Search failed' }, { status: 500 })
+    }
+    rawChunks = (data as SearchChunk[]) ?? []
+  } else {
+    // Global search — fetch more to allow post-filtering
+    const { data, error } = await supabase.rpc('search_chunks_global', {
+      query_embedding: queryEmbedding,
+      match_company_id: company_id,
+      match_count: 20,
+    })
+    if (error) {
+      console.error('Global search error:', error)
+      return NextResponse.json({ error: 'Search failed' }, { status: 500 })
+    }
+    rawChunks = (data as SearchChunk[]) ?? []
   }
 
-  if (!chunks || chunks.length === 0) {
+  if (rawChunks.length === 0) {
     return NextResponse.json({
       answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question.",
       sources: [],
     })
   }
 
-  const typedChunks = chunks as SearchChunk[]
+  // Enrich notes and documents
+  const noteIds = rawChunks.filter((c) => c.source_type === 'note').map((c) => c.source_id)
+  const docIds = rawChunks.filter((c) => c.source_type === 'document').map((c) => c.source_id)
 
-  // Separate note and document source ids
-  const noteIds = typedChunks.filter((c) => c.source_type === 'note').map((c) => c.source_id)
-  const docIds = typedChunks.filter((c) => c.source_type === 'document').map((c) => c.source_id)
+  type NoteInfo = { title: string | null; created_at: string; author: string; account_id: string }
+  type DocInfo = { title: string | null; file_name: string; file_url: string; created_at: string; account_id: string }
 
-  // Enrich notes: get title + created_at + author (via users join)
-  let notesMap: Record<string, { title: string | null; created_at: string; author: string }> = {}
+  let notesMap: Record<string, NoteInfo> = {}
   if (noteIds.length > 0) {
     const { data: notes } = await supabase
       .from('notes')
-      .select('id, title, created_at, user_id')
+      .select('id, title, created_at, user_id, account_id')
       .in('id', noteIds)
 
     if (notes && notes.length > 0) {
@@ -80,17 +96,16 @@ export async function POST(request: Request) {
         : { data: [] }
       const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u.full_name]))
       notesMap = Object.fromEntries(
-        notes.map((n) => [n.id, { title: n.title, created_at: n.created_at, author: userMap[n.user_id] ?? 'Inconnu' }])
+        notes.map((n) => [n.id, { title: n.title, created_at: n.created_at, author: userMap[n.user_id] ?? 'Inconnu', account_id: n.account_id }])
       )
     }
   }
 
-  // Enrich documents: get title + file_name + file_url
-  let docsMap: Record<string, { title: string | null; file_name: string; file_url: string; created_at: string }> = {}
+  let docsMap: Record<string, DocInfo> = {}
   if (docIds.length > 0) {
     const { data: docs } = await supabase
       .from('documents')
-      .select('id, title, file_name, file_url, created_at')
+      .select('id, title, file_name, file_url, created_at, account_id')
       .in('id', docIds)
 
     if (docs) {
@@ -98,66 +113,94 @@ export async function POST(request: Request) {
     }
   }
 
-  const fmt = (d: string) =>
+  // For global scopes: filter by account status and/or city
+  let chunks = rawChunks
+  if (scope !== 'account') {
+    const allAccountIds = [
+      ...new Set([
+        ...Object.values(notesMap).map((n) => n.account_id),
+        ...Object.values(docsMap).map((d) => d.account_id),
+      ].filter(Boolean))
+    ]
+
+    if (allAccountIds.length > 0 && (scope === 'clients' || scope === 'prospects' || city)) {
+      let accQuery = supabase.from('accounts').select('id, status, city').in('id', allAccountIds)
+      const { data: accData } = await accQuery
+      const accMap = Object.fromEntries((accData ?? []).map((a) => [a.id, a]))
+
+      chunks = rawChunks.filter((chunk) => {
+        const accountId = chunk.source_type === 'note'
+          ? notesMap[chunk.source_id]?.account_id
+          : docsMap[chunk.source_id]?.account_id
+        if (!accountId) return false
+        const acc = accMap[accountId]
+        if (!acc) return false
+        if (scope === 'clients' && acc.status !== 'client') return false
+        if (scope === 'prospects' && acc.status !== 'prospect') return false
+        if (city && !acc.city?.toLowerCase().includes(city.toLowerCase())) return false
+        return true
+      }).slice(0, 5)
+    } else if (city) {
+      // city filter only, no account data fetched yet — handled above
+      chunks = rawChunks.slice(0, 5)
+    } else {
+      chunks = rawChunks.slice(0, 5)
+    }
+  }
+
+  // Also apply city filter for single-account scope
+  if (scope === 'account' && city) {
+    const { data: acc } = await supabase.from('accounts').select('city').eq('id', client_id).single()
+    if (acc && !acc.city?.toLowerCase().includes(city.toLowerCase())) {
+      return NextResponse.json({
+        answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question.",
+        sources: [],
+      })
+    }
+  }
+
+  if (chunks.length === 0) {
+    return NextResponse.json({
+      answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question dans ce périmètre.",
+      sources: [],
+    })
+  }
+
+  const fmtDate = (d: string) =>
     new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
 
-  // Build context string for Claude
-  const contextParts = typedChunks.map((chunk, i) => {
+  const contextParts = chunks.map((chunk, i) => {
     if (chunk.source_type === 'note') {
       const note = notesMap[chunk.source_id]
-      const dateStr = note ? fmt(note.created_at) : 'date inconnue'
-      const authorStr = note?.author ?? 'source inconnue'
-      return `[Extrait ${i + 1} — note du ${dateStr} par ${authorStr}]\n${chunk.content}`
+      return `[Extrait ${i + 1} — note du ${note ? fmtDate(note.created_at) : 'date inconnue'} par ${note?.author ?? 'source inconnue'}]\n${chunk.content}`
     } else {
       const doc = docsMap[chunk.source_id]
-      const dateStr = doc ? fmt(doc.created_at) : 'date inconnue'
-      const titleStr = doc?.title ?? doc?.file_name ?? 'document'
-      return `[Extrait ${i + 1} — document "${titleStr}" du ${dateStr}]\n${chunk.content}`
+      return `[Extrait ${i + 1} — document "${doc?.title ?? doc?.file_name ?? 'document'}" du ${doc ? fmtDate(doc.created_at) : 'date inconnue'}]\n${chunk.content}`
     }
   }).join('\n\n---\n\n')
 
-  // Claude Haiku generation
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
     system: `Tu es l'assistant commercial de l'équipe. Réponds uniquement à partir des extraits fournis. Si l'information n'est pas dans les extraits, dis-le clairement. Cite toujours ta source (note du JJ/MM/AAAA par Prénom, ou document "Titre").`,
-    messages: [
-      {
-        role: 'user',
-        content: `Extraits disponibles :\n\n${contextParts}\n\n---\n\nQuestion : ${query}`,
-      },
-    ],
+    messages: [{ role: 'user', content: `Extraits disponibles :\n\n${contextParts}\n\n---\n\nQuestion : ${query}` }],
   })
 
   const answer = message.content[0].type === 'text' ? message.content[0].text : ''
 
-  // Build SearchSource array (deduplicated by source_id)
   const seenIds = new Set<string>()
   const sources: SearchSource[] = []
 
-  for (const chunk of typedChunks) {
+  for (const chunk of chunks) {
     if (seenIds.has(chunk.source_id)) continue
     seenIds.add(chunk.source_id)
 
     if (chunk.source_type === 'note') {
       const note = notesMap[chunk.source_id]
-      sources.push({
-        type: 'note',
-        id: chunk.source_id,
-        title: note?.title ?? 'Note sans titre',
-        date: note?.created_at,
-        author: note?.author,
-      })
+      sources.push({ type: 'note', id: chunk.source_id, title: note?.title ?? 'Note sans titre', date: note?.created_at, author: note?.author })
     } else {
       const doc = docsMap[chunk.source_id]
-      sources.push({
-        type: 'document',
-        id: chunk.source_id,
-        title: doc?.title ?? doc?.file_name ?? 'Document',
-        file_name: doc?.file_name,
-        url: doc?.file_url,
-        date: doc?.created_at,
-      })
+      sources.push({ type: 'document', id: chunk.source_id, title: doc?.title ?? doc?.file_name ?? 'Document', file_name: doc?.file_name, url: doc?.file_url, date: doc?.created_at })
     }
   }
 
