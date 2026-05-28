@@ -56,7 +56,7 @@ export default function DashboardPage() {
       if (profile?.role === 'admin') setInviteCode(company?.invite_code ?? null)
 
       if (notes && notes.length > 0) {
-        const accountIds = [...new Set(notes.map((n) => n.client_id))]
+        const accountIds = [...new Set(notes.map((n) => n.account_id))]
         const userIds = [...new Set(notes.map((n) => n.user_id))]
         const [{ data: accounts }, { data: users }] = await Promise.all([
           supabase.from('accounts').select('id, name').in('id', accountIds),
@@ -64,7 +64,7 @@ export default function DashboardPage() {
         ])
         const accMap = Object.fromEntries((accounts ?? []).map((a) => [a.id, a.name]))
         const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u.full_name]))
-        setRecentNotes(notes.map((n) => ({ ...n, account_name: accMap[n.client_id], author_name: userMap[n.user_id] })))
+        setRecentNotes(notes.map((n) => ({ ...n, account_name: accMap[n.account_id], author_name: userMap[n.user_id] })))
       }
 
       if (docs && docs.length > 0) {
@@ -175,7 +175,7 @@ export default function DashboardPage() {
                 {recentNotes.map((note) => (
                   <div
                     key={note.id}
-                    onClick={() => router.push(`/app/accounts/${note.client_id}`)}
+                    onClick={() => router.push(`/app/accounts/${note.account_id}`)}
                     className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 cursor-pointer hover:border-gray-200 hover:shadow-sm transition-all duration-150"
                   >
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${note.source === 'vocal' ? 'bg-red-50' : 'bg-blue-50'}`}>

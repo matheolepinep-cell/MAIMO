@@ -90,7 +90,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     ] = await Promise.all([
       supabase.from('accounts').select('*').eq('id', id).single(),
       supabase.from('contacts').select('*').eq('account_id', id).order('is_main_contact', { ascending: false }),
-      supabase.from('notes').select('*').eq('client_id', id).eq('is_deleted', false).order('created_at', { ascending: false }),
+      supabase.from('notes').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false }),
       supabase.from('documents').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false }),
     ])
     setAccount(acc ?? null)
@@ -155,7 +155,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const { data: note, error } = await supabase.from('notes').insert({
-      client_id: id,
+      account_id: id,
       company_id: profile?.company_id ?? null,
       user_id: profile?.id ?? user?.id ?? null,
       title: noteTitle.trim(),

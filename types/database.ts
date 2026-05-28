@@ -53,7 +53,7 @@ export interface Contact {
 
 export interface Note {
   id: string
-  client_id: string
+  account_id: string
   company_id: string
   user_id: string
   title: string | null

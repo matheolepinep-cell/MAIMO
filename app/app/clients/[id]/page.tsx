@@ -27,7 +27,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       supabase
         .from('notes')
         .select('*')
-        .eq('client_id', id)
+        .eq('account_id', id)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false }),
     ])

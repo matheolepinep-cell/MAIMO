@@ -40,7 +40,7 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
     const { data: note, error } = await supabase
       .from('notes')
       .insert({
-        client_id: clientId,
+        account_id: clientId,
         company_id: profile?.company_id ?? null,
         user_id: profile?.id ?? user?.id ?? null,
         title: title.trim() || null,
