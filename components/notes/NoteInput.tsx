@@ -22,6 +22,7 @@ declare global {
 export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
   const { profile } = useUser()
   const [mode, setMode] = useState<'text' | 'vocal'>('text')
+  const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [recording, setRecording] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -34,28 +35,26 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
     setSaving(true)
 
     const supabase = createClient()
-
-    // Fallback sur l'auth user si le profil complet n'est pas disponible
     const { data: { user } } = await supabase.auth.getUser()
-
-    const insertData = {
-      client_id: clientId,
-      company_id: profile?.company_id ?? null,
-      user_id: profile?.id ?? user?.id ?? null,
-      content: content.trim(),
-      source,
-      is_deleted: false,
-    }
 
     const { data: note, error } = await supabase
       .from('notes')
-      .insert(insertData)
+      .insert({
+        client_id: clientId,
+        company_id: profile?.company_id ?? null,
+        user_id: profile?.id ?? user?.id ?? null,
+        title: title.trim() || null,
+        content: content.trim(),
+        source,
+        is_deleted: false,
+      })
       .select()
       .single()
 
     if (error) {
       setSaveError(error.message)
     } else if (note) {
+      setTitle('')
       setText('')
       fetch('/api/index-note', {
         method: 'POST',
@@ -71,7 +70,7 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
     }
 
     setSaving(false)
-  }, [profile, clientId, onNoteSaved])
+  }, [profile, clientId, title, onNoteSaved])
 
   const startRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -115,7 +114,6 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-      {/* Mode toggle */}
       <div className="flex gap-2 mb-3">
         <button
           onClick={() => setMode('text')}
@@ -138,6 +136,15 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
           Vocal
         </button>
       </div>
+
+      {/* Optional title */}
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Titre (optionnel)"
+        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150 mb-3"
+      />
 
       {mode === 'text' ? (
         <form onSubmit={handleTextSubmit} className="space-y-3">

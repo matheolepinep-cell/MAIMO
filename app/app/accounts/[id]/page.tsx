@@ -37,6 +37,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [contacts, setContacts] = useState<Contact[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
+  const [uploaderMap, setUploaderMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('notes')
 
@@ -59,11 +60,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [noteError, setNoteError] = useState('')
   const recognitionRef = { current: null as SpeechRecognition | null }
 
-  // Document upload
+  // Document upload + management
   const [docTitle, setDocTitle] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
   const [uploadError, setUploadError] = useState('')
+  const [openingDocId, setOpeningDocId] = useState<string | null>(null)
+  const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null)
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
 
   // AI Search tab
   const [searchQuery, setSearchQuery] = useState('')
@@ -90,7 +94,18 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setAccount(acc ?? null)
     setContacts(ctcs ?? [])
     setNotes(nts ?? [])
-    setDocuments(docs ?? [])
+    const docList = docs ?? []
+    setDocuments(docList)
+
+    // Fetch uploader names for documents
+    if (docList.length > 0) {
+      const uploaderIds = [...new Set(docList.map((d) => d.uploaded_by).filter(Boolean))]
+      if (uploaderIds.length > 0) {
+        const { data: uploaders } = await supabase.from('users').select('id, full_name').in('id', uploaderIds)
+        setUploaderMap(Object.fromEntries((uploaders ?? []).map((u) => [u.id, u.full_name])))
+      }
+    }
+
     setLoading(false)
   }, [id])
 
@@ -194,44 +209,43 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setUploadError(''); setUploading(true); setUploadMsg('')
     const supabase = createClient()
     const ext = file.name.split('.').pop()
-    const path = `${profile.company_id}/${id}/${Date.now()}.${ext}`
+    const storagePath = `${profile.company_id}/${id}/${Date.now()}.${ext}`
 
-    const { error: uploadError } = await supabase.storage.from('documents').upload(path, file)
-    if (uploadError) { setUploadError('Erreur upload : ' + uploadError.message); setUploading(false); return }
+    const { error: storageError } = await supabase.storage.from('documents').upload(storagePath, file)
+    if (storageError) { setUploadError('Erreur upload : ' + storageError.message); setUploading(false); return }
 
-    const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path)
     const typeMap: Record<string, string> = {
       'application/pdf': 'pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
     }
+
+    // Store storage path in file_url (not a public URL — bucket is private)
     const { data: doc } = await supabase.from('documents').insert({
       client_id: id, company_id: profile.company_id, uploaded_by: profile.id,
-      file_name: file.name, file_url: publicUrl, file_type: typeMap[file.type],
+      file_name: file.name, file_url: storagePath, file_type: typeMap[file.type],
       title: docTitle.trim(), is_indexed: false,
     }).select().single()
 
     if (doc) {
       setDocuments((prev) => [doc, ...prev])
+      if (profile) setUploaderMap((prev) => ({ ...prev, [profile.id]: profile.full_name }))
       setDocTitle('')
       setUploadMsg('Indexation en cours…')
 
-      // Index then extract
       try {
         await fetch('/api/index-document', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ document_id: doc.id, file_url: publicUrl, file_type: typeMap[file.type], client_id: id, company_id: profile.company_id }),
+          body: JSON.stringify({ document_id: doc.id, file_url: storagePath, file_type: typeMap[file.type], client_id: id, company_id: profile.company_id }),
         })
         const extractRes = await fetch('/api/extract-account-info', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ document_id: doc.id, account_id: id, company_id: profile.company_id }),
+          body: JSON.stringify({ document_id: doc.id, client_id: id, company_id: profile.company_id }),
         })
         const extractData = await extractRes.json()
-        if (extractData.summary) setUploadMsg(extractData.summary)
-        else setUploadMsg('Document indexé.')
-        // Refresh account info in case fields were auto-filled
+        setUploadMsg(extractData.message ?? 'Document indexé.')
         fetchAll()
       } catch {
         setUploadMsg('Document uploadé (indexation en arrière-plan).')
@@ -240,6 +254,28 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
     setUploading(false)
     e.target.value = ''
+  }
+
+  const handleOpenDocument = async (doc: Document) => {
+    setOpeningDocId(doc.id)
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/url`)
+      const { url } = await res.json()
+      if (url) window.open(url, '_blank')
+    } catch {
+      // fallback — nothing to do
+    }
+    setOpeningDocId(null)
+  }
+
+  const handleDeleteDocument = async (docId: string) => {
+    setDeletingDocId(docId)
+    const supabase = createClient()
+    await supabase.from('chunks').delete().eq('source_id', docId).eq('source_type', 'document')
+    await supabase.from('documents').delete().eq('id', docId)
+    setDocuments((prev) => prev.filter((d) => d.id !== docId))
+    setConfirmDeleteDocId(null)
+    setDeletingDocId(null)
   }
 
   /* ─── AI search ─── */
@@ -513,19 +549,64 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   <div className="text-center py-8"><Upload className="w-10 h-10 text-gray-200 mx-auto mb-2" /><p className="text-sm text-[#64748B]">Aucun document</p></div>
                 ) : (
                   <div className="space-y-3">
-                    {documents.map((doc) => (
-                      <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3 hover:shadow-sm hover:border-gray-200 transition-all duration-150">
-                        <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-purple-600 uppercase">{doc.file_type}</span>
+                    {documents.map((doc) => {
+                      const iconColor = doc.file_type === 'pdf' ? 'bg-red-50 text-red-600' : doc.file_type === 'docx' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'
+                      const isConfirming = confirmDeleteDocId === doc.id
+                      const isDeleting = deletingDocId === doc.id
+                      const isOpening = openingDocId === doc.id
+                      return (
+                        <div key={doc.id} className="bg-white rounded-xl border border-gray-100 p-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconColor}`}>
+                              <span className="text-xs font-bold uppercase">{doc.file_type}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
+                              <p className="text-xs text-[#64748B] truncate">{doc.file_name}</p>
+                              <p className="text-xs text-[#94A3B8]">
+                                {uploaderMap[doc.uploaded_by] ?? 'Inconnu'} · {fmtDay(doc.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
+                            <button
+                              onClick={() => handleOpenDocument(doc)}
+                              disabled={isOpening}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#3B82F6] bg-blue-50 hover:bg-blue-100 transition-all duration-150"
+                            >
+                              {isOpening
+                                ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                : <ExternalLink className="w-3.5 h-3.5" />}
+                              Ouvrir
+                            </button>
+                            {isConfirming ? (
+                              <div className="flex gap-1.5 ml-auto">
+                                <button
+                                  onClick={() => handleDeleteDocument(doc.id)}
+                                  disabled={isDeleting}
+                                  className="px-2.5 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600"
+                                >
+                                  {isDeleting ? '…' : 'Supprimer'}
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteDocId(null)}
+                                  className="px-2.5 py-1.5 text-xs font-medium text-[#64748B] bg-gray-100 rounded-lg hover:bg-gray-200"
+                                >
+                                  Annuler
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDeleteDocId(doc.id)}
+                                className="ml-auto p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
-                          <p className="text-xs text-[#64748B] truncate">{doc.file_name} · {fmt(doc.created_at)}</p>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-gray-300 shrink-0" />
-                      </a>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </>

@@ -4,6 +4,14 @@ import { getAuthenticatedUser } from '@/lib/auth-server'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
 
+async function resolveFileUrl(fileUrl: string, supabase: { storage: { from: (b: string) => { createSignedUrl: (p: string, s: number) => Promise<{ data: { signedUrl: string } | null }> } } }): Promise<string> {
+  if (!fileUrl.startsWith('http')) {
+    const { data } = await supabase.storage.from('documents').createSignedUrl(fileUrl, 3600)
+    if (data?.signedUrl) return data.signedUrl
+  }
+  return fileUrl
+}
+
 async function extractText(fileUrl: string, fileType: string): Promise<string> {
   const response = await fetch(fileUrl)
   const buffer = await response.arrayBuffer()
@@ -56,7 +64,8 @@ export async function POST(request: Request) {
   )
 
   try {
-    const text = await extractText(file_url, file_type)
+    const resolvedUrl = await resolveFileUrl(file_url, supabase)
+    const text = await extractText(resolvedUrl, file_type)
     const chunks = chunkText(text)
 
     if (chunks.length === 0) {
