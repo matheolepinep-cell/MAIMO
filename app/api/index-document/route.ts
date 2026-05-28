@@ -69,7 +69,6 @@ export async function POST(request: Request) {
     const chunks = chunkText(text)
 
     if (chunks.length === 0) {
-      await supabase.from('documents').update({ is_indexed: true }).eq('id', document_id)
       return NextResponse.json({ success: true, chunks: 0 })
     }
 
@@ -88,7 +87,6 @@ export async function POST(request: Request) {
     }))
 
     await supabase.from('chunks').insert(rows)
-    await supabase.from('documents').update({ is_indexed: true }).eq('id', document_id)
 
     // Trigger auto-extraction in background (non-blocking)
     fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/extract-account-info`, {

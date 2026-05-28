@@ -61,13 +61,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const recognitionRef = { current: null as SpeechRecognition | null }
 
   // Document upload + management
-  const [docTitle, setDocTitle] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
   const [uploadMsg, setUploadMsg] = useState('')
   const [uploadError, setUploadError] = useState('')
   const [openingDocId, setOpeningDocId] = useState<string | null>(null)
   const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null)
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
+  const [renamingDocId, setRenamingDocId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   // AI Search tab
   const [searchQuery, setSearchQuery] = useState('')
@@ -89,7 +91,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       supabase.from('accounts').select('*').eq('id', id).single(),
       supabase.from('contacts').select('*').eq('account_id', id).order('is_main_contact', { ascending: false }),
       supabase.from('notes').select('*').eq('client_id', id).eq('is_deleted', false).order('created_at', { ascending: false }),
-      supabase.from('documents').select('*').eq('client_id', id).order('created_at', { ascending: false }),
+      supabase.from('documents').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false }),
     ])
     setAccount(acc ?? null)
     setContacts(ctcs ?? [])
@@ -99,7 +101,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
     // Fetch uploader names for documents
     if (docList.length > 0) {
-      const uploaderIds = [...new Set(docList.map((d) => d.uploaded_by).filter(Boolean))]
+      const uploaderIds = [...new Set(docList.map((d) => d.user_id).filter(Boolean))]
       if (uploaderIds.length > 0) {
         const { data: uploaders } = await supabase.from('users').select('id, full_name').in('id', uploaderIds)
         setUploaderMap(Object.fromEntries((uploaders ?? []).map((u) => [u.id, u.full_name])))
@@ -200,59 +202,72 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
   /* ─── documents ─── */
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !profile) return
-    if (!docTitle.trim()) { setUploadError('Le titre est obligatoire avant d\'uploader.'); return }
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0 || !profile) return
+
     const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
-    if (!allowed.includes(file.type)) { setUploadError('Format non supporté (PDF, DOCX, XLSX).'); return }
+    const invalid = files.filter((f) => !allowed.includes(f.type))
+    if (invalid.length > 0) { setUploadError(`Format non supporté : ${invalid.map((f) => f.name).join(', ')}. Acceptés : PDF, DOCX, XLSX.`); return }
 
-    setUploadError(''); setUploading(true); setUploadMsg('')
-    const supabase = createClient()
-    const ext = file.name.split('.').pop()
-    const storagePath = `${profile.company_id}/${id}/${Date.now()}.${ext}`
-
-    const { error: storageError } = await supabase.storage.from('documents').upload(storagePath, file)
-    if (storageError) { setUploadError('Erreur upload : ' + storageError.message); setUploading(false); return }
-
-    const typeMap: Record<string, string> = {
+    const typeMap: Record<string, 'pdf' | 'docx' | 'xlsx'> = {
       'application/pdf': 'pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
     }
 
-    // Store storage path in file_url (not a public URL — bucket is private)
-    const { data: doc } = await supabase.from('documents').insert({
-      client_id: id, company_id: profile.company_id, uploaded_by: profile.id,
-      file_name: file.name, file_url: storagePath, file_type: typeMap[file.type],
-      title: docTitle.trim(), is_indexed: false,
-    }).select().single()
+    setUploadError(''); setUploading(true); setUploadMsg(''); setUploadProgress({ current: 0, total: files.length })
+    const supabase = createClient()
+    let lastMsg = ''
 
-    if (doc) {
-      setDocuments((prev) => [doc, ...prev])
-      if (profile) setUploaderMap((prev) => ({ ...prev, [profile.id]: profile.full_name }))
-      setDocTitle('')
-      setUploadMsg('Indexation en cours…')
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      setUploadProgress({ current: i + 1, total: files.length })
 
-      try {
-        await fetch('/api/index-document', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ document_id: doc.id, file_url: storagePath, file_type: typeMap[file.type], client_id: id, company_id: profile.company_id }),
-        })
-        const extractRes = await fetch('/api/extract-account-info', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ document_id: doc.id, client_id: id, company_id: profile.company_id }),
-        })
-        const extractData = await extractRes.json()
-        setUploadMsg(extractData.message ?? 'Document indexé.')
-        fetchAll()
-      } catch {
-        setUploadMsg('Document uploadé (indexation en arrière-plan).')
+      const ext = file.name.split('.').pop()
+      const storagePath = `${profile.company_id}/${id}/${Date.now()}-${i}.${ext}`
+      const titleFromName = file.name.replace(/\.[^.]+$/, '')
+
+      const { error: storageError } = await supabase.storage.from('documents').upload(storagePath, file)
+      if (storageError) { setUploadError(`Erreur pour ${file.name} : ${storageError.message}`); continue }
+
+      const { data: doc } = await supabase.from('documents').insert({
+        account_id: id,
+        company_id: profile.company_id,
+        user_id: profile.id,
+        file_name: file.name,
+        file_url: storagePath,
+        file_type: typeMap[file.type],
+        title: titleFromName,
+        is_deleted: false,
+      }).select().single()
+
+      if (doc) {
+        setDocuments((prev) => [doc, ...prev])
+        setUploaderMap((prev) => ({ ...prev, [profile.id]: profile.full_name }))
+
+        try {
+          await fetch('/api/index-document', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document_id: doc.id, file_url: storagePath, file_type: typeMap[file.type], client_id: id, company_id: profile.company_id }),
+          })
+          const extractRes = await fetch('/api/extract-account-info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document_id: doc.id, client_id: id, company_id: profile.company_id }),
+          })
+          const extractData = await extractRes.json()
+          lastMsg = extractData.message ?? ''
+        } catch {
+          lastMsg = ''
+        }
       }
     }
 
     setUploading(false)
+    setUploadProgress(null)
+    setUploadMsg(lastMsg || `${files.length} fichier${files.length > 1 ? 's' : ''} uploadé${files.length > 1 ? 's' : ''}.`)
+    fetchAll()
     e.target.value = ''
   }
 
@@ -262,9 +277,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       const res = await fetch(`/api/documents/${doc.id}/url`)
       const { url } = await res.json()
       if (url) window.open(url, '_blank')
-    } catch {
-      // fallback — nothing to do
-    }
+    } catch { /* nothing */ }
     setOpeningDocId(null)
   }
 
@@ -272,10 +285,24 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setDeletingDocId(docId)
     const supabase = createClient()
     await supabase.from('chunks').delete().eq('source_id', docId).eq('source_type', 'document')
-    await supabase.from('documents').delete().eq('id', docId)
+    await supabase.from('documents').update({ is_deleted: true }).eq('id', docId)
     setDocuments((prev) => prev.filter((d) => d.id !== docId))
     setConfirmDeleteDocId(null)
     setDeletingDocId(null)
+  }
+
+  const startRename = (doc: Document) => {
+    setRenamingDocId(doc.id)
+    setRenameValue(doc.title ?? doc.file_name.replace(/\.[^.]+$/, ''))
+  }
+
+  const confirmRename = async (docId: string) => {
+    const newTitle = renameValue.trim()
+    if (!newTitle) { setRenamingDocId(null); return }
+    const supabase = createClient()
+    await supabase.from('documents').update({ title: newTitle }).eq('id', docId)
+    setDocuments((prev) => prev.map((d) => d.id === docId ? { ...d, title: newTitle } : d))
+    setRenamingDocId(null)
   }
 
   /* ─── AI search ─── */
@@ -536,12 +563,27 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             {tab === 'documents' && (
               <>
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
-                  <Input placeholder="Titre du document (obligatoire)" value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
                   {uploadError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{uploadError}</p>}
-                  {uploadMsg && <p className="text-xs text-[#10B981] bg-green-50 px-3 py-2 rounded-lg">{uploadMsg}</p>}
-                  <label className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-sm font-medium transition-all duration-150 cursor-pointer ${docTitle.trim() ? 'border-[#3B82F6] text-[#3B82F6] hover:bg-blue-50' : 'border-gray-200 text-[#94A3B8] cursor-not-allowed'}`}>
-                    <input type="file" accept=".pdf,.docx,.xlsx" className="hidden" onChange={handleFileUpload} disabled={uploading || !docTitle.trim()} />
-                    {uploading ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Traitement…</> : <><Upload className="w-4 h-4" />Choisir un fichier (PDF, DOCX, XLSX)</>}
+                  {uploadMsg && !uploading && <p className="text-xs text-[#10B981] bg-green-50 px-3 py-2 rounded-lg">{uploadMsg}</p>}
+                  {uploadProgress && (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs text-[#64748B]">
+                        <span>Traitement en cours…</span>
+                        <span className="font-medium">{uploadProgress.current}/{uploadProgress.total} fichiers</span>
+                      </div>
+                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#3B82F6] rounded-full transition-all duration-300"
+                          style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <label className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-sm font-medium transition-all duration-150 cursor-pointer ${!uploading ? 'border-[#3B82F6] text-[#3B82F6] hover:bg-blue-50' : 'border-gray-200 text-[#94A3B8] cursor-not-allowed'}`}>
+                    <input type="file" accept=".pdf,.docx,.xlsx" multiple className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                    {uploading
+                      ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Traitement…</>
+                      : <><Upload className="w-4 h-4" />Choisir des fichiers (PDF, DOCX, XLSX)</>}
                   </label>
                 </div>
 
@@ -554,6 +596,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       const isConfirming = confirmDeleteDocId === doc.id
                       const isDeleting = deletingDocId === doc.id
                       const isOpening = openingDocId === doc.id
+                      const isRenaming = renamingDocId === doc.id
                       return (
                         <div key={doc.id} className="bg-white rounded-xl border border-gray-100 p-3">
                           <div className="flex items-center gap-3">
@@ -561,10 +604,24 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                               <span className="text-xs font-bold uppercase">{doc.file_type}</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
+                              {isRenaming ? (
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={renameValue}
+                                  onChange={(e) => setRenameValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') confirmRename(doc.id)
+                                    if (e.key === 'Escape') setRenamingDocId(null)
+                                  }}
+                                  className="w-full px-2 py-1 text-sm text-[#1E293B] border border-[#3B82F6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
+                                />
+                              ) : (
+                                <p className="text-sm font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
+                              )}
                               <p className="text-xs text-[#64748B] truncate">{doc.file_name}</p>
                               <p className="text-xs text-[#94A3B8]">
-                                {uploaderMap[doc.uploaded_by] ?? 'Inconnu'} · {fmtDay(doc.created_at)}
+                                {uploaderMap[doc.user_id] ?? 'Inconnu'} · {fmtDay(doc.created_at)}
                               </p>
                             </div>
                           </div>
@@ -574,11 +631,19 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                               disabled={isOpening}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#3B82F6] bg-blue-50 hover:bg-blue-100 transition-all duration-150"
                             >
-                              {isOpening
-                                ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                : <ExternalLink className="w-3.5 h-3.5" />}
+                              {isOpening ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
                               Ouvrir
                             </button>
+                            {isRenaming ? (
+                              <div className="flex gap-1.5">
+                                <button onClick={() => confirmRename(doc.id)} className="px-2.5 py-1.5 text-xs font-medium text-white bg-[#3B82F6] rounded-lg hover:bg-blue-600">OK</button>
+                                <button onClick={() => setRenamingDocId(null)} className="px-2.5 py-1.5 text-xs font-medium text-[#64748B] bg-gray-100 rounded-lg hover:bg-gray-200">✕</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => startRename(doc)} className="p-1.5 rounded-lg text-gray-300 hover:text-[#3B82F6] hover:bg-blue-50 transition-all duration-150">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             {isConfirming ? (
                               <div className="flex gap-1.5 ml-auto">
                                 <button

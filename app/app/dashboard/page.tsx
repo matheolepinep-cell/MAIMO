@@ -68,10 +68,10 @@ export default function DashboardPage() {
       }
 
       if (docs && docs.length > 0) {
-        const accountIds = [...new Set(docs.map((d) => d.client_id))]
+        const accountIds = [...new Set(docs.map((d) => d.account_id))]
         const { data: accounts } = await supabase.from('accounts').select('id, name').in('id', accountIds)
         const accMap = Object.fromEntries((accounts ?? []).map((a) => [a.id, a.name]))
-        setRecentDocs(docs.map((d) => ({ ...d, account_name: accMap[d.client_id] })))
+        setRecentDocs(docs.map((d) => ({ ...d, account_name: accMap[d.account_id] })))
       }
 
       setLoading(false)
@@ -204,7 +204,7 @@ export default function DashboardPage() {
                 {recentDocs.map((doc) => (
                   <div
                     key={doc.id}
-                    onClick={() => router.push(`/app/accounts/${doc.client_id}`)}
+                    onClick={() => router.push(`/app/accounts/${doc.account_id}`)}
                     className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 cursor-pointer hover:border-gray-200 hover:shadow-sm transition-all duration-150"
                   >
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${

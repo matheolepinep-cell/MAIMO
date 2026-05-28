@@ -65,14 +65,14 @@ export interface Note {
 
 export interface Document {
   id: string
-  client_id: string
+  account_id: string
   company_id: string
-  uploaded_by: string
+  user_id: string
   file_name: string
   file_url: string
   file_type: 'pdf' | 'docx' | 'xlsx'
   title: string | null
-  is_indexed: boolean
+  is_deleted: boolean
   created_at: string
 }
 
