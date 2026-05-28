@@ -86,11 +86,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       .insert({
         client_id: id,
         company_id: profile.company_id,
-        uploaded_by: profile.id,
+        user_id: profile.id,
         file_name: file.name,
         file_url: publicUrl,
         file_type: fileTypeMap[file.type],
-        is_indexed: false,
+        is_deleted: false,
       })
       .select()
       .single()
