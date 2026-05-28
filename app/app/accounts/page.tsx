@@ -2,15 +2,40 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Building2, ChevronRight, MapPin, Briefcase, Trash2 } from 'lucide-react'
+import { Building2, ChevronRight, MapPin, Briefcase } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Modal } from '@/components/ui/Modal'
 import type { Account } from '@/types/database'
+
+async function getAccessibleAccountIds(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  companyId: string
+): Promise<string[]> {
+  const { data: entries } = await supabase
+    .from('portfolio')
+    .select('id, account_id, user_id, visibility')
+    .eq('company_id', companyId)
+
+  const entryIds = (entries ?? []).map((p: { id: string }) => p.id)
+
+  const { data: myAccess } = entryIds.length > 0
+    ? await supabase.from('portfolio_access').select('portfolio_id').in('portfolio_id', entryIds).eq('user_id', userId)
+    : { data: [] }
+
+  const myAccessSet = new Set((myAccess ?? []).map((a: { portfolio_id: string }) => a.portfolio_id))
+
+  return (entries ?? [])
+    .filter((p: { user_id: string; visibility: string; id: string }) =>
+      p.user_id === userId ||
+      p.visibility === 'team' ||
+      (p.visibility === 'custom' && myAccessSet.has(p.id))
+    )
+    .map((p: { account_id: string }) => p.account_id)
+}
 
 export default function AccountsPage() {
   const router = useRouter()
@@ -18,21 +43,28 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [modalOpen, setModalOpen] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newCity, setNewCity] = useState('')
-  const [newIndustry, setNewIndustry] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'client' | 'prospect'>('all')
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
 
   const fetchAccounts = async () => {
+    if (!profile?.company_id) return
     const supabase = createClient()
-    let q = supabase.from('accounts').select('*').order('created_at', { ascending: false })
-    if (profile?.company_id) q = q.eq('company_id', profile.company_id)
-    const { data } = await q
+
+    let accountIds: string[]
+    if (profile.role === 'admin') {
+      const { data } = await supabase.from('accounts').select('id').eq('company_id', profile.company_id)
+      accountIds = (data ?? []).map((a: { id: string }) => a.id)
+    } else {
+      accountIds = await getAccessibleAccountIds(supabase, profile.id, profile.company_id)
+    }
+
+    if (accountIds.length === 0) { setAccounts([]); setLoading(false); return }
+
+    const { data } = await supabase
+      .from('accounts')
+      .select('*')
+      .in('id', accountIds)
+      .order('created_at', { ascending: false })
+
     setAccounts(data ?? [])
     setLoading(false)
   }
@@ -41,66 +73,16 @@ export default function AccountsPage() {
     if (!profileLoading) fetchAccounts()
   }, [profileLoading, profile])
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCreateError('')
-    if (!newName.trim()) return
-    if (!profile) { setCreateError('Session expirée.'); return }
-    setCreating(true)
-
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('accounts')
-      .insert({ name: newName.trim(), city: newCity.trim() || null, industry: newIndustry.trim() || null, company_id: profile.company_id })
-      .select().single()
-
-    if (error) { setCreateError(error.message) }
-    else if (data) {
-      setAccounts((prev) => [data, ...prev])
-      setModalOpen(false); setNewName(''); setNewCity(''); setNewIndustry('')
-    }
-    setCreating(false)
-  }
-
-  const handleDelete = async (accountId: string) => {
-    setDeleting(true)
-    const supabase = createClient()
-
-    const [{ data: docs }, { data: notes }] = await Promise.all([
-      supabase.from('documents').select('id, file_url').eq('account_id', accountId),
-      supabase.from('notes').select('id').eq('account_id', accountId),
-    ])
-
-    const docIds = (docs ?? []).map((d) => d.id)
-    const fileUrls = (docs ?? []).map((d) => d.file_url).filter(Boolean)
-    const noteIds = (notes ?? []).map((n) => n.id)
-    const sourceIds = [...docIds, ...noteIds]
-
-    if (fileUrls.length > 0) await supabase.storage.from('documents').remove(fileUrls)
-    if (sourceIds.length > 0) await supabase.from('chunks').delete().in('source_id', sourceIds)
-    if (docIds.length > 0) await supabase.from('documents').delete().eq('account_id', accountId)
-    await supabase.from('notes').delete().eq('account_id', accountId)
-    await supabase.from('contacts').delete().eq('account_id', accountId)
-    await supabase.from('accounts').delete().eq('id', accountId)
-
-    setAccounts((prev) => prev.filter((a) => a.id !== accountId))
-    setDeleteConfirmId(null)
-    setDeleting(false)
-  }
-
   const filtered = accounts
     .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
     .filter((a) => statusFilter === 'all' || a.status === statusFilter)
 
   return (
     <div>
-      <Header title="Entreprises" />
+      <Header title="Entreprises accessibles" />
       <div className="p-4 md:p-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Entreprises</h1>
-          <Button onClick={() => setModalOpen(true)} size="sm" className="ml-auto">
-            <Plus className="w-4 h-4 mr-1.5" />Nouvelle entreprise
-          </Button>
+          <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Entreprises accessibles</h1>
         </div>
 
         <div className="flex gap-2 mb-3">
@@ -126,7 +108,9 @@ export default function AccountsPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-[#64748B]">{search ? 'Aucune entreprise trouvée' : 'Aucune entreprise. Créez la première !'}</p>
+            <p className="text-[#64748B]">
+              {search || statusFilter !== 'all' ? 'Aucune entreprise trouvée.' : 'Aucune entreprise accessible pour le moment.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -145,65 +129,16 @@ export default function AccountsPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    {account.city && (
-                      <span className="flex items-center gap-1 text-xs text-[#64748B]">
-                        <MapPin className="w-3 h-3" />{account.city}
-                      </span>
-                    )}
-                    {account.industry && (
-                      <span className="flex items-center gap-1 text-xs text-[#64748B]">
-                        <Briefcase className="w-3 h-3" />{account.industry}
-                      </span>
-                    )}
+                    {account.city && <span className="flex items-center gap-1 text-xs text-[#64748B]"><MapPin className="w-3 h-3" />{account.city}</span>}
+                    {account.industry && <span className="flex items-center gap-1 text-xs text-[#64748B]"><Briefcase className="w-3 h-3" />{account.industry}</span>}
                   </div>
                 </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(account.id) }}
-                  className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150 shrink-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
                 <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
               </Card>
             ))}
           </div>
         )}
       </div>
-
-      <Modal
-        open={!!deleteConfirmId}
-        onClose={() => setDeleteConfirmId(null)}
-        title="Supprimer l'entreprise"
-      >
-        <p className="text-sm text-[#64748B] mb-4">
-          Supprimer <span className="font-semibold text-[#1E293B]">{accounts.find((a) => a.id === deleteConfirmId)?.name}</span> ?
-          Cette action supprimera aussi toutes les notes, documents et contacts associés.
-          Cette action est irréversible.
-        </p>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setDeleteConfirmId(null)} className="flex-1">Annuler</Button>
-          <Button
-            onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
-            loading={deleting}
-            className="flex-1 bg-red-500 hover:bg-red-600 border-red-500"
-          >
-            Supprimer
-          </Button>
-        </div>
-      </Modal>
-
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setCreateError('') }} title="Nouvelle entreprise">
-        <form onSubmit={handleCreate} className="space-y-4">
-          <Input id="name" label="Raison sociale" placeholder="Entreprise Dupont" value={newName} onChange={(e) => setNewName(e.target.value)} required autoFocus />
-          <Input id="city" label="Ville (optionnel)" placeholder="Lyon" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
-          <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={newIndustry} onChange={(e) => setNewIndustry(e.target.value)} />
-          {createError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{createError}</p>}
-          <div className="flex gap-2 pt-2">
-            <Button variant="secondary" type="button" onClick={() => { setModalOpen(false); setCreateError('') }} className="flex-1">Annuler</Button>
-            <Button type="submit" loading={creating} className="flex-1">Créer</Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   )
 }
