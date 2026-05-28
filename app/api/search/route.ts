@@ -21,13 +21,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { query, scope = 'account', client_id, city, company_id } = await request.json()
+  const { query, account_id, account_ids, status = 'all', city, company_id } = await request.json()
 
   if (!query || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-  }
-  if (scope === 'account' && !client_id) {
-    return NextResponse.json({ error: 'Missing client_id for account scope' }, { status: 400 })
   }
   if (company_id !== user.company_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -42,10 +39,10 @@ export async function POST(request: Request) {
 
   let rawChunks: SearchChunk[]
 
-  if (scope === 'account') {
+  if (account_id) {
     const { data, error } = await supabase.rpc('search_chunks', {
       query_embedding: queryEmbedding,
-      match_client_id: client_id,
+      match_client_id: account_id,
       match_company_id: company_id,
       match_count: 5,
     })
@@ -55,7 +52,6 @@ export async function POST(request: Request) {
     }
     rawChunks = (data as SearchChunk[]) ?? []
   } else {
-    // Global search — fetch more to allow post-filtering
     const { data, error } = await supabase.rpc('search_chunks_global', {
       query_embedding: queryEmbedding,
       match_company_id: company_id,
@@ -113,50 +109,42 @@ export async function POST(request: Request) {
     }
   }
 
-  // For global scopes: filter by account status and/or city
+  // Post-filter: account_ids whitelist + status + city
+  const accountIdSet = account_ids && (account_ids as string[]).length > 0 ? new Set(account_ids as string[]) : null
+  const needsFilter = accountIdSet || status !== 'all' || city
+
   let chunks = rawChunks
-  if (scope !== 'account') {
-    const allAccountIds = [
-      ...new Set([
-        ...Object.values(notesMap).map((n) => n.account_id),
-        ...Object.values(docsMap).map((d) => d.account_id),
-      ].filter(Boolean))
-    ]
 
-    if (allAccountIds.length > 0 && (scope === 'clients' || scope === 'prospects' || city)) {
-      let accQuery = supabase.from('accounts').select('id, status, city').in('id', allAccountIds)
-      const { data: accData } = await accQuery
-      const accMap = Object.fromEntries((accData ?? []).map((a) => [a.id, a]))
+  if (!account_id && needsFilter) {
+    const allAccountIds = [...new Set([
+      ...Object.values(notesMap).map((n) => n.account_id),
+      ...Object.values(docsMap).map((d) => d.account_id),
+    ].filter(Boolean))]
 
-      chunks = rawChunks.filter((chunk) => {
-        const accountId = chunk.source_type === 'note'
-          ? notesMap[chunk.source_id]?.account_id
-          : docsMap[chunk.source_id]?.account_id
-        if (!accountId) return false
-        const acc = accMap[accountId]
-        if (!acc) return false
-        if (scope === 'clients' && acc.status !== 'client') return false
-        if (scope === 'prospects' && acc.status !== 'prospect') return false
-        if (city && !acc.city?.toLowerCase().includes(city.toLowerCase())) return false
-        return true
-      }).slice(0, 5)
-    } else if (city) {
-      // city filter only, no account data fetched yet — handled above
-      chunks = rawChunks.slice(0, 5)
-    } else {
-      chunks = rawChunks.slice(0, 5)
+    let accMap: Record<string, { status: string; city: string | null }> = {}
+    if (allAccountIds.length > 0) {
+      const { data: accData } = await supabase
+        .from('accounts')
+        .select('id, status, city')
+        .in('id', allAccountIds)
+      accMap = Object.fromEntries((accData ?? []).map((a) => [a.id, a]))
     }
-  }
 
-  // Also apply city filter for single-account scope
-  if (scope === 'account' && city) {
-    const { data: acc } = await supabase.from('accounts').select('city').eq('id', client_id).single()
-    if (acc && !acc.city?.toLowerCase().includes(city.toLowerCase())) {
-      return NextResponse.json({
-        answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question.",
-        sources: [],
-      })
-    }
+    chunks = rawChunks.filter((chunk) => {
+      const chunkAccountId = chunk.source_type === 'note'
+        ? notesMap[chunk.source_id]?.account_id
+        : docsMap[chunk.source_id]?.account_id
+      if (!chunkAccountId) return false
+      if (accountIdSet && !accountIdSet.has(chunkAccountId)) return false
+      const acc = accMap[chunkAccountId]
+      if (!acc) return false
+      if (status === 'client' && acc.status !== 'client') return false
+      if (status === 'prospect' && acc.status !== 'prospect') return false
+      if (city && !acc.city?.toLowerCase().includes((city as string).toLowerCase())) return false
+      return true
+    }).slice(0, 5)
+  } else if (!account_id) {
+    chunks = rawChunks.slice(0, 5)
   }
 
   if (chunks.length === 0) {

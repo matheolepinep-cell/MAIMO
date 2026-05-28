@@ -4,7 +4,7 @@ import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
-  FileText, Upload, Search, ExternalLink, User, Star, Volume2
+  FileText, Upload, Search, ExternalLink, User, Star, Volume2, Globe, Lock, Users
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -79,6 +79,13 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [searchRecording, setSearchRecording] = useState(false)
   const [expandedSource, setExpandedSource] = useState<string | null>(null)
 
+  // Access section
+  const [portfolioEntry, setPortfolioEntry] = useState<{ id: string; visibility: 'team' | 'private' | 'custom' } | null>(null)
+  const [visibility, setVisibility] = useState<'team' | 'private' | 'custom'>('team')
+  const [companyMembers, setCompanyMembers] = useState<{ id: string; full_name: string; email: string }[]>([])
+  const [accessUserIds, setAccessUserIds] = useState<Set<string>>(new Set())
+  const [savingAccess, setSavingAccess] = useState(false)
+
   /* ─── fetch ─── */
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
@@ -109,7 +116,36 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     }
 
     setLoading(false)
-  }, [id])
+
+    // Load portfolio entry for current user + access data
+    if (profile) {
+      const { data: entry } = await supabase
+        .from('portfolio')
+        .select('id, visibility')
+        .eq('account_id', id)
+        .eq('user_id', profile.id)
+        .maybeSingle()
+
+      if (entry) {
+        setPortfolioEntry(entry as { id: string; visibility: 'team' | 'private' | 'custom' })
+        setVisibility(entry.visibility as 'team' | 'private' | 'custom')
+        const { data: accessRows } = await supabase
+          .from('portfolio_access')
+          .select('user_id')
+          .eq('portfolio_id', entry.id)
+        setAccessUserIds(new Set((accessRows ?? []).map((r: { user_id: string }) => r.user_id)))
+      } else {
+        setPortfolioEntry(null)
+      }
+
+      const { data: members } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .eq('company_id', profile.company_id)
+        .neq('id', profile.id)
+      setCompanyMembers(members ?? [])
+    }
+  }, [id, profile])
 
   useEffect(() => { if (!profileLoading) fetchAll() }, [profileLoading, fetchAll])
 
@@ -154,6 +190,29 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     const supabase = createClient()
     await supabase.from('contacts').delete().eq('id', contactId)
     setContacts((prev) => prev.filter((c) => c.id !== contactId))
+  }
+
+  /* ─── access ─── */
+  const handleVisibilityChange = async (newVis: 'team' | 'private' | 'custom') => {
+    if (!portfolioEntry) return
+    setSavingAccess(true)
+    setVisibility(newVis)
+    const supabase = createClient()
+    await supabase.from('portfolio').update({ visibility: newVis }).eq('id', portfolioEntry.id)
+    setPortfolioEntry((prev) => prev ? { ...prev, visibility: newVis } : prev)
+    setSavingAccess(false)
+  }
+
+  const toggleMemberAccess = async (memberId: string) => {
+    if (!portfolioEntry) return
+    const supabase = createClient()
+    if (accessUserIds.has(memberId)) {
+      await supabase.from('portfolio_access').delete().eq('portfolio_id', portfolioEntry.id).eq('user_id', memberId)
+      setAccessUserIds((prev) => { const next = new Set(prev); next.delete(memberId); return next })
+    } else {
+      await supabase.from('portfolio_access').insert({ portfolio_id: portfolioEntry.id, user_id: memberId })
+      setAccessUserIds((prev) => new Set([...prev, memberId]))
+    }
   }
 
   /* ─── notes ─── */
@@ -499,6 +558,58 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
               </div>
             )}
           </div>
+
+          {/* Access */}
+          {portfolioEntry && (
+            <div>
+              <h2 className="text-sm font-semibold text-[#1E293B] mb-3">Accès</h2>
+              <div className="space-y-2">
+                {([
+                  { value: 'team', icon: Globe, label: "Toute l'équipe", desc: 'Tous les membres voient cette fiche' },
+                  { value: 'private', icon: Lock, label: 'Privé', desc: 'Moi seul' },
+                  { value: 'custom', icon: Users, label: 'Personnes choisies', desc: 'Sélectionner des membres' },
+                ] as const).map(({ value, icon: Icon, label, desc }) => (
+                  <button
+                    key={value}
+                    onClick={() => handleVisibilityChange(value)}
+                    disabled={savingAccess}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-150 text-left ${
+                      visibility === value
+                        ? 'border-[#1E2761] bg-[#1E2761]/5'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${visibility === value ? 'text-[#1E2761]' : 'text-[#64748B]'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${visibility === value ? 'text-[#1E2761]' : 'text-[#1E293B]'}`}>{label}</p>
+                      <p className="text-xs text-[#64748B]">{desc}</p>
+                    </div>
+                    {visibility === value && <div className="w-2 h-2 rounded-full bg-[#1E2761] shrink-0" />}
+                  </button>
+                ))}
+              </div>
+
+              {visibility === 'custom' && companyMembers.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs text-[#64748B] font-medium mb-2">Membres avec accès</p>
+                  {companyMembers.map((member) => (
+                    <label key={member.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={accessUserIds.has(member.id)}
+                        onChange={() => toggleMemberAccess(member.id)}
+                        className="rounded"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm text-[#1E293B] truncate">{member.full_name}</p>
+                        <p className="text-xs text-[#94A3B8] truncate">{member.email}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── RIGHT COLUMN ── */}
