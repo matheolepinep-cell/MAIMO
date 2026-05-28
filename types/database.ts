@@ -34,6 +34,7 @@ export interface Account {
   employees: string | null
   notes_general: string | null
   status: 'client' | 'prospect'
+  created_by: string | null
   created_at: string
   last_note_at: string | null
 }
@@ -103,6 +104,14 @@ export interface Portfolio {
   user_id: string
   account_id: string
   is_private: boolean
+  visibility: 'team' | 'private' | 'custom'
+  created_at: string
+}
+
+export interface PortfolioAccess {
+  id: string
+  portfolio_id: string
+  user_id: string
   created_at: string
 }
 

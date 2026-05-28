@@ -9,8 +9,8 @@ import { useUser } from '@/contexts/UserContext'
 
 const navItems = [
   { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/app/accounts', icon: Building2, label: 'Entreprises' },
-  { href: '/app/portfolio', icon: Briefcase, label: 'Portefeuille' },
+  { href: '/app/portfolio', icon: Briefcase, label: 'Mon portefeuille' },
+  { href: '/app/accounts', icon: Building2, label: 'Entreprises accessibles' },
   { href: '/app/search', icon: Search, label: 'Recherche IA' },
   { href: '/app/team', icon: Users, label: 'Équipe' },
 ]
