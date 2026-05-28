@@ -8,35 +8,45 @@ async function resolveFileUrl(fileUrl: string, supabase: { storage: { from: (b: 
   if (!fileUrl.startsWith('http')) {
     const { data } = await supabase.storage.from('documents').createSignedUrl(fileUrl, 3600)
     if (data?.signedUrl) return data.signedUrl
+    console.error('[index-document] createSignedUrl failed for path:', fileUrl)
   }
   return fileUrl
 }
 
 async function extractText(fileUrl: string, fileType: string): Promise<string> {
+  console.log('[index-document] fetching file:', fileUrl.slice(0, 80))
   const response = await fetch(fileUrl)
+  if (!response.ok) throw new Error(`Fetch failed: ${response.status} ${response.statusText}`)
   const buffer = await response.arrayBuffer()
   const nodeBuffer = Buffer.from(buffer)
+  console.log('[index-document] file size:', nodeBuffer.length, 'bytes, type:', fileType)
 
   if (fileType === 'pdf') {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
     const result = await pdfParse(nodeBuffer)
+    console.log('[index-document] pdf extracted chars:', result.text.length)
     return result.text
   }
 
   if (fileType === 'docx') {
-    const mammoth = await import('mammoth')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mammoth = require('mammoth') as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> }
     const result = await mammoth.extractRawText({ buffer: nodeBuffer })
+    console.log('[index-document] docx extracted chars:', result.value.length)
     return result.value
   }
 
   if (fileType === 'xlsx') {
-    const XLSX = await import('xlsx')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const XLSX = require('xlsx') as { read: (b: Buffer, o: object) => { SheetNames: string[]; Sheets: Record<string, object> }; utils: { sheet_to_txt: (s: object) => string } }
     const workbook = XLSX.read(nodeBuffer, { type: 'buffer' })
-    return workbook.SheetNames.map((name) => {
+    const text = workbook.SheetNames.map((name) => {
       const sheet = workbook.Sheets[name]
       return XLSX.utils.sheet_to_txt(sheet)
     }).join('\n\n')
+    console.log('[index-document] xlsx extracted chars:', text.length)
+    return text
   }
 
   throw new Error(`Unsupported file type: ${fileType}`)
@@ -67,8 +77,10 @@ export async function POST(request: Request) {
     const resolvedUrl = await resolveFileUrl(file_url, supabase)
     const text = await extractText(resolvedUrl, file_type)
     const chunks = chunkText(text)
+    console.log('[index-document] chunks produced:', chunks.length)
 
     if (chunks.length === 0) {
+      console.error('[index-document] no chunks — extracted text was empty or too short:', text.slice(0, 200))
       return NextResponse.json({ success: true, chunks: 0 })
     }
 
