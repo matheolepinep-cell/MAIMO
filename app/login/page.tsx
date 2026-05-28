@@ -28,7 +28,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/app/clients')
+    router.push('/app/dashboard')
     router.refresh()
   }
 
@@ -44,42 +44,32 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            id="email"
-            type="email"
-            label="Email"
-            placeholder="vous@exemple.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
-          <Input
-            id="password"
-            type="password"
-            label="Mot de passe"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
+          <Input id="email" type="email" label="Email" placeholder="vous@exemple.com"
+            value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+          <Input id="password" type="password" label="Mot de passe" placeholder="••••••••"
+            value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
 
-          {error && (
-            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
           <Button type="submit" loading={loading} className="w-full" size="lg">
             Se connecter
           </Button>
         </form>
 
-        <p className="text-center text-sm text-[#64748B] mt-6">
-          Pas encore de compte ?{' '}
-          <Link href="/register" className="text-[#3B82F6] font-medium hover:underline">
-            S'inscrire
+        <div className="mt-6 grid grid-cols-2 gap-2">
+          <Link
+            href="/register?mode=create"
+            className="flex items-center justify-center py-2.5 px-3 rounded-xl border border-gray-200 text-sm font-medium text-[#1E293B] hover:bg-gray-50 transition-all duration-150 text-center"
+          >
+            Créer un espace
           </Link>
-        </p>
+          <Link
+            href="/register?mode=join"
+            className="flex items-center justify-center py-2.5 px-3 rounded-xl border border-gray-200 text-sm font-medium text-[#1E293B] hover:bg-gray-50 transition-all duration-150 text-center"
+          >
+            Rejoindre un espace
+          </Link>
+        </div>
       </div>
     </div>
   )

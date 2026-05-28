@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, FileText, Upload, Users, Plus, Search, ChevronRight, Mic, Type } from 'lucide-react'
+import { Building2, FileText, Upload, Users, Plus, Search, ChevronRight, Mic, Type, Copy, Check, Key } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -11,9 +11,8 @@ import { Button } from '@/components/ui/Button'
 import type { Note, Document } from '@/types/database'
 
 interface Stats { accounts: number; notes: number; documents: number; team: number }
-
 interface RecentNote extends Note { account_name?: string; author_name?: string }
-interface RecentDoc extends Document { account_name?: string; uploader_name?: string }
+interface RecentDoc extends Document { account_name?: string }
 
 function formatDate(d: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
@@ -26,15 +25,14 @@ export default function DashboardPage() {
   const [recentNotes, setRecentNotes] = useState<RecentNote[]>([])
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([])
   const [loading, setLoading] = useState(true)
+  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [codeCopied, setCodeCopied] = useState(false)
 
   useEffect(() => {
     if (profileLoading) return
     const fetch = async () => {
       const supabase = createClient()
       const cid = profile?.company_id
-
-      const filters = (q: ReturnType<typeof supabase.from>) =>
-        cid ? (q as unknown as { eq: (col: string, val: string) => typeof q }).eq('company_id', cid) : q
 
       const [
         { count: accCount },
@@ -43,6 +41,7 @@ export default function DashboardPage() {
         { count: teamCount },
         { data: notes },
         { data: docs },
+        { data: company },
       ] = await Promise.all([
         supabase.from('accounts').select('id', { count: 'exact', head: true }).eq('company_id', cid ?? ''),
         supabase.from('notes').select('id', { count: 'exact', head: true }).eq('company_id', cid ?? '').eq('is_deleted', false),
@@ -50,16 +49,12 @@ export default function DashboardPage() {
         supabase.from('users').select('id', { count: 'exact', head: true }).eq('company_id', cid ?? ''),
         supabase.from('notes').select('*').eq('company_id', cid ?? '').eq('is_deleted', false).order('created_at', { ascending: false }).limit(10),
         supabase.from('documents').select('*').eq('company_id', cid ?? '').order('created_at', { ascending: false }).limit(5),
+        cid ? supabase.from('companies').select('invite_code').eq('id', cid).single() : { data: null },
       ])
 
-      setStats({
-        accounts: accCount ?? 0,
-        notes: noteCount ?? 0,
-        documents: docCount ?? 0,
-        team: teamCount ?? 0,
-      })
+      setStats({ accounts: accCount ?? 0, notes: noteCount ?? 0, documents: docCount ?? 0, team: teamCount ?? 0 })
+      if (profile?.role === 'admin') setInviteCode(company?.invite_code ?? null)
 
-      // Enrich notes with account names
       if (notes && notes.length > 0) {
         const accountIds = [...new Set(notes.map((n) => n.client_id))]
         const userIds = [...new Set(notes.map((n) => n.user_id))]
@@ -72,23 +67,24 @@ export default function DashboardPage() {
         setRecentNotes(notes.map((n) => ({ ...n, account_name: accMap[n.client_id], author_name: userMap[n.user_id] })))
       }
 
-      // Enrich docs with account names
       if (docs && docs.length > 0) {
         const accountIds = [...new Set(docs.map((d) => d.client_id))]
-        const uploaderIds = [...new Set(docs.map((d) => d.uploaded_by))]
-        const [{ data: accounts }, { data: users }] = await Promise.all([
-          supabase.from('accounts').select('id, name').in('id', accountIds),
-          supabase.from('users').select('id, full_name').in('id', uploaderIds),
-        ])
+        const { data: accounts } = await supabase.from('accounts').select('id, name').in('id', accountIds)
         const accMap = Object.fromEntries((accounts ?? []).map((a) => [a.id, a.name]))
-        const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u.full_name]))
-        setRecentDocs(docs.map((d) => ({ ...d, account_name: accMap[d.client_id], uploader_name: userMap[d.uploaded_by] })))
+        setRecentDocs(docs.map((d) => ({ ...d, account_name: accMap[d.client_id] })))
       }
 
       setLoading(false)
     }
     fetch()
   }, [profileLoading, profile])
+
+  const copyCode = () => {
+    if (!inviteCode) return
+    navigator.clipboard.writeText(inviteCode)
+    setCodeCopied(true)
+    setTimeout(() => setCodeCopied(false), 2000)
+  }
 
   const statCards = [
     { label: 'Entreprises', value: stats.accounts, icon: Building2, color: 'bg-blue-50 text-blue-600' },
@@ -105,6 +101,35 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Dashboard</h1>
           <p className="text-[#64748B] text-sm mt-1">Bonjour {profile?.full_name?.split(' ')[0] ?? ''} 👋</p>
         </div>
+
+        {/* Admin invite code card */}
+        {inviteCode && (
+          <div className="mb-6 bg-[#1E2761] rounded-2xl p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                <Key className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-white text-sm">Code d'invitation de votre espace</p>
+                <p className="text-white/60 text-xs">Partagez ce code à vos commerciaux</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 bg-white/10 rounded-xl px-4 py-2.5 text-center">
+                <span className="text-xl font-bold tracking-[0.25em] font-mono text-white">{inviteCode}</span>
+              </div>
+              <button
+                onClick={copyCode}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 ${
+                  codeCopied ? 'bg-green-500 text-white' : 'bg-white text-[#1E2761] hover:bg-white/90'
+                }`}
+              >
+                {codeCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {codeCopied ? 'Copié !' : 'Copier'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -177,22 +202,24 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {recentDocs.map((doc) => (
-                  <a
+                  <div
                     key={doc.id}
-                    href={doc.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-150"
+                    onClick={() => router.push(`/app/accounts/${doc.client_id}`)}
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 cursor-pointer hover:border-gray-200 hover:shadow-sm transition-all duration-150"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
-                      <Upload className="w-3.5 h-3.5 text-purple-500" />
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      doc.file_type === 'pdf' ? 'bg-red-50' : doc.file_type === 'docx' ? 'bg-blue-50' : 'bg-green-50'
+                    }`}>
+                      <Upload className={`w-3.5 h-3.5 ${
+                        doc.file_type === 'pdf' ? 'text-red-500' : doc.file_type === 'docx' ? 'text-blue-500' : 'text-green-500'
+                      }`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
                       <p className="text-xs text-[#64748B]">{doc.account_name} · {formatDate(doc.created_at)}</p>
                     </div>
                     <span className="text-xs font-mono text-[#94A3B8] uppercase shrink-0">{doc.file_type}</span>
-                  </a>
+                  </div>
                 ))}
               </div>
             )}

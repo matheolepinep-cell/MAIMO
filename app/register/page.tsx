@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -12,9 +13,12 @@ function generateInviteCode() {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter()
-  const [mode, setMode] = useState<'admin' | 'commercial'>('admin')
+  const searchParams = useSearchParams()
+  const [mode, setMode] = useState<'admin' | 'commercial'>(() =>
+    searchParams.get('mode') === 'join' ? 'commercial' : 'admin'
+  )
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,6 +26,16 @@ export default function RegisterPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Invite code modal state (admin only)
+  const [createdCode, setCreatedCode] = useState('')
+  const [codeCopied, setCodeCopied] = useState(false)
+
+  useEffect(() => {
+    const param = searchParams.get('mode')
+    if (param === 'join') setMode('commercial')
+    else if (param === 'create') setMode('admin')
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,8 +85,10 @@ export default function RegisterPage() {
         return
       }
 
-      router.push('/app/dashboard')
-      router.refresh()
+      // Show invite code modal before redirecting
+      setCreatedCode(code)
+      setLoading(false)
+
     } else {
       const { data: companyData, error: codeError } = await supabase
         .from('companies')
@@ -118,6 +134,50 @@ export default function RegisterPage() {
     }
   }
 
+  const copyCode = () => {
+    navigator.clipboard.writeText(createdCode)
+    setCodeCopied(true)
+    setTimeout(() => setCodeCopied(false), 2000)
+  }
+
+  // Invite code modal after admin signup
+  if (createdCode) {
+    return (
+      <div className="min-h-screen bg-[#1E2761] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Check className="w-8 h-8 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-[#1E293B] mb-2">Votre espace est créé !</h1>
+          <p className="text-[#64748B] text-sm mb-6">
+            Partagez ce code à vos commerciaux pour qu'ils rejoignent votre espace.
+          </p>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-xl px-6 py-4 mb-4">
+            <p className="text-xs text-[#94A3B8] mb-1">Code d'invitation</p>
+            <p className="text-3xl font-bold tracking-[0.3em] font-mono text-[#1E2761]">{createdCode}</p>
+          </div>
+
+          <button
+            onClick={copyCode}
+            className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border font-medium text-sm mb-4 transition-all duration-150 ${
+              codeCopied
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : 'bg-white border-gray-200 text-[#1E293B] hover:border-gray-300'
+            }`}
+          >
+            {codeCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {codeCopied ? 'Copié !' : 'Copier le code'}
+          </button>
+
+          <Button onClick={() => { router.push('/app/dashboard'); router.refresh() }} className="w-full" size="lg">
+            Accéder à l'application
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[#1E2761] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
@@ -128,7 +188,6 @@ export default function RegisterPage() {
           <h1 className="text-2xl font-bold text-[#1E293B]">MemoBTP</h1>
         </div>
 
-        {/* Mode toggle */}
         <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
           <button
             onClick={() => setMode('admin')}
@@ -178,5 +237,13 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterContent />
+    </Suspense>
   )
 }
