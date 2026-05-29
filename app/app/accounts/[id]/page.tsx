@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useAccentColor } from '@/contexts/AccentColorContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
@@ -22,21 +23,6 @@ function fmtDay(d: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
 }
 
-const AVATAR_PALETTE = [
-  { bg: 'bg-blue-100', text: 'text-blue-700' },
-  { bg: 'bg-purple-100', text: 'text-purple-700' },
-  { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  { bg: 'bg-orange-100', text: 'text-orange-700' },
-  { bg: 'bg-pink-100', text: 'text-pink-700' },
-  { bg: 'bg-teal-100', text: 'text-teal-700' },
-  { bg: 'bg-indigo-100', text: 'text-indigo-700' },
-  { bg: 'bg-rose-100', text: 'text-rose-700' },
-]
-function getAvatarColor(name: string) {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0x7fffffff
-  return AVATAR_PALETTE[h % AVATAR_PALETTE.length]
-}
 function getInitials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 }
@@ -54,6 +40,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const { id } = use(params)
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
+  const { accentColor } = useAccentColor()
 
   const [account, setAccount] = useState<Account | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -402,8 +389,6 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     { key: 'website', label: 'Site web', placeholder: 'https://...' },
   ]
 
-  const avatarColor = getAvatarColor(account.name)
-
   return (
     <div className="flex flex-col min-h-full">
       {/* Breadcrumb — desktop only */}
@@ -421,7 +406,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-[#F0F4FF] transition-all duration-200 shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold ${avatarColor.bg} ${avatarColor.text}`}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold text-white"
+          style={{ background: accentColor }}>
           {getInitials(account.name)}
         </div>
         <div className="flex-1 min-w-0">
@@ -431,13 +417,13 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
               onClick={handleStatusToggle}
               className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-200 border"
               style={account.status === 'prospect' ? {
-                background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
-                color: '#92400E',
-                borderColor: 'rgba(245,158,11,0.2)',
+                background: 'rgba(30,39,97,0.05)',
+                color: 'rgba(30,39,97,0.5)',
+                borderColor: 'rgba(30,39,97,0.1)',
               } : {
-                background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
-                color: '#065F46',
-                borderColor: 'rgba(16,185,129,0.2)',
+                background: 'rgba(30,39,97,0.12)',
+                color: '#1E2761',
+                borderColor: 'rgba(30,39,97,0.2)',
               }}
             >
               {account.status === 'prospect' ? 'Prospect' : 'Client'}

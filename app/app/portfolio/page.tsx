@@ -139,13 +139,13 @@ export default function PortfolioPage() {
               </span>
               {clientCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
-                  style={{ background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)', color: '#065F46', borderColor: 'rgba(16,185,129,0.2)' }}>
+                  style={{ background: 'rgba(30,39,97,0.12)', color: '#1E2761', borderColor: 'rgba(30,39,97,0.2)' }}>
                   {clientCount} client{clientCount !== 1 ? 's' : ''}
                 </span>
               )}
               {prospectCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
-                  style={{ background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)', color: '#92400E', borderColor: 'rgba(245,158,11,0.2)' }}>
+                  style={{ background: 'rgba(30,39,97,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)' }}>
                   {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
                 </span>
               )}

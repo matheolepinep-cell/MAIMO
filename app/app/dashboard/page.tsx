@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useAccentColor } from '@/contexts/AccentColorContext'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { getInitials } from '@/components/ui/CompanyCard'
 
@@ -52,6 +53,7 @@ function Skeleton({ className }: { className?: string }) {
 export default function DashboardPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
+  const { accentColor } = useAccentColor()
 
   /* mobile state */
   const [recentAccounts, setRecentAccounts] = useState<{ id: string; name: string }[]>([])
@@ -464,7 +466,7 @@ export default function DashboardPage() {
                             className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
                           >
                             <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                              style={{ background: '#4C6EF5' }}>
+                              style={{ background: accentColor }}>
                               {getInitials(item.account_name)}
                             </div>
                             <span className="flex-1 text-sm font-medium text-[#0F172A] truncate">{item.account_name}</span>

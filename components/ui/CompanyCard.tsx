@@ -2,6 +2,7 @@
 
 import { ChevronRight, Globe, Lock, Users } from 'lucide-react'
 import { clsx } from 'clsx'
+import { useAccentColor } from '@/contexts/AccentColorContext'
 
 export function getInitials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
@@ -19,8 +20,12 @@ interface CompanyCardProps {
 }
 
 export function CompanyCard({ name, city, industry, status, visibility, onClick, className, rightSlot }: CompanyCardProps) {
+  const { accentColor } = useAccentColor()
+
   const VisIcon = visibility === 'private' ? Lock : visibility === 'custom' ? Users : Globe
   const visLabel = visibility === 'private' ? 'Privé' : visibility === 'custom' ? 'Personnalisé' : "Équipe"
+
+  const navyBase = '#1E2761'
 
   return (
     <div
@@ -35,9 +40,9 @@ export function CompanyCard({ name, city, industry, status, visibility, onClick,
         boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
       }}
     >
-      {/* Avatar — fixed color */}
+      {/* Avatar — accent color from user preference */}
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold text-white"
-        style={{ background: '#4C6EF5' }}>
+        style={{ background: accentColor }}>
         {getInitials(name)}
       </div>
 
@@ -45,12 +50,21 @@ export function CompanyCard({ name, city, industry, status, visibility, onClick,
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="font-semibold text-[#0F172A] truncate text-sm">{name}</p>
-          {/* Status dot */}
+          {/* Status badge — unified navy palette */}
           <span
-            className="shrink-0 w-2 h-2 rounded-full"
-            style={{ background: status === 'client' ? '#10B981' : '#F59E0B' }}
-            title={status === 'client' ? 'Client' : 'Prospect'}
-          />
+            className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
+            style={status === 'client' ? {
+              background: `${navyBase}1A`,
+              color: navyBase,
+              borderColor: `${navyBase}33`,
+            } : {
+              background: `${navyBase}0D`,
+              color: `${navyBase}80`,
+              borderColor: `${navyBase}1A`,
+            }}
+          >
+            {status === 'client' ? 'Client' : 'Prospect'}
+          </span>
         </div>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           {city && <span className="text-xs text-slate-400 truncate">{city}</span>}

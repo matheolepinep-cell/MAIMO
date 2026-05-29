@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Copy, Check, Building2, Key, User, LogOut, RefreshCw } from 'lucide-react'
+import { Copy, Check, Building2, Key, User, LogOut, RefreshCw, Palette } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
@@ -19,6 +20,7 @@ function generateInviteCode() {
 export default function SettingsPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
+  const { accentColor, setAccentColor } = useAccentColor()
   const [company, setCompany] = useState<Company | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -210,6 +212,54 @@ export default function SettingsPage() {
             )}
             <Button type="submit" loading={savingProfile} size="sm">Enregistrer</Button>
           </form>
+        </Card>
+
+        {/* Accent color */}
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${accentColor}20` }}>
+              <Palette className="w-4 h-4" style={{ color: accentColor }} />
+            </div>
+            <div>
+              <p className="font-semibold text-[#1E293B] text-sm">Couleur d'accent</p>
+              <p className="text-xs text-[#64748B]">Avatars et indicateurs de statut</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex gap-2 flex-wrap">
+              {['#4C6EF5', '#7C3AED', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#1E2761'].map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setAccentColor(c)}
+                  className="w-8 h-8 rounded-full border-2 transition-all duration-150 hover:scale-110"
+                  style={{
+                    background: c,
+                    borderColor: accentColor === c ? '#0F172A' : 'transparent',
+                    boxShadow: accentColor === c ? `0 0 0 2px white, 0 0 0 4px ${c}` : 'none',
+                  }}
+                />
+              ))}
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="color"
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="w-8 h-8 rounded-full cursor-pointer border-0 bg-transparent p-0"
+                title="Couleur personnalisée"
+              />
+              <span className="text-xs text-[#64748B]">Personnalisé</span>
+            </label>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0"
+              style={{ background: accentColor }}>AB</div>
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
+              style={{ background: 'rgba(30,39,97,0.12)', color: '#1E2761', borderColor: 'rgba(30,39,97,0.2)' }}>Client</span>
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
+              style={{ background: 'rgba(30,39,97,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)' }}>Prospect</span>
+            <span className="text-xs text-[#94A3B8] ml-1">Aperçu</span>
+          </div>
         </Card>
 
         <button
