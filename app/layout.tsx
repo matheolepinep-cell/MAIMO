@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -10,16 +11,16 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'MAIMOO',
+  title: 'Maimoo',
   description: 'Votre mémoire commerciale',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'MAIMOO',
+    title: 'Maimoo',
   },
   icons: {
-    apple: '/icon-192.png',
+    apple: '/icons/icon-192.png',
   },
 }
 
@@ -34,7 +35,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" className={inter.variable}>
-      <body>{children}</body>
+      <body>
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   )
 }

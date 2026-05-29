@@ -1,14 +1,14 @@
 {
-  "name": "MAIMOO",
-  "short_name": "MAIMOO",
+  "name": "Maimoo",
+  "short_name": "Maimoo",
   "description": "Votre mémoire commerciale",
   "start_url": "/app/dashboard",
   "display": "standalone",
-  "background_color": "#1E2761",
+  "background_color": "#0A1628",
   "theme_color": "#1E2761",
   "orientation": "portrait",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
