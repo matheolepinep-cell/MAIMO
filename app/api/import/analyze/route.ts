@@ -136,7 +136,8 @@ Le statut doit être "client" ou "prospect" (si non détectable, mettre "prospec
     })
 
     const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
-    const parsed = JSON.parse(raw)
+    const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+    const parsed = JSON.parse(cleaned)
     mapping = parsed.mapping as Mapping
     claudeRows = (parsed.rows as ParsedRow[]) ?? []
     warnings = parsed.warnings ?? []
