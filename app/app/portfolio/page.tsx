@@ -108,9 +108,9 @@ export default function PortfolioPage() {
   ]
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col min-h-full overflow-x-hidden">
       <Header title="Mon portefeuille" />
-      <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full">
+      <div className="flex-1 px-4 py-4 md:px-8 md:py-8 max-w-2xl mx-auto w-full">
 
         <Breadcrumb items={[
           { label: 'MAIMO', href: '/app/dashboard' },
@@ -118,38 +118,39 @@ export default function PortfolioPage() {
         ]} />
 
         {/* Header row */}
-        <div className="flex items-center justify-between mb-5">
-          <div>
+        <div className="mb-5">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Mon portefeuille</h1>
-            {!loading && entries.length > 0 && (
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm text-slate-400">
-                  <span className="font-semibold text-[#0F172A]">{entries.length}</span> entreprise{entries.length !== 1 ? 's' : ''}
+            <div className="flex items-center gap-2 md:ml-4">
+              <Button onClick={() => router.push('/app/import')} size="sm" variant="ghost">
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                Importer
+              </Button>
+              <Button onClick={() => setCreateOpen(true)} size="sm">
+                <span className="md:hidden">+ Nouveau</span>
+                <span className="hidden md:inline">+ Nouvelle entreprise</span>
+              </Button>
+            </div>
+          </div>
+          {!loading && entries.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span className="text-xs text-slate-400">
+                <span className="font-semibold text-[#0F172A]">{entries.length}</span> entreprise{entries.length !== 1 ? 's' : ''}
+              </span>
+              {clientCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
+                  style={{ background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)', color: '#065F46', borderColor: 'rgba(16,185,129,0.2)' }}>
+                  {clientCount} client{clientCount !== 1 ? 's' : ''}
                 </span>
-                {clientCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
-                    style={{ background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)', color: '#065F46', borderColor: 'rgba(16,185,129,0.2)' }}>
-                    {clientCount} client{clientCount !== 1 ? 's' : ''}
-                  </span>
-                )}
-                {prospectCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
-                    style={{ background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)', color: '#92400E', borderColor: 'rgba(245,158,11,0.2)' }}>
-                    {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0 ml-4">
-            <Button onClick={() => router.push('/app/import')} size="sm" variant="ghost">
-              <Upload className="w-3.5 h-3.5 mr-1.5" />
-              Importer
-            </Button>
-            <Button onClick={() => setCreateOpen(true)} size="sm">
-              + Nouvelle entreprise
-            </Button>
-          </div>
+              )}
+              {prospectCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
+                  style={{ background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)', color: '#92400E', borderColor: 'rgba(245,158,11,0.2)' }}>
+                  {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Filter pills */}

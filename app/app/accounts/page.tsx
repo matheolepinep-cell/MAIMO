@@ -80,7 +80,7 @@ export default function AccountsPage() {
   return (
     <div>
       <Header title="Entreprises" />
-      <div className="p-4 md:p-8">
+      <div className="px-4 py-4 md:px-8 md:py-8 overflow-x-hidden">
 
         <Breadcrumb items={[
           { label: 'MAIMO', href: '/app/dashboard' },

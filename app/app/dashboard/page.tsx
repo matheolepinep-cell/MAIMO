@@ -194,7 +194,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col min-h-full overflow-x-hidden">
 
       {/* ── MOBILE HEADER ── */}
       <header className="md:hidden bg-white px-5 py-3.5 flex items-center justify-between sticky top-0 z-30"
