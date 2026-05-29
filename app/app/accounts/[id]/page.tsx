@@ -4,7 +4,7 @@ import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
-  FileText, Upload, Search, ExternalLink, User, Star, Volume2, Globe, Lock, Users
+  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -45,8 +45,9 @@ declare global {
   interface Window { SpeechRecognition: typeof SpeechRecognition; webkitSpeechRecognition: typeof SpeechRecognition }
 }
 
-type Tab = 'notes' | 'documents' | 'search'
+type Tab = 'notes' | 'search'
 type MobileTab = 'info' | Tab
+type AttachItem = { id: string; file: File; preview?: string }
 
 /* ─── main page ─── */
 export default function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -58,7 +59,6 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [contacts, setContacts] = useState<Contact[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
-  const [uploaderMap, setUploaderMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('notes')
   const [mobileTab, setMobileTab] = useState<MobileTab>('info')
@@ -82,16 +82,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [noteError, setNoteError] = useState('')
   const recognitionRef = { current: null as SpeechRecognition | null }
 
-  // Document upload + management
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
-  const [uploadMsg, setUploadMsg] = useState('')
-  const [uploadError, setUploadError] = useState('')
-  const [openingDocId, setOpeningDocId] = useState<string | null>(null)
-  const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null)
-  const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
-  const [renamingDocId, setRenamingDocId] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState('')
+  // Attachments (pièces jointes dans les notes)
+  const [attachments, setAttachments] = useState<AttachItem[]>([])
+  const [uploadingAttachments, setUploadingAttachments] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   // AI Search tab
   const [searchQuery, setSearchQuery] = useState('')
@@ -133,18 +127,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     }
     setContacts(ctcs ?? [])
     setNotes(nts ?? [])
-    const docList = docs ?? []
-    setDocuments(docList)
-
-    // Fetch uploader names for documents
-    if (docList.length > 0) {
-      const uploaderIds = [...new Set(docList.map((d) => d.user_id).filter(Boolean))]
-      if (uploaderIds.length > 0) {
-        const { data: uploaders } = await supabase.from('users').select('id, full_name').in('id', uploaderIds)
-        setUploaderMap(Object.fromEntries((uploaders ?? []).map((u) => [u.id, u.full_name])))
-      }
-    }
-
+    setDocuments(docs ?? [])
     setLoading(false)
 
     // Load portfolio entry for current user + access data
@@ -269,9 +252,38 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note_id: note.id, content: note.content, account_id: id, company_id: profile?.company_id }),
       }).catch(console.error)
+      // Upload pièces jointes
+      if (attachments.length > 0) {
+        setUploadingAttachments(true)
+        const sb = createClient()
+        for (const item of attachments) {
+          const { file } = item
+          const filePath = `${profile?.company_id}/${id}/${note.id}/${Date.now()}-${file.name}`
+          const { error: storErr } = await sb.storage.from('documents').upload(filePath, file)
+          if (storErr) continue
+          const isImage = file.type.startsWith('image/')
+          const fileType: 'pdf' | 'docx' | 'xlsx' | 'image' = isImage ? 'image'
+            : file.type.includes('pdf') ? 'pdf'
+            : file.type.includes('wordprocessing') ? 'docx' : 'xlsx'
+          await sb.from('documents').insert({
+            account_id: id, company_id: profile?.company_id, user_id: profile?.id,
+            note_id: note.id, file_name: file.name, file_url: filePath, file_type: fileType,
+            title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false,
+          })
+          if (!isImage) {
+            fetch('/api/index-document', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ file_url: filePath, file_type: fileType, account_id: id, company_id: profile?.company_id }),
+            }).catch(console.error)
+          }
+        }
+        setAttachments([])
+        setUploadingAttachments(false)
+        fetchAll()
+      }
     }
     setSavingNote(false)
-  }, [noteTitle, id, profile])
+  }, [noteTitle, id, profile, attachments, fetchAll])
 
   const startRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -297,109 +309,37 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setNotes((prev) => prev.filter((n) => n.id !== noteId))
   }
 
-  /* ─── documents ─── */
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* ─── attachments ─── */
+  const handleAddAttachments = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
-    if (files.length === 0 || !profile) return
-
-    const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
-    const invalid = files.filter((f) => !allowed.includes(f.type))
-    if (invalid.length > 0) { setUploadError(`Format non supporté : ${invalid.map((f) => f.name).join(', ')}. Acceptés : PDF, DOCX, XLSX.`); return }
-
-    const typeMap: Record<string, 'pdf' | 'docx' | 'xlsx'> = {
-      'application/pdf': 'pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-    }
-
-    setUploadError(''); setUploading(true); setUploadMsg(''); setUploadProgress({ current: 0, total: files.length })
-    const supabase = createClient()
-    let lastMsg = ''
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      setUploadProgress({ current: i + 1, total: files.length })
-
-      const ext = file.name.split('.').pop()
-      const storagePath = `${profile.company_id}/${id}/${Date.now()}-${i}.${ext}`
-      const titleFromName = file.name.replace(/\.[^.]+$/, '')
-
-      const { error: storageError } = await supabase.storage.from('documents').upload(storagePath, file)
-      if (storageError) { setUploadError(`Erreur pour ${file.name} : ${storageError.message}`); continue }
-
-      const { data: doc } = await supabase.from('documents').insert({
-        account_id: id,
-        company_id: profile.company_id,
-        user_id: profile.id,
-        file_name: file.name,
-        file_url: storagePath,
-        file_type: typeMap[file.type],
-        title: titleFromName,
-        is_deleted: false,
-      }).select().single()
-
-      if (doc) {
-        setDocuments((prev) => [doc, ...prev])
-        setUploaderMap((prev) => ({ ...prev, [profile.id]: profile.full_name }))
-
-        try {
-          await fetch('/api/index-document', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ document_id: doc.id, file_url: storagePath, file_type: typeMap[file.type], account_id: id, company_id: profile.company_id }),
-          })
-          const extractRes = await fetch('/api/extract-account-info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ document_id: doc.id, account_id: id, company_id: profile.company_id }),
-          })
-          const extractData = await extractRes.json()
-          lastMsg = extractData.message ?? ''
-        } catch {
-          lastMsg = ''
+    if (!files.length) return
+    files.forEach(file => {
+      const itemId = `${Date.now()}-${Math.random()}`
+      setAttachments(prev => [...prev, { id: itemId, file }])
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          const preview = ev.target?.result as string
+          setAttachments(prev => prev.map(a => a.id === itemId ? { ...a, preview } : a))
         }
+        reader.readAsDataURL(file)
       }
-    }
-
-    setUploading(false)
-    setUploadProgress(null)
-    setUploadMsg(lastMsg || `${files.length} fichier${files.length > 1 ? 's' : ''} uploadé${files.length > 1 ? 's' : ''}.`)
-    fetchAll()
+    })
     e.target.value = ''
   }
 
+  const removeAttachment = (itemId: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== itemId))
+  }
+
   const handleOpenDocument = async (doc: Document) => {
-    setOpeningDocId(doc.id)
     try {
       const res = await fetch(`/api/documents/${doc.id}/url`)
       const { url } = await res.json()
-      if (url) window.open(url, '_blank')
+      if (!url) return
+      if (doc.file_type === 'image') setLightboxUrl(url)
+      else window.open(url, '_blank')
     } catch { /* nothing */ }
-    setOpeningDocId(null)
-  }
-
-  const handleDeleteDocument = async (docId: string) => {
-    setDeletingDocId(docId)
-    const supabase = createClient()
-    await supabase.from('chunks').delete().eq('source_id', docId).eq('source_type', 'document')
-    await supabase.from('documents').update({ is_deleted: true }).eq('id', docId)
-    setDocuments((prev) => prev.filter((d) => d.id !== docId))
-    setConfirmDeleteDocId(null)
-    setDeletingDocId(null)
-  }
-
-  const startRename = (doc: Document) => {
-    setRenamingDocId(doc.id)
-    setRenameValue(doc.title ?? doc.file_name.replace(/\.[^.]+$/, ''))
-  }
-
-  const confirmRename = async (docId: string) => {
-    const newTitle = renameValue.trim()
-    if (!newTitle) { setRenamingDocId(null); return }
-    const supabase = createClient()
-    await supabase.from('documents').update({ title: newTitle }).eq('id', docId)
-    setDocuments((prev) => prev.map((d) => d.id === docId ? { ...d, title: newTitle } : d))
-    setRenamingDocId(null)
   }
 
   /* ─── AI search ─── */
@@ -510,18 +450,17 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Mobile tabs */}
-      <div className="md:hidden flex border-b border-slate-100 bg-white sticky top-[57px] z-20">
+      <div className="md:hidden flex gap-1.5 px-4 py-2.5 bg-white border-b border-slate-100 sticky top-[57px] z-20">
         {([
           { value: 'info', label: 'Info' },
           { value: 'notes', label: 'Notes' },
-          { value: 'documents', label: 'Docs' },
           { value: 'search', label: 'IA' },
         ] as const).map(({ value, label }) => (
           <button
             key={value}
             onClick={() => { setMobileTab(value); if (value !== 'info') setTab(value as Tab) }}
-            className={`flex-1 py-3 text-sm font-medium transition-all duration-200 border-b-2 ${
-              mobileTab === value ? 'border-[#1E2761] text-[#1E2761]' : 'border-transparent text-slate-400'
+            className={`flex-1 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+              mobileTab === value ? 'bg-[#1E2761] text-white' : 'text-[#64748B] bg-[#F0F4FF]'
             }`}
           >
             {label}
@@ -687,16 +626,17 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         {/* ── RIGHT COLUMN ── */}
         <div className={`flex flex-col min-h-0 ${mobileTab === 'info' ? 'hidden md:flex' : ''}`}>
           {/* Desktop tabs */}
-          <div className="hidden md:flex border-b border-slate-100 bg-white">
-            {(['notes', 'documents', 'search'] as Tab[]).map((t) => (
+          <div className="hidden md:flex gap-1.5 px-4 py-2.5 border-b border-slate-100 bg-white">
+            {([
+              { value: 'notes' as Tab, label: 'Notes', icon: FileText },
+              { value: 'search' as Tab, label: 'IA', icon: Search },
+            ]).map(({ value, label, icon: Icon }) => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-all duration-200 border-b-2 ${tab === t ? 'border-[#1E2761] text-[#1E2761]' : 'border-transparent text-slate-400 hover:text-[#0F172A]'}`}
+                key={value}
+                onClick={() => setTab(value)}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${tab === value ? 'bg-[#1E2761] text-white' : 'text-[#64748B] bg-[#F0F4FF]'}`}
               >
-                {t === 'notes' && <><FileText className="w-4 h-4" />Notes</>}
-                {t === 'documents' && <><Upload className="w-4 h-4" />Documents</>}
-                {t === 'search' && <><Search className="w-4 h-4" />IA</>}
+                <Icon className="w-3.5 h-3.5" />{label}
               </button>
             ))}
           </div>
@@ -747,6 +687,39 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       )}
                     </div>
                   )}
+                  {/* Pièces jointes */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all">
+                      <Paperclip className="w-3.5 h-3.5" />Fichier
+                      <input type="file" multiple className="hidden" onChange={handleAddAttachments} />
+                    </label>
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all">
+                      <Camera className="w-3.5 h-3.5" />Photo
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAddAttachments} />
+                    </label>
+                    {uploadingAttachments && (
+                      <span className="flex items-center gap-1 text-xs text-[#64748B]">
+                        <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />Upload…
+                      </span>
+                    )}
+                  </div>
+                  {attachments.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {attachments.map(item => (
+                        <div key={item.id} className="relative group">
+                          {item.preview ? (
+                            <img src={item.preview} alt={item.file.name} className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                              <FileText className="w-5 h-5 text-gray-300" />
+                            </div>
+                          )}
+                          <p className="text-[10px] text-[#64748B] truncate w-16 mt-0.5">{item.file.name}</p>
+                          <button onClick={() => removeAttachment(item.id)} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Notes list */}
@@ -755,126 +728,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 ) : (
                   <div className="space-y-3">
                     {notes.map((note) => (
-                      <NoteCard key={note.id} note={note} onDelete={handleDeleteNote} />
+                      <NoteCard
+                        key={note.id}
+                        note={note}
+                        noteDocuments={documents.filter(d => d.note_id === note.id && !d.is_deleted)}
+                        onDelete={handleDeleteNote}
+                        onOpenDoc={handleOpenDocument}
+                      />
                     ))}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ── DOCUMENTS TAB ── */}
-            {tab === 'documents' && (
-              <>
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
-                  {uploadError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{uploadError}</p>}
-                  {uploadMsg && !uploading && <p className="text-xs text-[#10B981] bg-green-50 px-3 py-2 rounded-lg">{uploadMsg}</p>}
-                  {uploadProgress && (
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs text-[#64748B]">
-                        <span>Traitement en cours…</span>
-                        <span className="font-medium">{uploadProgress.current}/{uploadProgress.total} fichiers</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#3B82F6] rounded-full transition-all duration-300"
-                          style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <label className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-sm font-medium transition-all duration-150 cursor-pointer ${!uploading ? 'border-[#3B82F6] text-[#3B82F6] hover:bg-blue-50' : 'border-gray-200 text-[#94A3B8] cursor-not-allowed'}`}>
-                    <input type="file" accept=".pdf,.docx,.xlsx" multiple className="hidden" onChange={handleFileUpload} disabled={uploading} />
-                    {uploading
-                      ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Traitement…</>
-                      : <><Upload className="w-4 h-4" />Choisir des fichiers (PDF, DOCX, XLSX)</>}
-                  </label>
-                </div>
-
-                {documents.length === 0 ? (
-                  <div className="text-center py-8"><Upload className="w-10 h-10 text-gray-200 mx-auto mb-2" /><p className="text-sm text-[#64748B]">Aucun document</p></div>
-                ) : (
-                  <div className="space-y-3">
-                    {documents.map((doc) => {
-                      const iconColor = doc.file_type === 'pdf' ? 'bg-red-50 text-red-600' : doc.file_type === 'docx' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'
-                      const isConfirming = confirmDeleteDocId === doc.id
-                      const isDeleting = deletingDocId === doc.id
-                      const isOpening = openingDocId === doc.id
-                      const isRenaming = renamingDocId === doc.id
-                      return (
-                        <div key={doc.id} className="bg-white rounded-xl border border-gray-100 p-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconColor}`}>
-                              <span className="text-xs font-bold uppercase">{doc.file_type}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              {isRenaming ? (
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  value={renameValue}
-                                  onChange={(e) => setRenameValue(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') confirmRename(doc.id)
-                                    if (e.key === 'Escape') setRenamingDocId(null)
-                                  }}
-                                  className="w-full px-2 py-1 text-sm text-[#1E293B] border border-[#3B82F6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
-                                />
-                              ) : (
-                                <p className="text-sm font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
-                              )}
-                              <p className="text-xs text-[#64748B] truncate">{doc.file_name}</p>
-                              <p className="text-xs text-[#94A3B8]">
-                                {uploaderMap[doc.user_id] ?? 'Inconnu'} · {fmtDay(doc.created_at)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
-                            <button
-                              onClick={() => handleOpenDocument(doc)}
-                              disabled={isOpening}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#3B82F6] bg-blue-50 hover:bg-blue-100 transition-all duration-150"
-                            >
-                              {isOpening ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                              Ouvrir
-                            </button>
-                            {isRenaming ? (
-                              <div className="flex gap-1.5">
-                                <button onClick={() => confirmRename(doc.id)} className="px-2.5 py-1.5 text-xs font-medium text-white bg-[#3B82F6] rounded-lg hover:bg-blue-600">OK</button>
-                                <button onClick={() => setRenamingDocId(null)} className="px-2.5 py-1.5 text-xs font-medium text-[#64748B] bg-gray-100 rounded-lg hover:bg-gray-200">✕</button>
-                              </div>
-                            ) : (
-                              <button onClick={() => startRename(doc)} className="p-1.5 rounded-lg text-gray-300 hover:text-[#3B82F6] hover:bg-blue-50 transition-all duration-150">
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {isConfirming ? (
-                              <div className="flex gap-1.5 ml-auto">
-                                <button
-                                  onClick={() => handleDeleteDocument(doc.id)}
-                                  disabled={isDeleting}
-                                  className="px-2.5 py-1.5 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600"
-                                >
-                                  {isDeleting ? '…' : 'Supprimer'}
-                                </button>
-                                <button
-                                  onClick={() => setConfirmDeleteDocId(null)}
-                                  className="px-2.5 py-1.5 text-xs font-medium text-[#64748B] bg-gray-100 rounded-lg hover:bg-gray-200"
-                                >
-                                  Annuler
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setConfirmDeleteDocId(doc.id)}
-                                className="ml-auto p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
                   </div>
                 )}
               </>
@@ -980,12 +841,27 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </form>
       </Modal>
+
+      {/* Lightbox image */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
+          <img src={lightboxUrl} alt="Pièce jointe" className="max-w-full max-h-full object-contain rounded-lg" />
+          <button onClick={() => setLightboxUrl(null)} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 /* ─── NoteCard inline ─── */
-function NoteCard({ note, onDelete }: { note: Note; onDelete: (id: string) => void }) {
+function NoteCard({ note, noteDocuments, onDelete, onOpenDoc }: {
+  note: Note
+  noteDocuments: Document[]
+  onDelete: (id: string) => void
+  onOpenDoc: (doc: Document) => void
+}) {
   const [confirming, setConfirming] = useState(false)
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -1011,6 +887,22 @@ function NoteCard({ note, onDelete }: { note: Note; onDelete: (id: string) => vo
         )}
       </div>
       <p className="text-sm text-[#1E293B] leading-relaxed whitespace-pre-wrap">{note.content}</p>
+      {noteDocuments.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+          {noteDocuments.map(doc => (
+            <button
+              key={doc.id}
+              onClick={() => onOpenDoc(doc)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-150 max-w-[160px]"
+            >
+              {doc.file_type === 'image'
+                ? <ImageIcon className="w-3.5 h-3.5 text-[#3B82F6] shrink-0" />
+                : <ExternalLink className="w-3.5 h-3.5 text-[#64748B] shrink-0" />}
+              <span className="text-xs text-[#64748B] truncate">{doc.title ?? doc.file_name}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
