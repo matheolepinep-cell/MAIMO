@@ -45,10 +45,20 @@ export function CompanyCard({ name, city, industry, status, visibility, onClick,
     <div
       onClick={onClick}
       className={clsx(
-        'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 transition-all duration-200',
-        onClick && 'cursor-pointer hover:border-slate-200 hover:shadow-md active:scale-[0.99]',
+        'bg-white rounded-2xl p-4 flex items-center gap-3 transition-all duration-200',
+        onClick && 'cursor-pointer hover:-translate-y-0.5 active:scale-[0.99]',
         className
       )}
+      style={{
+        border: '1px solid rgba(30,39,97,0.08)',
+        boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
+      }}
+      onMouseEnter={onClick ? (e) => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 12px rgba(30,39,97,0.10), 0 8px_24px rgba(30,39,97,0.08)'
+      } : undefined}
+      onMouseLeave={onClick ? (e) => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)'
+      } : undefined}
     >
       {/* Avatar */}
       <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold', color.bg, color.text)}>
@@ -59,10 +69,18 @@ export function CompanyCard({ name, city, industry, status, visibility, onClick,
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-semibold text-[#0F172A] truncate text-sm">{name}</p>
-          <span className={clsx(
-            'shrink-0 px-2 py-0.5 rounded-full text-xs font-medium',
-            status === 'prospect' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'
-          )}>
+          <span
+            className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
+            style={status === 'prospect' ? {
+              background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+              color: '#92400E',
+              borderColor: 'rgba(245,158,11,0.2)',
+            } : {
+              background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
+              color: '#065F46',
+              borderColor: 'rgba(16,185,129,0.2)',
+            }}
+          >
             {status === 'prospect' ? 'Prospect' : 'Client'}
           </span>
         </div>

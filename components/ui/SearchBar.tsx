@@ -84,10 +84,17 @@ export function SearchBar({
 
   return (
     <div className={clsx('relative', className)}>
-      <div className={clsx(
-        'flex items-center gap-3 bg-slate-50 rounded-2xl border border-slate-100 focus-within:border-blue-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all duration-200',
-        large ? 'px-4 py-3.5' : 'px-3.5 py-3'
-      )}>
+      <div
+        className={clsx(
+          'flex items-center gap-3 rounded-2xl transition-all duration-200',
+          large ? 'px-4 py-3.5' : 'px-3.5 py-3'
+        )}
+        style={{
+          background: 'rgba(240,244,255,0.9)',
+          border: '1px solid rgba(30,39,97,0.12)',
+          boxShadow: '0 1px 3px rgba(30,39,97,0.04)',
+        }}
+      >
         <input
           ref={inputRef}
           type="text"
@@ -95,13 +102,22 @@ export function SearchBar({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder={placeholder}
+          style={{
+            outline: 'none',
+            background: 'transparent',
+            border: 'none',
+          }}
           className={clsx(
-            'flex-1 bg-transparent border-0 outline-none text-[#0F172A] placeholder-slate-400',
+            'flex-1 text-[#0F172A] placeholder-slate-400',
             large ? 'text-base' : 'text-sm'
           )}
         />
         {value.trim() && (
-          <button onClick={handleSubmit} className="text-[#1E2761] hover:text-[#1a2254] transition-colors duration-200 shrink-0">
+          <button
+            onClick={handleSubmit}
+            className="shrink-0 transition-all duration-200 hover:-translate-y-px"
+            style={{ color: '#4C6EF5' }}
+          >
             <Send className={large ? 'w-5 h-5' : 'w-4 h-4'} />
           </button>
         )}
@@ -109,7 +125,7 @@ export function SearchBar({
           onClick={isRecording ? stopVoice : startVoice}
           className={clsx(
             'shrink-0 transition-all duration-200',
-            isRecording ? 'text-red-500 animate-pulse' : 'text-slate-400 hover:text-[#1E2761]'
+            isRecording ? 'text-red-500 animate-pulse' : 'text-slate-400 hover:text-[#4C6EF5]'
           )}
         >
           {isRecording

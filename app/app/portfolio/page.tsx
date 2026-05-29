@@ -6,6 +6,7 @@ import { Briefcase, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
+import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { BottomSheet } from '@/components/ui/BottomSheet'
@@ -111,6 +112,11 @@ export default function PortfolioPage() {
       <Header title="Mon portefeuille" />
       <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full">
 
+        <Breadcrumb items={[
+          { label: 'MAIMO', href: '/app/dashboard' },
+          { label: 'Mon portefeuille' },
+        ]} />
+
         {/* Header row */}
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -120,8 +126,18 @@ export default function PortfolioPage() {
                 <span className="text-sm text-slate-400">
                   <span className="font-semibold text-[#0F172A]">{entries.length}</span> entreprise{entries.length !== 1 ? 's' : ''}
                 </span>
-                {clientCount > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{clientCount} client{clientCount !== 1 ? 's' : ''}</span>}
-                {prospectCount > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">{prospectCount} prospect{prospectCount !== 1 ? 's' : ''}</span>}
+                {clientCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
+                    style={{ background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)', color: '#065F46', borderColor: 'rgba(16,185,129,0.2)' }}>
+                    {clientCount} client{clientCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {prospectCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
+                    style={{ background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)', color: '#92400E', borderColor: 'rgba(245,158,11,0.2)' }}>
+                    {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -136,9 +152,15 @@ export default function PortfolioPage() {
             <button
               key={value}
               onClick={() => setFilter(value)}
-              className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
-                filter === value ? 'bg-[#1E2761] text-white' : 'bg-white border border-slate-200 text-slate-500 hover:border-slate-300'
-              }`}
+              className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
+              style={filter === value ? {
+                background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
+                color: 'white',
+              } : {
+                background: 'white',
+                color: '#64748B',
+                border: '1px solid rgba(30,39,97,0.12)',
+              }}
             >
               {label}
             </button>
@@ -147,11 +169,15 @@ export default function PortfolioPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />)}</div>
+          <div className="space-y-3">{[...Array(4)].map((_, i) => (
+            <div key={i} className="h-20 bg-white rounded-2xl animate-pulse"
+              style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
+          ))}</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Briefcase className="w-6 h-6 text-slate-300" />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
+              style={{ background: 'rgba(76,110,245,0.08)' }}>
+              <Briefcase className="w-6 h-6 text-[#4C6EF5]" />
             </div>
             <p className="text-slate-500 text-sm mb-4">
               {filter !== 'all' ? 'Aucune entreprise dans ce filtre.' : 'Votre portefeuille est vide.'}
@@ -194,7 +220,6 @@ export default function PortfolioPage() {
         )}
       </div>
 
-      {/* Create sheet */}
       <BottomSheet open={createOpen} onClose={() => { setCreateOpen(false); setCreateError('') }} title="Nouvelle entreprise">
         <form onSubmit={handleCreate} className="space-y-4">
           <Input id="name" label="Raison sociale" placeholder="Entreprise Dupont" value={newName} onChange={(e) => setNewName(e.target.value)} required autoFocus />
@@ -202,7 +227,7 @@ export default function PortfolioPage() {
           <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={newIndustry} onChange={(e) => setNewIndustry(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-[#0F172A] mb-1.5">Statut</label>
-            <div className="flex rounded-xl bg-slate-100 p-1">
+            <div className="flex rounded-xl bg-[#F0F4FF] p-1">
               <button type="button" onClick={() => setNewStatus('client')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${newStatus === 'client' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Client</button>
               <button type="button" onClick={() => setNewStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${newStatus === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
             </div>

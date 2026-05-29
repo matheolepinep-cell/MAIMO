@@ -2,9 +2,9 @@
 
 @theme inline {
   --color-navy: #1E2761;
-  --color-accent: #3B82F6;
+  --color-accent: #4C6EF5;
   --color-success: #10B981;
-  --color-bg: #F8FAFC;
+  --color-bg: #F0F4FF;
   --color-text-primary: #0F172A;
   --color-text-secondary: #64748B;
   --font-sans: var(--font-inter);
@@ -15,9 +15,10 @@
 }
 
 body {
-  background-color: #F8FAFC;
+  background-color: #F0F4FF;
   color: #0F172A;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 @keyframes waveBar {

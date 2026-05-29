@@ -60,30 +60,52 @@ export function BottomNav() {
   const isPortfolio = pathname.startsWith('/app/portfolio')
   const isProfile = pathname.startsWith('/app/profile')
 
+  function NavLink({ href, icon: Icon, active }: { href: string; icon: React.ElementType; active: boolean }) {
+    return (
+      <Link href={href} className="flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-all duration-200">
+        <Icon
+          className={clsx('w-5 h-5 transition-all duration-200', active ? 'text-[#1E2761]' : 'text-slate-400')}
+          style={active ? { filter: 'drop-shadow(0 0 6px rgba(76,110,245,0.4))' } : {}}
+        />
+        {active && (
+          <span
+            className="w-1 h-1 rounded-full"
+            style={{ background: 'linear-gradient(135deg, #1E2761, #4C6EF5)' }}
+          />
+        )}
+      </Link>
+    )
+  }
+
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-lg z-40 pb-safe">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 pb-safe"
+        style={{
+          background: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderTop: '1px solid rgba(30,39,97,0.08)',
+          boxShadow: '0 -4px 24px rgba(30,39,97,0.06)',
+        }}
+      >
         <div className="flex items-stretch h-16">
-          <Link href="/app/search" className={clsx('flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200', isSearch ? 'text-[#1E2761]' : 'text-slate-400')}>
-            <Search className="w-5 h-5" />
-            {isSearch && <span className="w-1 h-1 rounded-full bg-[#1E2761]" />}
-          </Link>
-
-          <Link href="/app/portfolio" className={clsx('flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200', isPortfolio ? 'text-[#1E2761]' : 'text-slate-400')}>
-            <Briefcase className="w-5 h-5" />
-            {isPortfolio && <span className="w-1 h-1 rounded-full bg-[#1E2761]" />}
-          </Link>
+          <NavLink href="/app/search" icon={Search} active={isSearch} />
+          <NavLink href="/app/portfolio" icon={Briefcase} active={isPortfolio} />
 
           <button onClick={() => setOpen(true)} className="flex-1 flex flex-col items-center justify-center">
-            <div className="w-10 h-10 bg-[#1E2761] rounded-2xl flex items-center justify-center shadow-lg shadow-[#1E2761]/20 -mt-3">
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg -mt-3"
+              style={{
+                background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
+                boxShadow: '0 4px 14px rgba(30,39,97,0.35)',
+              }}
+            >
               <Plus className="w-5 h-5 text-white" />
             </div>
           </button>
 
-          <Link href="/app/profile" className={clsx('flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200', isProfile ? 'text-[#1E2761]' : 'text-slate-400')}>
-            <User className="w-5 h-5" />
-            {isProfile && <span className="w-1 h-1 rounded-full bg-[#1E2761]" />}
-          </Link>
+          <NavLink href="/app/profile" icon={User} active={isProfile} />
         </div>
       </nav>
 
@@ -94,7 +116,7 @@ export function BottomNav() {
           <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={industry} onChange={(e) => setIndustry(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-[#0F172A] mb-1.5">Statut</label>
-            <div className="flex rounded-xl bg-slate-100 p-1">
+            <div className="flex rounded-xl bg-[#F0F4FF] p-1">
               <button type="button" onClick={() => setStatus('client')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'client' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Client</button>
               <button type="button" onClick={() => setStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
             </div>

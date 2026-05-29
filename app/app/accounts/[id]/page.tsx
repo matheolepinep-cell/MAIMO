@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Modal } from '@/components/ui/Modal'
 import type { Account, Contact, Note, Document, SearchSource } from '@/types/database'
 
@@ -465,9 +466,19 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col min-h-full">
+      {/* Breadcrumb — desktop only */}
+      <div className="hidden md:block px-6 pt-4 pb-0">
+        <Breadcrumb items={[
+          { label: 'MAIMO', href: '/app/dashboard' },
+          { label: 'Mon portefeuille', href: '/app/portfolio' },
+          { label: account.name },
+        ]} />
+      </div>
+
       {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
-        <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-all duration-200 shrink-0">
+      <div className="bg-white px-4 py-3 flex items-center gap-3 sticky top-0 z-30"
+        style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
+        <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-[#F0F4FF] transition-all duration-200 shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold ${avatarColor.bg} ${avatarColor.text}`}>
@@ -478,11 +489,16 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             <h1 className="font-semibold text-[#0F172A] truncate">{account.name}</h1>
             <button
               onClick={handleStatusToggle}
-              className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                account.status === 'prospect'
-                  ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
-                  : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-              }`}
+              className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-200 border"
+              style={account.status === 'prospect' ? {
+                background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+                color: '#92400E',
+                borderColor: 'rgba(245,158,11,0.2)',
+              } : {
+                background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
+                color: '#065F46',
+                borderColor: 'rgba(16,185,129,0.2)',
+              }}
             >
               {account.status === 'prospect' ? 'Prospect' : 'Client'}
             </button>

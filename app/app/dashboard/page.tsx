@@ -46,7 +46,7 @@ function capitalize(s: string) { return s.charAt(0).toUpperCase() + s.slice(1) }
 
 /* ─── Skeleton ─── */
 function Skeleton({ className }: { className?: string }) {
-  return <div className={`bg-slate-100 animate-pulse rounded-xl ${className ?? ''}`} />
+  return <div className={`bg-[#EEF2FF] animate-pulse rounded-xl ${className ?? ''}`} />
 }
 
 export default function DashboardPage() {
@@ -70,14 +70,12 @@ export default function DashboardPage() {
     return () => clearInterval(id)
   }, [])
 
-  /* localStorage recent */
   useEffect(() => {
     try {
       setRecentAccounts(JSON.parse(localStorage.getItem('maimo_recent_accounts') ?? '[]').slice(0, 3))
     } catch { /* empty */ }
   }, [])
 
-  /* all data fetch */
   useEffect(() => {
     if (profileLoading || !profile) return
     const supabase = createClient()
@@ -109,7 +107,6 @@ export default function DashboardPage() {
         notesWeek: notesWeek ?? 0, accountsWeek: accountsWeek ?? 0,
       })
 
-      // Enrich activity
       const allAccountIds = [...new Set([...(notes ?? []).map((n) => n.account_id), ...(docs ?? []).map((d) => d.account_id)])]
       const allUserIds = [...new Set([...(notes ?? []).map((n) => n.user_id), ...(docs ?? []).map((d) => d.user_id)].filter(Boolean))]
       const [{ data: accs }, { data: usrs }] = await Promise.all([
@@ -140,7 +137,6 @@ export default function DashboardPage() {
       rawActivity.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setActivity(rawActivity.slice(0, 8))
 
-      // Mobile items
       const mobileRaw: MobileItem[] = [
         ...(notes ?? []).slice(0, 5).map((n) => ({ kind: 'note' as const, id: n.id, title: n.title, content: n.content, account_id: n.account_id, account_name: accMap[n.account_id] ?? '—', source: n.source, created_at: n.created_at })),
         ...(docs ?? []).slice(0, 3).map((d) => ({ kind: 'doc' as const, id: d.id, title: d.title, file_name: d.file_name, file_type: d.file_type, account_id: d.account_id, account_name: accMap[d.account_id] ?? '—', created_at: d.created_at })),
@@ -148,7 +144,6 @@ export default function DashboardPage() {
       mobileRaw.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setMobileItems(mobileRaw.slice(0, 5))
 
-      // Portfolio
       type PfRow = { id: string; account_id: string; accounts: { id: string; name: string; status: 'client' | 'prospect' } | null }
       const pf = ((pfRows ?? []) as unknown as PfRow[]).map((r) => ({
         id: r.id, account_id: r.account_id,
@@ -157,7 +152,6 @@ export default function DashboardPage() {
       }))
       setPortfolio(pf)
 
-      // Team with portfolio counts
       const pfCounts: Record<string, number> = {}
       for (const row of allPf ?? []) {
         pfCounts[row.user_id] = (pfCounts[row.user_id] ?? 0) + 1
@@ -176,26 +170,25 @@ export default function DashboardPage() {
   const firstName = profile?.full_name?.split(' ')[0] ?? ''
   const handleSearch = (q: string) => router.push(`/app/search?q=${encodeURIComponent(q)}`)
 
-  /* ─── STAT CARDS CONFIG ─── */
   const statCards = [
     {
       label: 'Entreprises', value: stats.accounts,
-      icon: Building2, iconBg: 'bg-blue-50', iconColor: 'text-blue-600',
+      icon: Building2, iconColor: '#4C6EF5', iconBg: 'rgba(76,110,245,0.1)',
       delta: stats.accountsWeek > 0 ? `+${stats.accountsWeek} cette semaine` : null,
     },
     {
       label: 'Notes', value: stats.notes,
-      icon: FileText, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600',
+      icon: FileText, iconColor: '#10B981', iconBg: 'rgba(16,185,129,0.1)',
       delta: stats.notesWeek > 0 ? `+${stats.notesWeek} cette semaine` : null,
     },
     {
       label: 'Documents', value: stats.docs,
-      icon: Upload, iconBg: 'bg-purple-50', iconColor: 'text-purple-600',
+      icon: Upload, iconColor: '#8B5CF6', iconBg: 'rgba(139,92,246,0.1)',
       delta: null,
     },
     {
       label: 'Membres', value: stats.team,
-      icon: Users, iconBg: 'bg-orange-50', iconColor: 'text-orange-600',
+      icon: Users, iconColor: '#F59E0B', iconBg: 'rgba(245,158,11,0.1)',
       delta: null,
     },
   ]
@@ -204,18 +197,19 @@ export default function DashboardPage() {
     <div className="flex flex-col min-h-full">
 
       {/* ── MOBILE HEADER ── */}
-      <header className="lg:hidden bg-white border-b border-slate-100 px-5 py-3.5 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-[#1E2761] rounded-lg flex items-center justify-center">
+      <header className="lg:hidden bg-white px-5 py-3.5 flex items-center justify-between sticky top-0 z-30"
+        style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
+        <button onClick={() => router.push('/app/dashboard')} className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
             <span className="text-white font-bold text-xs">M</span>
           </div>
-          <span className="font-bold tracking-widest text-[#1E2761] text-sm">MAIMO</span>
-        </div>
+          <span className="font-extrabold text-[#1E2761] text-sm" style={{ letterSpacing: '0.15em' }}>MAIMO</span>
+        </button>
         {profile && (
-          <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-            <span className="text-xs font-semibold text-slate-600">
-              {profile.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
-            </span>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
+            {profile.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
           </div>
         )}
       </header>
@@ -226,24 +220,20 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-semibold text-[#0F172A] tracking-tight">{greeting()} {firstName} 👋</h1>
           <p className="text-sm text-slate-400 mt-0.5">{time} · {formatDate()}</p>
         </div>
-        <div className="mb-3">
+        <div className="mb-6">
           <SearchBar large onSubmit={handleSearch} onVoiceResult={handleSearch} />
-        </div>
-        <div className="mb-8">
-          <button onClick={() => router.push('/app/search')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-xs text-slate-500 hover:bg-slate-200 transition-all duration-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1E2761]" />
-            Mon portefeuille <span className="text-slate-400">▾</span>
-          </button>
         </div>
         {recentAccounts.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Accès rapide</h2>
+            <h2 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Accès rapide</h2>
             <div className="space-y-2">
               {recentAccounts.map((acc) => (
                 <button key={acc.id} onClick={() => router.push(`/app/accounts/${acc.id}`)}
-                  className="w-full flex items-center gap-3 bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 hover:shadow-md transition-all duration-200">
-                  <div className="w-8 h-8 bg-[#1E2761]/10 rounded-xl flex items-center justify-center shrink-0">
-                    <Building2 className="w-4 h-4 text-[#1E2761]" />
+                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3 hover:-translate-y-0.5 transition-all duration-200"
+                  style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(76,110,245,0.1)' }}>
+                    <Building2 className="w-4 h-4 text-[#4C6EF5]" />
                   </div>
                   <span className="flex-1 text-sm font-medium text-[#0F172A] text-left truncate">{acc.name}</span>
                   <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
@@ -254,18 +244,21 @@ export default function DashboardPage() {
         )}
         {mobileItems.length > 0 && (
           <div>
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Récent</h2>
+            <h2 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Récent</h2>
             <div className="space-y-2">
               {mobileItems.map((item) => (
                 <button key={`${item.kind}-${item.id}`} onClick={() => router.push(`/app/accounts/${item.account_id}`)}
-                  className="w-full flex items-center gap-3 bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 hover:shadow-md transition-all duration-200">
+                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3 hover:-translate-y-0.5 transition-all duration-200"
+                  style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
                   {item.kind === 'note' ? (
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.source === 'vocal' ? 'bg-red-50' : 'bg-blue-50'}`}>
-                      {item.source === 'vocal' ? <Mic className="w-4 h-4 text-red-400" /> : <Type className="w-4 h-4 text-blue-400" />}
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: item.source === 'vocal' ? 'rgba(239,68,68,0.1)' : 'rgba(76,110,245,0.1)' }}>
+                      {item.source === 'vocal' ? <Mic className="w-4 h-4 text-red-500" /> : <Type className="w-4 h-4 text-[#4C6EF5]" />}
                     </div>
                   ) : (
-                    <div className="w-8 h-8 bg-purple-50 rounded-xl flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-purple-400" />
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: 'rgba(139,92,246,0.1)' }}>
+                      <FileText className="w-4 h-4 text-purple-500" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0 text-left">
@@ -282,11 +275,12 @@ export default function DashboardPage() {
         )}
         {!profileLoading && recentAccounts.length === 0 && mobileItems.length === 0 && (
           <div className="text-center py-16">
-            <div className="w-16 h-16 bg-[#1E2761]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: 'rgba(76,110,245,0.1)' }}>
               <span className="text-2xl font-bold text-[#1E2761]">M</span>
             </div>
             <p className="text-[#0F172A] font-medium mb-1">Bienvenue sur MAIMO</p>
-            <p className="text-sm text-slate-400">Posez votre première question ou créez votre première fiche entreprise.</p>
+            <p className="text-sm text-slate-400">Posez votre première question ou créez votre première fiche.</p>
           </div>
         )}
       </div>
@@ -295,46 +289,64 @@ export default function DashboardPage() {
       <div className="hidden lg:flex flex-col min-h-full">
 
         {/* Hero */}
-        <div className="bg-[#1E2761] px-10 pt-10 pb-16 relative">
-          <div className="max-w-7xl mx-auto">
+        <div className="relative px-10 pt-10 pb-16 overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #0F1F5C 0%, #1E2761 40%, #2D3F8F 70%, #4C6EF5 100%)' }}>
+          {/* Subtle grid pattern */}
+          <div className="absolute inset-0 opacity-[0.04]" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }} />
+          <div className="max-w-7xl mx-auto relative">
             <div className="flex items-end justify-between mb-6">
               <div>
-                <p className="font-bold tracking-widest text-white/60 text-xs mb-2 uppercase">MAIMO</p>
+                <p
+                  className="font-extrabold text-white/60 text-xs mb-2 uppercase"
+                  style={{ letterSpacing: '0.2em', textShadow: '0 2px 20px rgba(76,110,245,0.4)' }}
+                >
+                  MAIMO
+                </p>
                 <h1 className="text-3xl font-semibold text-white tracking-tight">
                   {greeting()}, {firstName} 👋
                 </h1>
                 <p className="text-white/50 text-sm mt-1">{capitalize(formatDate())} · {time}</p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                  <span className="text-white text-sm font-semibold">
-                    {profile?.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
-                  </span>
-                </div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.12)' }}>
+                <span className="text-white text-sm font-semibold">
+                  {profile?.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                </span>
               </div>
             </div>
-            {/* Floating search bar */}
             <div className="max-w-2xl">
-              <SearchBar
-                large
-                onSubmit={handleSearch}
-                onVoiceResult={handleSearch}
-                className="bg-white rounded-2xl shadow-2xl shadow-[#1E2761]/30"
-              />
+              <SearchBar large onSubmit={handleSearch} onVoiceResult={handleSearch} />
             </div>
           </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 bg-[#F8FAFC] px-10 py-8 -mt-6">
+        <div className="flex-1 bg-[#F0F4FF] px-10 py-8 -mt-6">
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* ROW 1 — Stats */}
             <div className="grid grid-cols-4 gap-5">
-              {statCards.map(({ label, value, icon: Icon, iconBg, iconColor, delta }) => (
-                <div key={label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default">
-                  <div className={`w-10 h-10 ${iconBg} rounded-xl flex items-center justify-center mb-4`}>
-                    <Icon className={`w-5 h-5 ${iconColor}`} />
+              {statCards.map(({ label, value, icon: Icon, iconColor, iconBg, delta }) => (
+                <div
+                  key={label}
+                  className="bg-white rounded-2xl p-5 cursor-default transition-all duration-200 hover:-translate-y-0.5"
+                  style={{
+                    border: '1px solid rgba(30,39,97,0.08)',
+                    boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 12px rgba(30,39,97,0.10), 0 8px 24px rgba(30,39,97,0.08)'
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)'
+                  }}
+                >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
+                    style={{ background: iconBg }}>
+                    <Icon className="w-5 h-5" style={{ color: iconColor }} />
                   </div>
                   {desktopLoading
                     ? <Skeleton className="h-9 w-16 mb-1" />
@@ -352,15 +364,17 @@ export default function DashboardPage() {
             <div className="grid grid-cols-5 gap-5">
 
               {/* Activity feed — 3/5 */}
-              <div className="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
+              <div className="col-span-3 bg-white rounded-2xl overflow-hidden"
+                style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
+                <div className="flex items-center justify-between px-6 py-4"
+                  style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
                   <h2 className="font-semibold text-[#0F172A]">Activité récente</h2>
-                  <button onClick={() => router.push('/app/accounts')} className="text-xs text-[#3B82F6] hover:underline font-medium">
+                  <button onClick={() => router.push('/app/accounts')} className="text-xs text-[#4C6EF5] hover:underline font-medium">
                     Tout voir →
                   </button>
                 </div>
                 {desktopLoading ? (
-                  <div className="divide-y divide-slate-50">
+                  <div className="divide-y divide-[rgba(30,39,97,0.04)]">
                     {[...Array(6)].map((_, i) => (
                       <div key={i} className="flex items-center gap-4 px-6 py-3.5">
                         <Skeleton className="w-8 h-8 shrink-0" />
@@ -378,20 +392,22 @@ export default function DashboardPage() {
                     <p className="text-sm">Aucune activité récente</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-50">
+                  <div className="divide-y divide-[rgba(30,39,97,0.04)]">
                     {activity.map((item) => (
                       <button
                         key={`${item.type}-${item.id}`}
                         onClick={() => router.push(`/app/accounts/${item.account_id}`)}
-                        className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 transition-colors duration-150 text-left"
+                        className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
                       >
                         {item.type === 'note' ? (
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.source === 'vocal' ? 'bg-red-50' : 'bg-blue-50'}`}>
-                            {item.source === 'vocal' ? <Mic className="w-4 h-4 text-red-400" /> : <Type className="w-4 h-4 text-blue-400" />}
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ background: item.source === 'vocal' ? 'rgba(239,68,68,0.1)' : 'rgba(76,110,245,0.1)' }}>
+                            {item.source === 'vocal' ? <Mic className="w-4 h-4 text-red-500" /> : <Type className="w-4 h-4 text-[#4C6EF5]" />}
                           </div>
                         ) : (
-                          <div className="w-8 h-8 bg-purple-50 rounded-xl flex items-center justify-center shrink-0">
-                            <Upload className="w-4 h-4 text-purple-400" />
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ background: 'rgba(139,92,246,0.1)' }}>
+                            <Upload className="w-4 h-4 text-purple-500" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
@@ -413,15 +429,15 @@ export default function DashboardPage() {
               <div className="col-span-2 flex flex-col gap-5">
 
                 {/* Portfolio card */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+                <div className="bg-white rounded-2xl overflow-hidden"
+                  style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
+                  <div className="flex items-center justify-between px-5 py-4"
+                    style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
                     <h2 className="font-semibold text-[#0F172A]">Mon portefeuille</h2>
-                    <button onClick={() => router.push('/app/portfolio')} className="text-xs text-[#3B82F6] hover:underline font-medium">
-                      Voir tout →
-                    </button>
+                    <button onClick={() => router.push('/app/portfolio')} className="text-xs text-[#4C6EF5] hover:underline font-medium">Voir tout →</button>
                   </div>
                   {desktopLoading ? (
-                    <div className="divide-y divide-slate-50">
+                    <div className="divide-y divide-[rgba(30,39,97,0.04)]">
                       {[...Array(3)].map((_, i) => (
                         <div key={i} className="flex items-center gap-3 px-5 py-3">
                           <Skeleton className="w-8 h-8 rounded-xl shrink-0" />
@@ -432,23 +448,34 @@ export default function DashboardPage() {
                   ) : portfolio.length === 0 ? (
                     <div className="px-5 py-6 text-center">
                       <p className="text-sm text-slate-400">Portefeuille vide</p>
-                      <button onClick={() => router.push('/app/portfolio')} className="mt-2 text-xs text-[#3B82F6] hover:underline">Ajouter des entreprises →</button>
+                      <button onClick={() => router.push('/app/portfolio')} className="mt-2 text-xs text-[#4C6EF5] hover:underline">Ajouter des entreprises →</button>
                     </div>
                   ) : (
-                    <div className="divide-y divide-slate-50">
+                    <div className="divide-y divide-[rgba(30,39,97,0.04)]">
                       {portfolio.map((item) => {
                         const color = getAvatarColor(item.account_name)
                         return (
                           <button
                             key={item.id}
                             onClick={() => router.push(`/app/accounts/${item.account_id}`)}
-                            className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors duration-150 text-left"
+                            className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
                           >
                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold ${color.bg} ${color.text}`}>
                               {getInitials(item.account_name)}
                             </div>
                             <span className="flex-1 text-sm font-medium text-[#0F172A] truncate">{item.account_name}</span>
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${item.status === 'prospect' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            <span
+                              className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
+                              style={item.status === 'prospect' ? {
+                                background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+                                color: '#92400E',
+                                borderColor: 'rgba(245,158,11,0.2)',
+                              } : {
+                                background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
+                                color: '#065F46',
+                                borderColor: 'rgba(16,185,129,0.2)',
+                              }}
+                            >
                               {item.status === 'prospect' ? 'Prospect' : 'Client'}
                             </span>
                             <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
@@ -460,15 +487,15 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Team card */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+                <div className="bg-white rounded-2xl overflow-hidden"
+                  style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
+                  <div className="flex items-center justify-between px-5 py-4"
+                    style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
                     <h2 className="font-semibold text-[#0F172A]">Équipe</h2>
-                    <button onClick={() => router.push('/app/team')} className="text-xs text-[#3B82F6] hover:underline font-medium">
-                      Voir tout →
-                    </button>
+                    <button onClick={() => router.push('/app/team')} className="text-xs text-[#4C6EF5] hover:underline font-medium">Voir tout →</button>
                   </div>
                   {desktopLoading ? (
-                    <div className="divide-y divide-slate-50">
+                    <div className="divide-y divide-[rgba(30,39,97,0.04)]">
                       {[...Array(3)].map((_, i) => (
                         <div key={i} className="flex items-center gap-3 px-5 py-3">
                           <Skeleton className="w-8 h-8 rounded-full shrink-0" />
@@ -477,12 +504,13 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="divide-y divide-slate-50">
+                    <div className="divide-y divide-[rgba(30,39,97,0.04)]">
                       {team.map((member) => {
                         const initials = member.full_name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
                         return (
                           <div key={member.id} className="flex items-center gap-3 px-5 py-3">
-                            <div className="w-8 h-8 bg-[#1E2761]/10 rounded-full flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                              style={{ background: 'linear-gradient(135deg, rgba(30,39,97,0.1), rgba(76,110,245,0.1))' }}>
                               <span className="text-xs font-semibold text-[#1E2761]">{initials}</span>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -491,7 +519,18 @@ export default function DashboardPage() {
                                 {member.portfolio_count} entreprise{member.portfolio_count !== 1 ? 's' : ''}
                               </p>
                             </div>
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${member.role === 'admin' ? 'bg-[#1E2761]/10 text-[#1E2761]' : 'bg-slate-100 text-slate-500'}`}>
+                            <span
+                              className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
+                              style={member.role === 'admin' ? {
+                                background: 'linear-gradient(135deg, #EDE9FE, #DDD6FE)',
+                                color: '#4C1D95',
+                                borderColor: 'rgba(139,92,246,0.2)',
+                              } : {
+                                background: '#F8FAFC',
+                                color: '#64748B',
+                                borderColor: 'rgba(30,39,97,0.08)',
+                              }}
+                            >
                               {member.role === 'admin' ? 'Admin' : 'Commercial'}
                             </span>
                           </div>
@@ -505,9 +544,11 @@ export default function DashboardPage() {
 
             {/* ROW 3 — CTA if empty portfolio */}
             {!desktopLoading && portfolio.length === 0 && (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-8 py-10 flex flex-col items-center text-center">
-                <div className="w-14 h-14 bg-[#1E2761]/10 rounded-2xl flex items-center justify-center mb-4">
-                  <Plus className="w-7 h-7 text-[#1E2761]" />
+              <div className="bg-white rounded-2xl px-8 py-10 flex flex-col items-center text-center"
+                style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                  style={{ background: 'rgba(76,110,245,0.1)' }}>
+                  <Plus className="w-7 h-7 text-[#4C6EF5]" />
                 </div>
                 <h3 className="text-lg font-semibold text-[#0F172A] mb-1">Commencez votre portefeuille</h3>
                 <p className="text-sm text-slate-400 mb-5 max-w-sm">
@@ -515,7 +556,8 @@ export default function DashboardPage() {
                 </p>
                 <button
                   onClick={() => router.push('/app/portfolio')}
-                  className="px-6 py-2.5 bg-[#1E2761] text-white text-sm font-medium rounded-xl hover:bg-[#1a2254] transition-all duration-200 shadow-sm"
+                  className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 shadow-sm hover:brightness-110 hover:-translate-y-px"
+                  style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
                 >
                   Ajouter ma première entreprise →
                 </button>

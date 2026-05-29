@@ -6,6 +6,7 @@ import { Briefcase, Globe, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
+import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { AnswerCard } from '@/components/ui/AnswerCard'
 import type { SearchSource } from '@/types/database'
@@ -62,13 +63,11 @@ function SearchPageContent() {
   const [sources, setSources] = useState<SearchSource[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Read initial query from URL
   useEffect(() => {
     const q = searchParams.get('q')
     if (q) setQuery(q)
   }, [searchParams])
 
-  // Load data
   useEffect(() => {
     if (profileLoading || !profile) return
     const supabase = createClient()
@@ -93,7 +92,6 @@ function SearchPageContent() {
     }
   }, [profileLoading, profile])
 
-  // Auto-search when query comes from URL
   const didAutoSearch = useRef(false)
   useEffect(() => {
     const q = searchParams.get('q')
@@ -149,9 +147,14 @@ function SearchPageContent() {
       <Header title="Recherche IA" />
 
       <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full space-y-4">
-        <h1 className="text-2xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Recherche IA</h1>
 
-        {/* Search bar always at top */}
+        <Breadcrumb items={[
+          { label: 'MAIMO', href: '/app/dashboard' },
+          { label: 'Recherche IA' },
+        ]} />
+
+        <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Recherche IA</h1>
+
         <SearchBar
           onSubmit={handleSubmit}
           defaultValue={query}
@@ -161,7 +164,7 @@ function SearchPageContent() {
         />
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-200">
+        <div className="flex" style={{ borderBottom: '1px solid rgba(30,39,97,0.10)' }}>
           {([
             { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
             { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
@@ -169,11 +172,14 @@ function SearchPageContent() {
             <button
               key={value}
               onClick={() => { setActiveTab(value); setAnswer(''); setSources([]) }}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-px ${
-                activeTab === value
-                  ? 'border-[#1E2761] text-[#1E2761]'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-px"
+              style={activeTab === value ? {
+                borderBottomColor: '#4C6EF5',
+                color: '#1E2761',
+              } : {
+                borderBottomColor: 'transparent',
+                color: '#94A3B8',
+              }}
             >
               <Icon className="w-3.5 h-3.5" />{label}
             </button>
@@ -187,7 +193,11 @@ function SearchPageContent() {
             <select
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-all duration-200"
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none transition-all duration-200"
+              style={{
+                background: 'rgba(240,244,255,0.8)',
+                border: '1px solid rgba(30,39,97,0.12)',
+              }}
             >
               <option value="">Toutes mes entreprises</option>
               {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -198,30 +208,49 @@ function SearchPageContent() {
         {/* Filters */}
         <div className="flex flex-wrap gap-2">
           {(['all', 'client', 'prospect'] as const).map((f) => (
-            <button key={f} onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
-                statusFilter === f ? 'bg-[#1E2761] text-white' : 'bg-white border border-slate-200 text-slate-500 hover:border-slate-300'
-              }`}
+            <button
+              key={f}
+              onClick={() => setStatusFilter(f)}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
+              style={statusFilter === f ? {
+                background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
+                color: 'white',
+              } : {
+                background: 'white',
+                color: '#64748B',
+                border: '1px solid rgba(30,39,97,0.12)',
+              }}
             >
               {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
             </button>
           ))}
           <input
             type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
-            className="px-3 py-1.5 rounded-xl text-xs border border-slate-200 bg-white text-slate-600 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-all duration-200 w-24"
+            className="px-3 py-1.5 rounded-xl text-xs text-slate-600 placeholder-slate-400 focus:outline-none transition-all duration-200 w-24"
+            style={{
+              background: 'rgba(240,244,255,0.8)',
+              border: '1px solid rgba(30,39,97,0.12)',
+            }}
           />
         </div>
 
-        {/* Suggestions (shown when no answer) */}
+        {/* Suggestions */}
         {!answer && !loading && (
           <div>
-            <p className="text-xs font-medium text-slate-400 mb-2.5 uppercase tracking-wide">Suggestions</p>
+            <p className="text-[10px] font-semibold text-slate-400 mb-2.5 uppercase tracking-widest">Suggestions</p>
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSubmit(s)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:border-[#1E2761] hover:text-[#1E2761] transition-all duration-200"
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white transition-all duration-200 hover:-translate-y-px"
+                  style={{
+                    border: '1px solid rgba(30,39,97,0.12)',
+                    color: '#64748B',
+                    boxShadow: '0 1px 3px rgba(30,39,97,0.04)',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#1E2761'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(76,110,245,0.3)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#64748B'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(30,39,97,0.12)' }}
                 >
                   {s}
                 </button>
@@ -230,12 +259,8 @@ function SearchPageContent() {
           </div>
         )}
 
-        {/* Loading */}
-        {loading && (
-          <AnswerCard answer="" sources={[]} isLoading />
-        )}
+        {loading && <AnswerCard answer="" sources={[]} isLoading />}
 
-        {/* Answer */}
         {!loading && answer && (
           <AnswerCard
             answer={answer}

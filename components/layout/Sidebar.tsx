@@ -19,15 +19,17 @@ function NavItem({ href, icon: Icon, label, active }: { href: string; icon: Reac
     <Link
       href={href}
       className={clsx(
-        'relative group flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200',
-        active ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white hover:bg-white/10'
+        'flex items-center gap-3 px-3 py-2.5 rounded-xl mx-2 transition-all duration-150 group',
+        active
+          ? 'text-[#1E2761] font-semibold border-l-[3px] border-l-[#4C6EF5] pl-[9px]'
+          : 'text-slate-500 hover:text-[#1E2761] hover:bg-[rgba(240,244,255,0.8)]'
       )}
-      title={label}
+      style={active ? {
+        background: 'linear-gradient(135deg, rgba(30,39,97,0.07) 0%, rgba(76,110,245,0.05) 100%)',
+      } : {}}
     >
-      <Icon className="w-5 h-5" />
-      <span className="pointer-events-none absolute left-12 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 shadow-lg">
-        {label}
-      </span>
+      <Icon className={clsx('w-[18px] h-[18px] shrink-0', active ? 'text-[#4C6EF5]' : 'text-slate-400 group-hover:text-[#4C6EF5]')} />
+      <span className="text-sm truncate">{label}</span>
     </Link>
   )
 }
@@ -48,14 +50,29 @@ export function Sidebar() {
     ?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() ?? '?'
 
   return (
-    <aside className="hidden md:flex flex-col items-center w-16 bg-[#1E2761] min-h-screen py-4 shrink-0 overflow-visible">
+    <aside className="hidden md:flex flex-col w-[200px] bg-white border-r border-[rgba(30,39,97,0.08)] min-h-screen py-5 shrink-0">
+
       {/* Logo */}
-      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-6 shrink-0">
-        <span className="text-white font-bold text-base">M</span>
-      </div>
+      <Link href="/app/dashboard" className="flex items-center gap-2.5 px-5 mb-8 group">
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
+          style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
+          <span className="text-white font-bold text-sm">M</span>
+        </div>
+        <span
+          className="font-extrabold text-[#1E2761] transition-all duration-200 group-hover:text-[#4C6EF5]"
+          style={{ fontSize: 18, letterSpacing: '0.2em' }}
+        >
+          MAIMO
+        </span>
+      </Link>
+
+      {/* Nav label */}
+      <p className="px-5 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-300">
+        Navigation
+      </p>
 
       {/* Nav */}
-      <nav className="flex flex-col items-center gap-1 flex-1">
+      <nav className="flex flex-col gap-0.5 flex-1">
         {navItems.map(({ href, icon, label }) => (
           <NavItem
             key={href}
@@ -67,45 +84,59 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Bottom: settings + user avatar */}
-      <div className="flex flex-col items-center gap-2 mt-auto">
+      {/* Bottom section */}
+      <div className="mt-auto pt-4 border-t border-[rgba(30,39,97,0.06)] mx-2">
+
         {profile?.role === 'admin' && (
-          <NavItem
+          <Link
             href="/app/settings"
-            icon={Settings}
-            label="Paramètres"
-            active={pathname.startsWith('/app/settings')}
-          />
+            className={clsx(
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group mb-0.5',
+              pathname.startsWith('/app/settings')
+                ? 'text-[#1E2761] font-semibold border-l-[3px] border-l-[#4C6EF5] pl-[9px]'
+                : 'text-slate-500 hover:text-[#1E2761] hover:bg-[rgba(240,244,255,0.8)]'
+            )}
+            style={pathname.startsWith('/app/settings') ? {
+              background: 'linear-gradient(135deg, rgba(30,39,97,0.07) 0%, rgba(76,110,245,0.05) 100%)',
+            } : {}}
+          >
+            <Settings className="w-[18px] h-[18px] shrink-0 text-slate-400 group-hover:text-[#4C6EF5]" />
+            <span className="text-sm">Paramètres</span>
+          </Link>
         )}
 
         <Link
           href="/app/profile"
           className={clsx(
-            'relative group flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200',
-            pathname.startsWith('/app/profile') ? 'bg-white/20' : 'hover:bg-white/10'
+            'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group mb-0.5',
+            pathname.startsWith('/app/profile')
+              ? 'text-[#1E2761] font-semibold border-l-[3px] border-l-[#4C6EF5] pl-[9px]'
+              : 'text-slate-500 hover:text-[#1E2761] hover:bg-[rgba(240,244,255,0.8)]'
           )}
-          title={profile?.full_name ?? 'Profil'}
+          style={pathname.startsWith('/app/profile') ? {
+            background: 'linear-gradient(135deg, rgba(30,39,97,0.07) 0%, rgba(76,110,245,0.05) 100%)',
+          } : {}}
         >
-          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+          <div className="w-[18px] h-[18px] rounded-md flex items-center justify-center shrink-0 bg-[#1E2761]/10">
             {initials !== '?'
-              ? <span className="text-white text-xs font-semibold">{initials}</span>
-              : <User className="w-4 h-4 text-white/70" />
+              ? <span className="text-[9px] font-bold text-[#1E2761]">{initials}</span>
+              : <User className="w-3 h-3 text-slate-400" />
             }
           </div>
-          <span className="pointer-events-none absolute left-12 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 shadow-lg">
-            {profile?.full_name ?? 'Profil'}
-          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm truncate">{profile?.full_name ?? 'Profil'}</p>
+            {profile?.role && (
+              <p className="text-[10px] text-slate-400 capitalize">{profile.role}</p>
+            )}
+          </div>
         </Link>
 
         <button
           onClick={handleLogout}
-          className="relative group flex items-center justify-center w-10 h-10 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-all duration-200"
-          title="Déconnexion"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all duration-150 group"
         >
-          <LogOut className="w-4 h-4" />
-          <span className="pointer-events-none absolute left-12 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 shadow-lg">
-            Déconnexion
-          </span>
+          <LogOut className="w-[18px] h-[18px] shrink-0" />
+          <span className="text-sm">Déconnexion</span>
         </button>
       </div>
     </aside>

@@ -6,7 +6,7 @@ import { Building2, ChevronRight, MapPin, Briefcase } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
-import { Card } from '@/components/ui/Card'
+import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Input } from '@/components/ui/Input'
 import type { Account } from '@/types/database'
 
@@ -79,10 +79,16 @@ export default function AccountsPage() {
 
   return (
     <div>
-      <Header title="Entreprises accessibles" />
+      <Header title="Entreprises" />
       <div className="p-4 md:p-8">
+
+        <Breadcrumb items={[
+          { label: 'MAIMO', href: '/app/dashboard' },
+          { label: 'Entreprises' },
+        ]} />
+
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Entreprises accessibles</h1>
+          <h1 className="text-xl font-semibold text-[#0F172A] hidden md:block">Entreprises accessibles</h1>
         </div>
 
         <div className="flex gap-2 mb-3">
@@ -90,9 +96,15 @@ export default function AccountsPage() {
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 ${
-                statusFilter === f ? 'bg-[#1E2761] text-white' : 'bg-white border border-gray-200 text-[#64748B] hover:bg-gray-50'
-              }`}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
+              style={statusFilter === f ? {
+                background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
+                color: 'white',
+              } : {
+                background: 'white',
+                color: '#64748B',
+                border: '1px solid rgba(30,39,97,0.12)',
+              }}
             >
               {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
             </button>
@@ -104,37 +116,60 @@ export default function AccountsPage() {
         </div>
 
         {loading ? (
-          <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+          <div className="space-y-3">{[...Array(4)].map((_, i) => (
+            <div key={i} className="h-20 bg-white rounded-2xl animate-pulse"
+              style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
+          ))}</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-[#64748B]">
+            <Building2 className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+            <p className="text-slate-500 text-sm">
               {search || statusFilter !== 'all' ? 'Aucune entreprise trouvée.' : 'Aucune entreprise accessible pour le moment.'}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {filtered.map((account) => (
-              <Card key={account.id} onClick={() => router.push(`/app/accounts/${account.id}`)} className="flex items-center gap-4">
-                <div className="w-11 h-11 bg-[#1E2761]/10 rounded-xl flex items-center justify-center shrink-0">
-                  <Building2 className="w-5 h-5 text-[#1E2761]" />
+              <div
+                key={account.id}
+                onClick={() => router.push(`/app/accounts/${account.id}`)}
+                className="bg-white rounded-2xl p-4 flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5"
+                style={{
+                  border: '1px solid rgba(30,39,97,0.08)',
+                  boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 12px rgba(30,39,97,0.10), 0 8px 24px rgba(30,39,97,0.08)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}
+              >
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(76,110,245,0.1)' }}>
+                  <Building2 className="w-5 h-5 text-[#4C6EF5]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-[#1E293B] truncate">{account.name}</p>
-                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
-                      account.status === 'prospect' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'
-                    }`}>
+                    <p className="font-semibold text-[#0F172A] truncate">{account.name}</p>
+                    <span
+                      className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
+                      style={account.status === 'prospect' ? {
+                        background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+                        color: '#92400E',
+                        borderColor: 'rgba(245,158,11,0.2)',
+                      } : {
+                        background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
+                        color: '#065F46',
+                        borderColor: 'rgba(16,185,129,0.2)',
+                      }}
+                    >
                       {account.status === 'prospect' ? 'Prospect' : 'Client'}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    {account.city && <span className="flex items-center gap-1 text-xs text-[#64748B]"><MapPin className="w-3 h-3" />{account.city}</span>}
-                    {account.industry && <span className="flex items-center gap-1 text-xs text-[#64748B]"><Briefcase className="w-3 h-3" />{account.industry}</span>}
+                    {account.city && <span className="flex items-center gap-1 text-xs text-slate-400"><MapPin className="w-3 h-3" />{account.city}</span>}
+                    {account.industry && <span className="flex items-center gap-1 text-xs text-slate-400"><Briefcase className="w-3 h-3" />{account.industry}</span>}
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-              </Card>
+                <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+              </div>
             ))}
           </div>
         )}
