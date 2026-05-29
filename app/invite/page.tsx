@@ -66,7 +66,7 @@ export default function InvitePage() {
           <div className="w-14 h-14 bg-[#1E2761] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-xl">M</span>
           </div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">Bienvenue sur MemoBTP</h1>
+          <h1 className="text-2xl font-bold text-[#1E293B]">Bienvenue sur <span className="tracking-widest text-[#1E2761]">MAIMO</span></h1>
           <p className="text-[#64748B] text-sm mt-1">Définissez votre mot de passe</p>
         </div>
 

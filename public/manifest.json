@@ -1,6 +1,6 @@
 {
-  "name": "MemoBTP",
-  "short_name": "MemoBTP",
+  "name": "MAIMO",
+  "short_name": "MAIMO",
   "description": "La mémoire de ta force de vente",
   "start_url": "/app",
   "display": "standalone",

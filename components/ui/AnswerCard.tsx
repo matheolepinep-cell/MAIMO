@@ -39,7 +39,7 @@ export function AnswerCard({ answer, sources, isLoading, onSpeak, onClear, onSou
           <div className="w-5 h-5 bg-[#1E2761] rounded-md flex items-center justify-center">
             <span className="text-white font-bold" style={{ fontSize: 9 }}>M</span>
           </div>
-          <span className="text-xs font-semibold text-[#0F172A]">MemoBTP</span>
+          <span className="text-xs font-bold tracking-widest text-[#1E2761]">MAIMO</span>
           <span className="text-xs text-slate-400">
             {new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date())}
           </span>

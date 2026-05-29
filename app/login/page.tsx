@@ -39,7 +39,7 @@ export default function LoginPage() {
           <div className="w-14 h-14 bg-[#1E2761] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-xl">M</span>
           </div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">MemoBTP</h1>
+          <h1 className="text-2xl font-bold tracking-widest text-[#1E2761]">MAIMO</h1>
           <p className="text-[#64748B] text-sm mt-1">La mémoire de ta force de vente</p>
         </div>
 

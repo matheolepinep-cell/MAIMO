@@ -26,7 +26,7 @@ export function Header({ title }: HeaderProps) {
         <div className="w-7 h-7 bg-[#1E2761] rounded-lg flex items-center justify-center">
           <span className="text-white font-bold text-xs">M</span>
         </div>
-        <span className="font-semibold text-[#1E293B]">{title || 'MemoBTP'}</span>
+        <span className={title ? 'font-semibold text-[#1E293B]' : 'font-bold tracking-widest text-[#1E2761]'}>{title || 'MAIMO'}</span>
       </div>
       <div className="flex items-center gap-3">
         <span className="text-sm text-[#64748B] hidden sm:block">{profile?.full_name}</span>

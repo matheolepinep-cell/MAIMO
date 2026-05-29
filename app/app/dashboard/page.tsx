@@ -102,7 +102,7 @@ export default function DashboardPage() {
           <div className="w-7 h-7 bg-[#1E2761] rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-xs">M</span>
           </div>
-          <span className="font-semibold text-[#0F172A] text-sm">MemoBTP</span>
+          <span className="font-bold tracking-widest text-[#1E2761] text-sm">MAIMO</span>
         </div>
         {profile && (
           <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
@@ -208,7 +208,7 @@ export default function DashboardPage() {
             <div className="w-16 h-16 bg-[#1E2761]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl font-bold text-[#1E2761]">M</span>
             </div>
-            <p className="text-[#0F172A] font-medium mb-1">Bienvenue sur MemoBTP</p>
+            <p className="text-[#0F172A] font-medium mb-1">Bienvenue sur MAIMO</p>
             <p className="text-sm text-slate-400">Posez votre première question ou créez votre première fiche entreprise.</p>
           </div>
         )}

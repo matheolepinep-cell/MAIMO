@@ -5,13 +5,13 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
 export const metadata: Metadata = {
-  title: 'MemoBTP',
+  title: 'MAIMO',
   description: 'La mémoire de ta force de vente',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'MemoBTP',
+    title: 'MAIMO',
   },
 }
 
