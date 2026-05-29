@@ -58,7 +58,7 @@ export function AnswerCard({ answer, sources, isLoading, onSpeak, onClear, onSou
           >
             <span className="text-white font-bold" style={{ fontSize: 9 }}>M</span>
           </div>
-          <span className="text-xs font-extrabold tracking-widest text-[#1E2761]">MAIMO</span>
+          <span className="text-xs font-extrabold tracking-widest text-[#1E2761]">MAIMOO</span>
           <span className="text-xs text-slate-400">
             {new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date())}
           </span>

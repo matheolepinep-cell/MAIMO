@@ -29,7 +29,7 @@ export function Header({ title }: HeaderProps) {
             : 'font-extrabold text-[#1E2761] text-sm group-hover:text-[#4C6EF5] transition-colors duration-150'
         }
           style={!title ? { letterSpacing: '0.15em' } : {}}>
-          {title || 'MAIMO'}
+          {title || 'MAIMOO'}
         </span>
       </button>
       {profile && (

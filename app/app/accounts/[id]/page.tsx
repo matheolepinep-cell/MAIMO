@@ -409,7 +409,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       {/* Breadcrumb — desktop only */}
       <div className="hidden md:block px-6 pt-4 pb-0">
         <Breadcrumb items={[
-          { label: 'MAIMO', href: '/app/dashboard' },
+          { label: 'MAIMOO', href: '/app/dashboard' },
           { label: 'Mon portefeuille', href: '/app/portfolio' },
           { label: account.name },
         ]} />

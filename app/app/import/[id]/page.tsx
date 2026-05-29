@@ -361,7 +361,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-sm">
             <Breadcrumb items={[
-              { label: 'MAIMO', href: '/app/dashboard' },
+              { label: 'MAIMOO', href: '/app/dashboard' },
               { label: 'Importer', href: '/app/import' },
               { label: 'Analyse' },
             ]} />
@@ -390,7 +390,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-sm">
             <Breadcrumb items={[
-              { label: 'MAIMO', href: '/app/dashboard' },
+              { label: 'MAIMOO', href: '/app/dashboard' },
               { label: 'Importer', href: '/app/import' },
               { label: 'Import' },
             ]} />
@@ -427,7 +427,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
         <div className="p-4 md:p-8 max-w-3xl mx-auto">
 
           <Breadcrumb items={[
-            { label: 'MAIMO', href: '/app/dashboard' },
+            { label: 'MAIMOO', href: '/app/dashboard' },
             { label: 'Importer', href: '/app/import' },
             { label: 'Validation' },
           ]} />

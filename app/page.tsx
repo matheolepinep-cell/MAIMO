@@ -13,7 +13,7 @@ export default function LandingPage() {
             style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}>
             M
           </div>
-          <span className="font-bold text-[#1E2761] text-lg">Maimo</span>
+          <span className="font-bold text-[#1E2761] text-lg">Maimoo</span>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/login" className="text-sm font-medium text-[#64748B] hover:text-[#1E2761] transition-colors">
@@ -40,7 +40,7 @@ export default function LandingPage() {
           </span>
         </h1>
         <p className="text-lg text-[#64748B] leading-relaxed mb-8 max-w-2xl mx-auto">
-          Maimo centralise toutes vos notes, appels et documents clients en un seul endroit.
+          Maimoo centralise toutes vos notes, appels et documents clients en un seul endroit.
           Retrouvez instantanément n'importe quelle information grâce à l'IA.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -63,7 +63,7 @@ export default function LandingPage() {
               icon: Mic,
               color: 'bg-red-50 text-red-500',
               title: 'Notes vocales',
-              desc: 'Dictez vos comptes-rendus en sortie de RDV. Maimo transcrit et structure automatiquement.',
+              desc: 'Dictez vos comptes-rendus en sortie de RDV. Maimoo transcrit et structure automatiquement.',
             },
             {
               icon: FileText,
@@ -75,7 +75,7 @@ export default function LandingPage() {
               icon: Search,
               color: 'bg-purple-50 text-purple-500',
               title: 'Recherche sémantique',
-              desc: 'Posez une question en langage naturel. Maimo retrouve la bonne information dans tout votre historique.',
+              desc: 'Posez une question en langage naturel. Maimoo retrouve la bonne information dans tout votre historique.',
             },
           ].map(({ icon: Icon, color, title, desc }) => (
             <div key={title} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
@@ -92,7 +92,7 @@ export default function LandingPage() {
       {/* Social proof strip */}
       <section className="bg-white border-y border-slate-100 px-6 py-12">
         <div className="max-w-4xl mx-auto">
-          <p className="text-center text-xs font-semibold text-[#94A3B8] uppercase tracking-widest mb-8">Pourquoi Maimo ?</p>
+          <p className="text-center text-xs font-semibold text-[#94A3B8] uppercase tracking-widest mb-8">Pourquoi Maimoo ?</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
             {[
               { stat: '< 30s', label: 'pour enregistrer une note vocale' },
@@ -156,9 +156,9 @@ export default function LandingPage() {
             style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}>
             M
           </div>
-          <span className="font-bold text-[#1E2761]">Maimo</span>
+          <span className="font-bold text-[#1E2761]">Maimoo</span>
         </div>
-        <p className="text-xs text-[#94A3B8]">© 2026 Maimo. Tous droits réservés.</p>
+        <p className="text-xs text-[#94A3B8]">© 2026 Maimoo. Tous droits réservés.</p>
       </footer>
     </div>
   )

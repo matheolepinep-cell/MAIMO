@@ -113,7 +113,7 @@ export default function PortfolioPage() {
       <div className="flex-1 px-4 py-4 md:px-8 md:py-8 max-w-2xl mx-auto w-full">
 
         <Breadcrumb items={[
-          { label: 'MAIMO', href: '/app/dashboard' },
+          { label: 'MAIMOO', href: '/app/dashboard' },
           { label: 'Mon portefeuille' },
         ]} />
 

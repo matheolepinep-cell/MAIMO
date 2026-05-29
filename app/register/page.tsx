@@ -185,7 +185,7 @@ function RegisterContent() {
           <div className="w-14 h-14 bg-[#1E2761] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-xl">M</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-widest text-[#1E2761]">MAIMO</h1>
+          <h1 className="text-2xl font-bold tracking-widest text-[#1E2761]">MAIMOO</h1>
         </div>
 
         <div className="flex rounded-xl bg-gray-100 p-1 mb-6">

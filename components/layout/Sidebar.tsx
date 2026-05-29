@@ -62,7 +62,7 @@ export function Sidebar() {
           className="font-extrabold text-[#1E2761] transition-all duration-200 group-hover:text-[#4C6EF5]"
           style={{ fontSize: 18, letterSpacing: '0.2em' }}
         >
-          MAIMO
+          MAIMOO
         </span>
       </Link>
 

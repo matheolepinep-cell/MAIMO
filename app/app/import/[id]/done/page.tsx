@@ -24,7 +24,7 @@ function DonePageContent({ id }: { id: string }) {
       <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full">
 
         <Breadcrumb items={[
-          { label: 'MAIMO', href: '/app/dashboard' },
+          { label: 'MAIMOO', href: '/app/dashboard' },
           { label: 'Importer une liste clients', href: '/app/import' },
           { label: 'Terminé' },
         ]} />

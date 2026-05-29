@@ -10,13 +10,13 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'MAIMO',
+  title: 'MAIMOO',
   description: 'Votre mémoire commerciale',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'MAIMO',
+    title: 'MAIMOO',
   },
   icons: {
     apple: '/icon-192.png',

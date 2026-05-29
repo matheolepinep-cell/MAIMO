@@ -204,7 +204,7 @@ export default function DashboardPage() {
             style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
             <span className="text-white font-bold text-xs">M</span>
           </div>
-          <span className="font-extrabold text-[#1E2761] text-sm" style={{ letterSpacing: '0.15em' }}>MAIMO</span>
+          <span className="font-extrabold text-[#1E2761] text-sm" style={{ letterSpacing: '0.15em' }}>MAIMOO</span>
         </button>
         {profile && (
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white"
@@ -279,7 +279,7 @@ export default function DashboardPage() {
               style={{ background: 'rgba(76,110,245,0.1)' }}>
               <span className="text-2xl font-bold text-[#1E2761]">M</span>
             </div>
-            <p className="text-[#0F172A] font-medium mb-1">Bienvenue sur MAIMO</p>
+            <p className="text-[#0F172A] font-medium mb-1">Bienvenue sur MAIMOO</p>
             <p className="text-sm text-slate-400">Posez votre première question ou créez votre première fiche.</p>
           </div>
         )}
@@ -303,7 +303,7 @@ export default function DashboardPage() {
                   className="font-extrabold text-white/60 text-xs mb-2 uppercase"
                   style={{ letterSpacing: '0.2em', textShadow: '0 2px 20px rgba(76,110,245,0.4)' }}
                 >
-                  MAIMO
+                  MAIMOO
                 </p>
                 <h1 className="text-3xl font-semibold text-white tracking-tight">
                   {greeting()}, {firstName} 👋
@@ -545,7 +545,7 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-[#0F172A] mb-1">Commencez votre portefeuille</h3>
                 <p className="text-sm text-slate-400 mb-5 max-w-sm">
-                  Ajoutez votre premier client ou prospect pour profiter de toutes les fonctionnalités MAIMO.
+                  Ajoutez votre premier client ou prospect pour profiter de toutes les fonctionnalités MAIMOO.
                 </p>
                 <button
                   onClick={() => router.push('/app/portfolio')}

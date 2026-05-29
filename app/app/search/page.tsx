@@ -149,7 +149,7 @@ function SearchPageContent() {
       <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full space-y-4">
 
         <Breadcrumb items={[
-          { label: 'MAIMO', href: '/app/dashboard' },
+          { label: 'MAIMOO', href: '/app/dashboard' },
           { label: 'Recherche IA' },
         ]} />
 
