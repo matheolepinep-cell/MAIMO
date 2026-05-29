@@ -131,7 +131,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
     }
 
     const result = await res.json()
-    router.push(`/app/import/${id}/done?created=${result.created}&skipped=${result.skipped}&contacts=${result.contacts_created}&notes=${result.notes_created}`)
+    router.push(`/app/import/${id}/done?created=${result.created}&merged=${result.merged ?? 0}&skipped=${result.skipped}&contacts=${result.contacts_created}&notes=${result.notes_created}`)
   }
 
   if (loading) {

@@ -3,7 +3,7 @@
 import { use } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense } from 'react'
-import { CheckCircle2, Users, FileText, ArrowRight, Upload } from 'lucide-react'
+import { CheckCircle2, Users, FileText, ArrowRight, Upload, GitMerge } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
@@ -13,6 +13,7 @@ function DonePageContent({ id }: { id: string }) {
   const router = useRouter()
 
   const created = Number(searchParams.get('created') ?? 0)
+  const merged = Number(searchParams.get('merged') ?? 0)
   const skipped = Number(searchParams.get('skipped') ?? 0)
   const contacts = Number(searchParams.get('contacts') ?? 0)
   const notes = Number(searchParams.get('notes') ?? 0)
@@ -56,8 +57,19 @@ function DonePageContent({ id }: { id: string }) {
             className="rounded-2xl p-5 flex flex-col gap-1"
             style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 2px 8px rgba(30,39,97,0.06)' }}
           >
+            <div className="flex items-center gap-2 mb-0.5">
+              <GitMerge className="w-4 h-4 text-amber-500" />
+              <span className="text-3xl font-bold text-amber-600">{merged}</span>
+            </div>
+            <span className="text-xs text-slate-500 font-medium">Notes ajoutées à des fiches existantes</span>
+          </div>
+
+          <div
+            className="rounded-2xl p-5 flex flex-col gap-1"
+            style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 2px 8px rgba(30,39,97,0.06)' }}
+          >
             <span className="text-3xl font-bold text-slate-400">{skipped}</span>
-            <span className="text-xs text-slate-500 font-medium">Ignorées (doublons)</span>
+            <span className="text-xs text-slate-500 font-medium">Ignorées (nom manquant)</span>
           </div>
 
           <div
