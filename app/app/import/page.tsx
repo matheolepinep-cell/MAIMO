@@ -22,7 +22,7 @@ const DETECTABLE_COLUMNS = [
   'Email', 'Statut (client/prospect)', 'Notes', 'Remise', 'CA estimé',
 ]
 
-type Step = 'idle' | 'uploading' | 'analyzing' | 'error'
+type Step = 'idle' | 'uploading' | 'parsing' | 'error'
 
 export default function ImportPage() {
   const router = useRouter()
@@ -57,11 +57,12 @@ export default function ImportPage() {
     if (f) handleFile(f)
   }, [handleFile])
 
-  const handleAnalyze = async () => {
+  const handleUpload = async () => {
     if (!file || !profile) return
     setStep('uploading')
     setError('')
 
+    // 1. Upload to Storage
     const supabase = createClient()
     const ext = file.name.split('.').pop()
     const path = `${profile.company_id}/${Date.now()}.${ext}`
@@ -73,7 +74,8 @@ export default function ImportPage() {
       return
     }
 
-    setStep('analyzing')
+    // 2. Parse file (fast — no Claude call)
+    setStep('parsing')
 
     const res = await fetch('/api/import/analyze', {
       method: 'POST',
@@ -87,14 +89,17 @@ export default function ImportPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.error ?? 'L\'analyse a échoué. Réessayez.')
+      setError(data.error ?? 'Impossible de lire le fichier. Réessayez.')
       setStep('error')
       return
     }
 
     const { import_id } = await res.json()
+    // Redirect immediately — analysis by batch happens on the next page
     router.push(`/app/import/${import_id}`)
   }
+
+  const busy = step === 'uploading' || step === 'parsing'
 
   return (
     <div className="flex flex-col min-h-full">
@@ -170,26 +175,25 @@ export default function ImportPage() {
           </div>
         )}
 
-        {/* Status indicator */}
-        {(step === 'uploading' || step === 'analyzing') && (
+        {busy && (
           <div className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
             style={{ background: 'rgba(76,110,245,0.06)', border: '1px solid rgba(76,110,245,0.12)' }}>
             <Loader2 className="w-4 h-4 text-[#4C6EF5] animate-spin shrink-0" />
             <p className="text-sm text-[#1E2761] font-medium">
-              {step === 'uploading' ? 'Envoi du fichier…' : 'Analyse IA en cours… (30 à 60 secondes)'}
+              {step === 'uploading' ? 'Envoi du fichier…' : 'Lecture du fichier…'}
             </p>
           </div>
         )}
 
         <Button
-          onClick={handleAnalyze}
-          disabled={!file || step === 'uploading' || step === 'analyzing'}
-          loading={step === 'uploading' || step === 'analyzing'}
+          onClick={handleUpload}
+          disabled={!file || busy}
+          loading={busy}
           size="lg"
           className="w-full"
         >
           <Upload className="w-4 h-4 mr-2" />
-          Analyser le fichier
+          Importer le fichier
         </Button>
 
         {/* Columns hint */}

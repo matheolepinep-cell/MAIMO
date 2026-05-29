@@ -1,10 +1,10 @@
 'use client'
 
-import { use, useEffect, useState, useCallback } from 'react'
+import { use, useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ChevronDown, ChevronUp, AlertTriangle, Check, Loader2,
-  Building2, Phone, Mail, FileText, User
+  Building2, Phone, Mail, FileText, User, GitMerge, RefreshCw
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -14,7 +14,11 @@ import { Button } from '@/components/ui/Button'
 
 type MaimoField = 'company_name' | 'city' | 'industry' | 'status' | 'contact_name' | 'contact_phone' | 'contact_email' | 'revenue' | 'notes'
 type Mapping = Record<MaimoField, string | null>
-type PreviewRow = Record<MaimoField, string> & { note_generated: string; _raw: Record<string, unknown> }
+type AnalyzedRow = Record<MaimoField, string> & {
+  note_generated: string
+  _raw: Record<string, unknown>
+  _duplicate_of: string | null
+}
 
 const FIELD_LABELS: Record<MaimoField, string> = {
   company_name: 'Nom entreprise',
@@ -29,35 +33,115 @@ const FIELD_LABELS: Record<MaimoField, string> = {
 }
 const MAIMO_FIELDS = Object.keys(FIELD_LABELS) as MaimoField[]
 
-type PreviewPayload = {
+type ResultPayload = {
   mapping: Mapping
-  rows: PreviewRow[]
-  total_rows: number
+  analyzed_rows: AnalyzedRow[]
   warnings: string[]
+  processed: number
+  total_rows: number
 }
 
-type ImportData = {
+type ImportRecord = {
   id: string
   file_name: string
-  preview: PreviewPayload
+  status: string
+  preview: { headers: string[]; total_rows: number }
+  result: ResultPayload | null
 }
+
+const BATCH_SIZE = 20
 
 export default function ImportValidatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const { profile } = useUser()
 
-  const [importData, setImportData] = useState<ImportData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  // Loading / analysis state
+  const [importRecord, setImportRecord] = useState<ImportRecord | null>(null)
+  const [loadError, setLoadError] = useState('')
+  const [initialLoading, setInitialLoading] = useState(true)
+
+  // Batch progress
+  const [batchStatus, setBatchStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
+  const [batchError, setBatchError] = useState('')
+  const [resumeOffset, setResumeOffset] = useState<number | null>(null)
+  const isRunningRef = useRef(false)
+
+  // Validation state
   const [mapping, setMapping] = useState<Mapping>({} as Mapping)
-  const [preview, setPreview] = useState<PreviewRow[]>([])
+  const [rows, setRows] = useState<AnalyzedRow[]>([])
   const [editedNotes, setEditedNotes] = useState<Record<number, string>>({})
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
   const [mappingOpen, setMappingOpen] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState('')
 
+  // Run batches sequentially from a given offset
+  const runBatches = useCallback(async (importId: string, totalRows: number, startOffset: number, companyId: string) => {
+    if (isRunningRef.current) return
+    isRunningRef.current = true
+    setBatchStatus('running')
+    setBatchError('')
+
+    let offset = startOffset
+    while (offset < totalRows) {
+      setBatchProgress({ current: offset, total: totalRows })
+
+      let res: Response
+      try {
+        res = await fetch('/api/import/analyze-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ import_id: importId, offset, limit: BATCH_SIZE, company_id: companyId }),
+        })
+      } catch {
+        isRunningRef.current = false
+        setResumeOffset(offset)
+        setBatchStatus('error')
+        setBatchError(`Erreur réseau au batch ${offset}.`)
+        return
+      }
+
+      if (!res.ok) {
+        isRunningRef.current = false
+        setResumeOffset(offset)
+        setBatchStatus('error')
+        setBatchError(`Erreur serveur au batch ${offset}. Cliquez pour reprendre.`)
+        return
+      }
+
+      const data = await res.json()
+      setBatchProgress({ current: data.processed, total: totalRows })
+
+      if (data.next_offset === null) break
+      offset = data.next_offset
+    }
+
+    // Reload the full record from DB once done
+    const supabase = createClient()
+    const { data: updated } = await supabase
+      .from('bulk_imports')
+      .select('*')
+      .eq('id', importId)
+      .single()
+
+    if (updated) {
+      const record = updated as ImportRecord
+      setImportRecord(record)
+      const result = record.result
+      if (result) {
+        setMapping(result.mapping ?? ({} as Mapping))
+        setRows(result.analyzed_rows ?? [])
+        setSelectedIndices(new Set((result.analyzed_rows ?? []).map((_, i) => i)))
+      }
+    }
+
+    isRunningRef.current = false
+    setBatchStatus('done')
+  }, [])
+
+  // Initial load
   useEffect(() => {
     const supabase = createClient()
     supabase
@@ -65,19 +149,39 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
       .select('*')
       .eq('id', id)
       .single()
-      .then(({ data, error: err }) => {
-        if (err || !data) { setError('Import introuvable.'); setLoading(false); return }
-        const payload = data.preview as PreviewPayload
-        setImportData(data as ImportData)
-        setMapping(payload.mapping ?? ({} as Mapping))
-        setPreview(payload.rows ?? [])
-        // Select all by default
-        setSelectedIndices(new Set((payload.rows ?? []).map((_, i) => i)))
-        setLoading(false)
+      .then(({ data, error }) => {
+        if (error || !data) { setLoadError('Import introuvable.'); setInitialLoading(false); return }
+        const record = data as ImportRecord
+        setImportRecord(record)
+        setInitialLoading(false)
+
+        if (record.status === 'review') {
+          // Already done — show validation UI
+          const result = record.result
+          if (result) {
+            setMapping(result.mapping ?? ({} as Mapping))
+            setRows(result.analyzed_rows ?? [])
+            setSelectedIndices(new Set((result.analyzed_rows ?? []).map((_, i) => i)))
+          }
+          setBatchStatus('done')
+        }
+        // If 'parsed' or 'analyzing': runBatches will be triggered by the next effect
       })
   }, [id])
 
-  const allColumns = preview[0]?._raw ? Object.keys(preview[0]._raw) : []
+  // Auto-start batches when record is loaded and not yet done
+  const didStartRef = useRef(false)
+  useEffect(() => {
+    if (didStartRef.current) return
+    if (!importRecord || !profile) return
+    if (importRecord.status === 'review') return
+
+    didStartRef.current = true
+    const totalRows = importRecord.preview?.total_rows ?? 0
+    const alreadyProcessed = importRecord.result?.processed ?? 0
+    setBatchProgress({ current: alreadyProcessed, total: totalRows })
+    runBatches(id, totalRows, alreadyProcessed, profile.company_id)
+  }, [importRecord, profile, id, runBatches])
 
   const toggleRow = useCallback((idx: number) => {
     setSelectedIndices((prev) => {
@@ -89,8 +193,8 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
   }, [])
 
   const toggleAll = () => {
-    if (selectedIndices.size === preview.length) setSelectedIndices(new Set())
-    else setSelectedIndices(new Set(preview.map((_, i) => i)))
+    if (selectedIndices.size === rows.length) setSelectedIndices(new Set())
+    else setSelectedIndices(new Set(rows.map((_, i) => i)))
   }
 
   const handleImport = async () => {
@@ -98,18 +202,18 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
     setImporting(true)
     setImportError('')
 
-    // Apply edited notes back into preview before sending
-    const finalPreview = preview.map((row, i) => ({
+    // Merge edited notes back
+    const finalRows = rows.map((row, i) => ({
       ...row,
       note_generated: editedNotes[i] ?? row.note_generated,
     }))
 
-    // Update preview in DB with edited notes (so execute API has the right content)
+    // Update DB so execute can read edited notes
     const supabase = createClient()
     await supabase.from('bulk_imports').update({
-      preview: {
-        ...(importData?.preview ?? {}),
-        rows: finalPreview,
+      result: {
+        ...(importRecord?.result ?? {}),
+        analyzed_rows: finalRows,
       },
     }).eq('id', id)
 
@@ -134,7 +238,8 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
     router.push(`/app/import/${id}/done?created=${result.created}&merged=${result.merged ?? 0}&skipped=${result.skipped}&contacts=${result.contacts_created}&notes=${result.notes_created}`)
   }
 
-  if (loading) {
+  // ── Loading spinner ──
+  if (initialLoading) {
     return (
       <div className="flex flex-col min-h-full">
         <Header title="Validation" />
@@ -148,14 +253,15 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
     )
   }
 
-  if (error || !importData) {
+  // ── Load error ──
+  if (loadError || !importRecord) {
     return (
       <div className="flex flex-col min-h-full">
         <Header title="Import" />
         <div className="flex-1 flex items-center justify-center p-8 text-center">
           <div>
             <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-            <p className="text-[#0F172A] font-medium">{error || 'Données introuvables.'}</p>
+            <p className="text-[#0F172A] font-medium">{loadError || 'Données introuvables.'}</p>
             <button onClick={() => router.push('/app/import')} className="mt-4 text-sm text-[#4C6EF5] hover:underline">
               Recommencer →
             </button>
@@ -165,7 +271,83 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
     )
   }
 
-  const contactCount = preview.filter((r) => r.contact_name?.trim()).length
+  const totalRows = importRecord.preview?.total_rows ?? 0
+  const pct = batchProgress.total > 0 ? Math.round((batchProgress.current / batchProgress.total) * 100) : 0
+  const estimatedSecs = batchProgress.total > 0 && batchProgress.current > 0
+    ? Math.ceil(((batchProgress.total - batchProgress.current) / BATCH_SIZE) * 4)
+    : null
+
+  // ── Batch progress UI ──
+  if (batchStatus === 'idle' || batchStatus === 'running' || batchStatus === 'error') {
+    return (
+      <div className="flex flex-col min-h-full">
+        <Header title="Analyse en cours…" />
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="w-full max-w-sm">
+
+            <Breadcrumb items={[
+              { label: 'MAIMO', href: '/app/dashboard' },
+              { label: 'Importer', href: '/app/import' },
+              { label: 'Analyse' },
+            ]} />
+
+            <div className="rounded-2xl p-6 text-center"
+              style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 4px 24px rgba(30,39,97,0.08)' }}>
+
+              {batchStatus === 'error' ? (
+                <>
+                  <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-[#0F172A] mb-1">Analyse interrompue</p>
+                  <p className="text-xs text-slate-400 mb-5">{batchError}</p>
+                  <Button
+                    onClick={() => {
+                      if (resumeOffset !== null && profile) {
+                        runBatches(id, totalRows, resumeOffset, profile.company_id)
+                      }
+                    }}
+                    size="sm"
+                    className="w-full"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                    Reprendre depuis {resumeOffset}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Loader2 className="w-10 h-10 text-[#4C6EF5] animate-spin mx-auto mb-4" />
+                  <p className="text-sm font-semibold text-[#0F172A] mb-1">
+                    Analyse IA en cours…
+                  </p>
+                  <p className="text-2xl font-bold text-[#1E2761] my-3">
+                    {batchProgress.current} <span className="text-slate-400 text-base font-normal">/ {batchProgress.total}</span>
+                  </p>
+                  <p className="text-xs text-slate-400 mb-5">
+                    {estimatedSecs ? `~${estimatedSecs}s restantes` : 'Démarrage…'}
+                  </p>
+
+                  {/* Progress bar */}
+                  <div className="w-full rounded-full h-2 mb-2 overflow-hidden"
+                    style={{ background: 'rgba(76,110,245,0.1)' }}>
+                    <div
+                      className="h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #1E2761, #4C6EF5)' }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400">{pct}%</p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Validation UI ──
+  const allColumns = rows[0]?._raw ? Object.keys(rows[0]._raw) : []
+  const contactCount = rows.filter((r) => r.contact_name?.trim()).length
+  const duplicateCount = rows.filter((r) => r._duplicate_of).length
+  const warnings = importRecord.result?.warnings ?? []
 
   return (
     <div className="flex flex-col min-h-full">
@@ -185,11 +367,11 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
             <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">
               Validation de l'import
             </h1>
-            <p className="text-slate-500 text-sm mt-1 truncate">{importData.file_name}</p>
+            <p className="text-slate-500 text-sm mt-1 truncate">{importRecord.file_name}</p>
             <div className="flex items-center gap-3 mt-2 flex-wrap">
               <span className="text-xs font-medium px-2.5 py-1 rounded-full text-[#1E2761]"
                 style={{ background: 'rgba(76,110,245,0.1)' }}>
-                {preview.length} entreprise{preview.length !== 1 ? 's' : ''} détectée{preview.length !== 1 ? 's' : ''}
+                {rows.length} entreprise{rows.length !== 1 ? 's' : ''} détectée{rows.length !== 1 ? 's' : ''}
               </span>
               {contactCount > 0 && (
                 <span className="text-xs font-medium px-2.5 py-1 rounded-full text-emerald-700"
@@ -197,16 +379,22 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
                   {contactCount} contact{contactCount !== 1 ? 's' : ''}
                 </span>
               )}
+              {duplicateCount > 0 && (
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full text-amber-700"
+                  style={{ background: 'rgba(245,158,11,0.1)' }}>
+                  {duplicateCount} doublon{duplicateCount !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
           </div>
 
           {/* Warnings */}
-          {(importData.preview.warnings ?? []).length > 0 && (
+          {warnings.length > 0 && (
             <div className="rounded-xl p-4 mb-5 flex items-start gap-3"
               style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                {(importData.preview.warnings ?? []).map((w, i) => (
+                {warnings.map((w, i) => (
                   <p key={i} className="text-sm text-amber-700">{w}</p>
                 ))}
               </div>
@@ -234,10 +422,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
                         value={mapping[field] ?? ''}
                         onChange={(e) => setMapping((prev) => ({ ...prev, [field]: e.target.value || null }))}
                         className="flex-1 px-3 py-1.5 rounded-lg text-xs text-[#0F172A] focus:outline-none transition-all duration-150"
-                        style={{
-                          background: 'rgba(240,244,255,0.8)',
-                          border: '1px solid rgba(30,39,97,0.12)',
-                        }}
+                        style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }}
                       >
                         <option value="">— Non mappé —</option>
                         {allColumns.map((col) => (
@@ -254,29 +439,30 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
           {/* Preview cards */}
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-              Aperçu des fiches ({selectedIndices.size}/{preview.length} sélectionnées)
+              Aperçu des fiches ({selectedIndices.size}/{rows.length} sélectionnées)
             </p>
             <button onClick={toggleAll} className="text-xs text-[#4C6EF5] hover:underline font-medium">
-              {selectedIndices.size === preview.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+              {selectedIndices.size === rows.length ? 'Tout désélectionner' : 'Tout sélectionner'}
             </button>
           </div>
 
           <div className="space-y-3">
-            {preview.map((row, idx) => {
+            {rows.map((row, idx) => {
               const selected = selectedIndices.has(idx)
               const note = editedNotes[idx] ?? row.note_generated
+              const isDuplicate = !!row._duplicate_of
+
               return (
                 <div
                   key={idx}
                   className="rounded-2xl transition-all duration-150"
                   style={{
                     background: 'white',
-                    border: `1px solid ${selected ? 'rgba(76,110,245,0.25)' : 'rgba(30,39,97,0.08)'}`,
-                    boxShadow: selected ? '0 0 0 3px rgba(76,110,245,0.08)' : '0 1px 3px rgba(30,39,97,0.05)',
+                    border: `1px solid ${selected ? (isDuplicate ? 'rgba(245,158,11,0.3)' : 'rgba(76,110,245,0.25)') : 'rgba(30,39,97,0.08)'}`,
+                    boxShadow: selected ? `0 0 0 3px ${isDuplicate ? 'rgba(245,158,11,0.08)' : 'rgba(76,110,245,0.08)'}` : '0 1px 3px rgba(30,39,97,0.05)',
                     opacity: selected ? 1 : 0.6,
                   }}
                 >
-                  {/* Card header */}
                   <div className="flex items-start gap-3 p-4">
                     <button
                       onClick={() => toggleRow(idx)}
@@ -300,12 +486,10 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
                           className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
                           style={row.status === 'client' ? {
                             background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
-                            color: '#065F46',
-                            borderColor: 'rgba(16,185,129,0.2)',
+                            color: '#065F46', borderColor: 'rgba(16,185,129,0.2)',
                           } : {
                             background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
-                            color: '#92400E',
-                            borderColor: 'rgba(245,158,11,0.2)',
+                            color: '#92400E', borderColor: 'rgba(245,158,11,0.2)',
                           }}
                         >
                           {row.status === 'client' ? 'Client' : 'Prospect'}
@@ -317,6 +501,16 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
                           </span>
                         )}
                       </div>
+
+                      {/* Duplicate badge */}
+                      {isDuplicate && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <GitMerge className="w-3 h-3 text-amber-500 shrink-0" />
+                          <span className="text-xs text-amber-700">
+                            Sera ajouté à <strong>{row._duplicate_of}</strong>
+                          </span>
+                        </div>
+                      )}
 
                       {/* Contact */}
                       {row.contact_name && (
@@ -389,7 +583,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
               disabled={selectedIndices.size === 0 || importing}
               loading={importing}
             >
-              Importer {selectedIndices.size > 0 ? selectedIndices.size : ''} entreprise{selectedIndices.size !== 1 ? 's' : ''}
+              Importer {selectedIndices.size > 0 ? selectedIndices.size : ''} fiche{selectedIndices.size !== 1 ? 's' : ''}
             </Button>
           </div>
         </div>
