@@ -545,7 +545,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   <Button size="sm" loading={saving} onClick={saveEdit}><Save className="w-4 h-4 mr-1" />Sauvegarder</Button>
                 </div>
               ) : (
-                <Button variant="secondary" size="sm" onClick={startEdit}><Edit2 className="w-4 h-4 mr-1" />Modifier</Button>
+                <Button variant="secondary" size="sm" onClick={startEdit} className="w-full md:w-auto"><Edit2 className="w-4 h-4 mr-1" />Modifier</Button>
               )}
             </div>
 

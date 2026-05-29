@@ -197,7 +197,7 @@ export default function DashboardPage() {
     <div className="flex flex-col min-h-full">
 
       {/* ── MOBILE HEADER ── */}
-      <header className="lg:hidden bg-white px-5 py-3.5 flex items-center justify-between sticky top-0 z-30"
+      <header className="md:hidden bg-white px-5 py-3.5 flex items-center justify-between sticky top-0 z-30"
         style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
         <button onClick={() => router.push('/app/dashboard')} className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
@@ -215,7 +215,7 @@ export default function DashboardPage() {
       </header>
 
       {/* ── MOBILE BODY ── */}
-      <div className="lg:hidden flex-1 p-5 max-w-2xl mx-auto w-full">
+      <div className="md:hidden flex-1 p-5 max-w-2xl mx-auto w-full">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-[#0F172A] tracking-tight">{greeting()} {firstName} 👋</h1>
           <p className="text-sm text-slate-400 mt-0.5">{time} · {formatDate()}</p>
@@ -286,10 +286,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── DESKTOP BODY ── */}
-      <div className="hidden lg:flex flex-col min-h-full">
+      <div className="hidden md:flex flex-col min-h-full">
 
         {/* Hero */}
-        <div className="relative px-10 pt-10 pb-16 overflow-hidden"
+        <div className="relative px-4 md:px-10 pt-6 md:pt-10 pb-12 md:pb-16 overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #0F1F5C 0%, #1E2761 40%, #2D3F8F 70%, #4C6EF5 100%)' }}>
           {/* Subtle grid pattern */}
           <div className="absolute inset-0 opacity-[0.04]" style={{
@@ -324,11 +324,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 bg-[#F0F4FF] px-10 py-8 -mt-6">
+        <div className="flex-1 bg-[#F0F4FF] px-4 md:px-10 py-6 md:py-8 -mt-6">
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* ROW 1 — Stats */}
-            <div className="grid grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
               {statCards.map(({ label, value, icon: Icon, iconColor, iconBg, delta }) => (
                 <div
                   key={label}
@@ -361,10 +361,10 @@ export default function DashboardPage() {
             </div>
 
             {/* ROW 2 — Activity + Portfolio/Team */}
-            <div className="grid grid-cols-5 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
               {/* Activity feed — 3/5 */}
-              <div className="col-span-3 bg-white rounded-2xl overflow-hidden"
+              <div className="col-span-1 lg:col-span-3 bg-white rounded-2xl overflow-hidden"
                 style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
                 <div className="flex items-center justify-between px-6 py-4"
                   style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
@@ -426,7 +426,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Right col — Portfolio + Team — 2/5 */}
-              <div className="col-span-2 flex flex-col gap-5">
+              <div className="col-span-1 lg:col-span-2 flex flex-col gap-5">
 
                 {/* Portfolio card */}
                 <div className="bg-white rounded-2xl overflow-hidden"
