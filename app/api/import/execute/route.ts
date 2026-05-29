@@ -7,7 +7,6 @@ import { embedBatch } from '@/lib/embeddings'
 type MaimoField = 'company_name' | 'city' | 'industry' | 'status' | 'contact_name' | 'contact_phone' | 'contact_email' | 'revenue' | 'notes'
 type PreviewRow = Record<MaimoField, string> & { note_generated: string; _raw: Record<string, unknown> }
 
-// Strip legal suffixes and non-alphanumeric chars for fuzzy matching
 function normalize(name: string) {
   return name
     .toLowerCase()
@@ -16,16 +15,16 @@ function normalize(name: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function indexNote(supabase: any, noteId: string, noteContent: string, accountId: string, companyId: string) {
+async function indexNote(supabase: any, noteId: string, content: string, accountId: string, companyId: string) {
   try {
-    const chunks = chunkText(noteContent)
+    const chunks = chunkText(content)
     if (chunks.length === 0) return
     const embeddings = await embedBatch(chunks)
     await supabase.from('chunks').insert(
-      chunks.map((chunk, i) => ({
+      chunks.map((chunk: string, i: number) => ({
         company_id: companyId,
         account_id: accountId,
-        source_type: 'note' as const,
+        source_type: 'note',
         source_id: noteId,
         content: chunk,
         embedding: embeddings[i],
@@ -40,7 +39,7 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { import_id, selected_indices, company_id } = await request.json()
+  const { import_id, selected_indices, company_id, offset = 0, limit = 20 } = await request.json()
 
   if (!import_id || !selected_indices || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -54,7 +53,7 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Load bulk_import — rows live in result.analyzed_rows (post-batch) or preview.rows (legacy)
+  // Load rows from DB (read once per batch — not the full list, just metadata)
   const { data: importRecord, error: loadErr } = await supabase
     .from('bulk_imports')
     .select('preview, result')
@@ -65,19 +64,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Import introuvable.' }, { status: 404 })
   }
 
-  // Support both new structure (result.analyzed_rows) and legacy (preview.rows)
   const resultData = importRecord.result as { analyzed_rows?: PreviewRow[] } | null
   const previewData = importRecord.preview as { rows?: PreviewRow[] } | null
-  const preview: PreviewRow[] = resultData?.analyzed_rows ?? previewData?.rows ?? []
-  const indices = selected_indices as number[]
+  const allRows: PreviewRow[] = resultData?.analyzed_rows ?? previewData?.rows ?? []
 
-  // Load existing accounts for dedup
+  // Slice of selected indices for this batch
+  const indices = selected_indices as number[]
+  const batchIndices = indices.slice(offset, offset + limit)
+  const total = indices.length
+
+  // Load existing accounts for dedup (includes accounts created by previous batches)
   const { data: existingAccounts } = await supabase
     .from('accounts')
     .select('id, name')
     .eq('company_id', company_id)
 
-  // Map: normalized name → account id
   const existingNorm = new Map<string, string>(
     (existingAccounts ?? []).map((a) => [normalize(a.name), a.id])
   )
@@ -90,8 +91,8 @@ export async function POST(request: Request) {
 
   const noteDate = new Date().toLocaleDateString('fr-FR')
 
-  for (const idx of indices) {
-    const row = preview[idx]
+  for (const idx of batchIndices) {
+    const row = allRows[idx]
     if (!row) continue
 
     const companyName = row.company_name?.trim()
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
     const noteContent = row.note_generated || `Import le ${noteDate}.\nEntreprise : ${companyName}`
 
     if (existingNorm.has(normName)) {
-      // ── MERGE: add note + contact to existing account ──
+      // ── MERGE into existing account ──
       const existingId = existingNorm.get(normName)!
 
       const { data: note } = await supabase.from('notes').insert({
@@ -117,7 +118,6 @@ export async function POST(request: Request) {
       notesCreated++
       if (note?.id) await indexNote(supabase, note.id, noteContent, existingId, company_id)
 
-      // Add contact only if not already present (dedup by email or normalized full name)
       if (row.contact_name?.trim()) {
         const { data: existingContacts } = await supabase
           .from('contacts')
@@ -206,10 +206,23 @@ export async function POST(request: Request) {
     created++
   }
 
-  await supabase.from('bulk_imports').update({
-    status: 'done',
-    result: { created, merged, skipped, contacts_created: contactsCreated, notes_created: notesCreated },
-  }).eq('id', import_id)
+  const processed = offset + batchIndices.length
+  const done = processed >= total
 
-  return NextResponse.json({ created, merged, skipped, contacts_created: contactsCreated, notes_created: notesCreated })
+  // Mark done on the last batch
+  if (done) {
+    await supabase.from('bulk_imports').update({ status: 'done' }).eq('id', import_id)
+  }
+
+  return NextResponse.json({
+    processed,
+    total,
+    next_offset: done ? null : processed,
+    done,
+    created,
+    merged,
+    skipped,
+    contacts_created: contactsCreated,
+    notes_created: notesCreated,
+  })
 }
