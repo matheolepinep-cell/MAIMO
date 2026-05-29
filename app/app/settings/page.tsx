@@ -84,7 +84,7 @@ export default function SettingsPage() {
 
   const handleRegenerateCode = async () => {
     if (!company || profile?.role !== 'admin') return
-    if (!confirm('Régénérer le code invalidera l\'ancien. Les commerciaux devront utiliser le nouveau code. Continuer ?')) return
+    if (!confirm('Régénérer le code invalidera l\'ancien. Les collaborateurs devront utiliser le nouveau code. Continuer ?')) return
     setRegenerating(true)
     const newCode = generateInviteCode()
     const supabase = createClient()
@@ -121,7 +121,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="font-semibold text-[#1E293B] text-sm">Code d'invitation</p>
-                <p className="text-xs text-[#64748B]">Partagez ce code à vos commerciaux</p>
+                <p className="text-xs text-[#64748B]">Partagez ce code à vos collaborateurs</p>
               </div>
             </div>
             <div className="flex items-center gap-3 mb-3">
@@ -203,7 +203,7 @@ export default function SettingsPage() {
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
               profile?.role === 'admin' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'
             }`}>
-              {profile?.role === 'admin' ? 'Admin' : 'Commercial'}
+              {profile?.role === 'admin' ? 'Admin' : 'Collaborateur'}
             </span>
             {profileMsg && (
               <p className={`text-sm px-3 py-2 rounded-lg ${profileMsg.includes('!') ? 'text-green-700 bg-green-50' : 'text-red-500 bg-red-50'}`}>{profileMsg}</p>

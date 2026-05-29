@@ -11,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'MAIMO',
-  description: 'La mémoire de ta force de vente',
+  description: 'La mémoire de ton équipe',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

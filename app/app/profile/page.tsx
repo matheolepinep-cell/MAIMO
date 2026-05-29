@@ -34,7 +34,7 @@ export default function ProfilePage() {
               <p className="font-semibold text-[#1E293B]">{profile?.full_name}</p>
               <p className="text-sm text-[#64748B]">{profile?.email}</p>
               <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#1E2761]/10 text-[#1E2761]">
-                {profile?.role === 'admin' ? 'Administrateur' : 'Commercial'}
+                {profile?.role === 'admin' ? 'Administrateur' : 'Collaborateur'}
               </span>
             </div>
           </div>

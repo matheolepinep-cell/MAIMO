@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import type { UserProfile } from '@/types/database'
 
-const ROLE_LABELS: Record<string, string> = { admin: 'Admin', commercial: 'Commercial' }
+const ROLE_LABELS: Record<string, string> = { admin: 'Admin', commercial: 'Collaborateur' }
 
 type PublicEntry = {
   id: string
@@ -237,7 +237,7 @@ export default function TeamPage() {
       </Modal>
 
       {/* Invite modal */}
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setInviteError(''); setInviteSuccess('') }} title="Inviter un commercial">
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setInviteError(''); setInviteSuccess('') }} title="Inviter un collaborateur">
         {inviteSuccess ? (
           <div className="text-center py-4">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -258,7 +258,7 @@ export default function TeamPage() {
               <div className="flex rounded-xl bg-gray-100 p-1">
                 <button type="button" onClick={() => setInviteRole('commercial')}
                   className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${inviteRole === 'commercial' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'}`}>
-                  Commercial
+                  Collaborateur
                 </button>
                 <button type="button" onClick={() => setInviteRole('admin')}
                   className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${inviteRole === 'admin' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'}`}>

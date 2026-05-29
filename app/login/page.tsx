@@ -40,7 +40,7 @@ export default function LoginPage() {
             <span className="text-white font-bold text-xl">M</span>
           </div>
           <h1 className="text-2xl font-bold tracking-widest text-[#1E2761]">MAIMO</h1>
-          <p className="text-[#64748B] text-sm mt-1">La mémoire de ta force de vente</p>
+          <p className="text-[#64748B] text-sm mt-1">La mémoire de ton équipe</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

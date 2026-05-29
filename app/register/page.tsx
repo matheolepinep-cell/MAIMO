@@ -150,7 +150,7 @@ function RegisterContent() {
           </div>
           <h1 className="text-2xl font-bold text-[#1E293B] mb-2">Votre espace est créé !</h1>
           <p className="text-[#64748B] text-sm mb-6">
-            Partagez ce code à vos commerciaux pour qu'ils rejoignent votre espace.
+            Partagez ce code à vos collaborateurs pour qu'ils rejoignent votre espace.
           </p>
 
           <div className="bg-gray-50 border border-gray-200 rounded-xl px-6 py-4 mb-4">

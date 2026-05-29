@@ -536,7 +536,7 @@ export default function DashboardPage() {
                                 borderColor: 'rgba(30,39,97,0.08)',
                               }}
                             >
-                              {member.role === 'admin' ? 'Admin' : 'Commercial'}
+                              {member.role === 'admin' ? 'Admin' : 'Collaborateur'}
                             </span>
                           </div>
                         )

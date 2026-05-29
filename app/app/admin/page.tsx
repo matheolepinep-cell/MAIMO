@@ -154,7 +154,7 @@ export default function AdminPage() {
             <div className="flex justify-end">
               <Button size="sm" onClick={() => setModalOpen(true)}>
                 <UserPlus className="w-4 h-4 mr-1.5" />
-                Ajouter un commercial
+                Ajouter un collaborateur
               </Button>
             </div>
 
@@ -203,7 +203,7 @@ export default function AdminPage() {
                   <thead>
                     <tr className="border-b border-gray-100">
                       <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wide min-w-[140px]">
-                        Commercial
+                        Collaborateur
                       </th>
                       {clients.map((c) => (
                         <th key={c.id} className="px-3 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wide whitespace-nowrap">
@@ -239,7 +239,7 @@ export default function AdminPage() {
                   </tbody>
                 </table>
                 {commercials.length === 0 && (
-                  <p className="text-center py-8 text-sm text-[#64748B]">Aucun commercial à configurer.</p>
+                  <p className="text-center py-8 text-sm text-[#64748B]">Aucun collaborateur à configurer.</p>
                 )}
               </div>
             </div>
@@ -247,7 +247,7 @@ export default function AdminPage() {
         )}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Ajouter un commercial">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Ajouter un collaborateur">
         <form onSubmit={handleCreateUser} className="space-y-4">
           <Input
             id="userName"
@@ -274,7 +274,7 @@ export default function AdminPage() {
               onChange={(e) => setNewRole(e.target.value as 'commercial' | 'admin')}
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
             >
-              <option value="commercial">Commercial</option>
+              <option value="commercial">Collaborateur</option>
               <option value="admin">Admin</option>
             </select>
           </div>
