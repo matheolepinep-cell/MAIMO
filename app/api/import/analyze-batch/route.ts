@@ -7,7 +7,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const MAIMO_FIELDS = [
   'company_name', 'city', 'industry', 'status',
-  'contact_name', 'contact_phone', 'contact_email',
+  'contact_name', 'contact_role', 'contact_phone', 'contact_email',
   'revenue', 'notes',
 ] as const
 type MaimoField = typeof MAIMO_FIELDS[number]
@@ -44,15 +44,18 @@ function applyMapping(rawRow: Record<string, unknown>, mapping: Mapping): Record
 }
 
 function buildTemplateNote(row: Record<MaimoField, string>, fileName: string): string {
-  const parts: string[] = [`Import — ${new Date().toLocaleDateString('fr-FR')} (${fileName})`]
-  if (row.revenue) parts.push(`CA estimé : ${row.revenue}`)
-  if (row.industry) parts.push(`Secteur : ${row.industry}`)
+  const lines: string[] = []
   if (row.contact_name) {
-    const contact = [row.contact_name, row.contact_phone, row.contact_email].filter(Boolean).join(' · ')
-    parts.push(`Contact : ${contact}`)
+    const role = row.contact_role ? ` — ${row.contact_role}` : ''
+    const company = row.company_name ? ` chez ${row.company_name}` : ''
+    lines.push(`${row.contact_name}${role}${company}.`)
   }
-  if (row.notes) parts.push(`Notes : ${row.notes}`)
-  return parts.join('\n')
+  const meta: string[] = [`Import — ${new Date().toLocaleDateString('fr-FR')} (${fileName})`]
+  if (row.revenue) meta.push(`CA estimé : ${row.revenue}`)
+  if (row.industry) meta.push(`Secteur : ${row.industry}`)
+  if (row.notes) meta.push(row.notes)
+  lines.push(meta.join(' · '))
+  return lines.filter(Boolean).join('\n')
 }
 
 export async function POST(request: Request) {
@@ -117,6 +120,8 @@ export async function POST(request: Request) {
   try {
     const sampleRows = rawRows.slice(0, 3)
 
+    const noteInstruction = `Pour note_generated : si un interlocuteur est présent, commencer OBLIGATOIREMENT par "[PRENOM NOM] — [POSTE] chez [ENTREPRISE]." puis 1-2 phrases de contexte commercial en français. Si pas d'interlocuteur, rédiger directement 1-2 phrases de contexte.`
+
     const prompt = isFirstBatch
       ? `Tu es un assistant d'import de données commerciales.
 
@@ -131,7 +136,8 @@ Retourne UNIQUEMENT un JSON valide sans markdown :
     "city": "<colonne ou null>",
     "industry": "<colonne ou null>",
     "status": "<colonne ou null>",
-    "contact_name": "<colonne ou null>",
+    "contact_name": "<colonne nom interlocuteur ou null>",
+    "contact_role": "<colonne poste/fonction/titre ou null>",
     "contact_phone": "<colonne ou null>",
     "contact_email": "<colonne ou null>",
     "revenue": "<colonne ou null>",
@@ -145,14 +151,16 @@ Retourne UNIQUEMENT un JSON valide sans markdown :
       "industry": "valeur",
       "status": "client ou prospect",
       "contact_name": "valeur ou vide",
+      "contact_role": "poste ou vide",
       "contact_phone": "valeur ou vide",
       "contact_email": "valeur ou vide",
       "revenue": "valeur ou vide",
-      "note_generated": "Note professionnelle 2-4 phrases en français résumant les infos commerciales"
+      "note_generated": "voir instruction"
     }
   ]
 }
-Le statut doit être "client" ou "prospect".`
+Le statut doit être "client" ou "prospect".
+${noteInstruction}`
       : `Tu es un assistant d'import de données commerciales.
 
 Mapping déjà détecté : ${JSON.stringify(mapping)}
@@ -167,14 +175,16 @@ Applique le mapping et retourne UNIQUEMENT un JSON valide sans markdown :
       "industry": "valeur",
       "status": "client ou prospect",
       "contact_name": "valeur ou vide",
+      "contact_role": "poste ou vide",
       "contact_phone": "valeur ou vide",
       "contact_email": "valeur ou vide",
       "revenue": "valeur ou vide",
-      "note_generated": "Note professionnelle 2-4 phrases en français"
+      "note_generated": "voir instruction"
     }
   ]
 }
-Le statut doit être "client" ou "prospect".`
+Le statut doit être "client" ou "prospect".
+${noteInstruction}`
 
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -227,6 +237,7 @@ Le statut doit être "client" ou "prospect".`
       industry: row.industry ?? '',
       status: row.status ?? 'prospect',
       contact_name: row.contact_name ?? '',
+      contact_role: row.contact_role ?? '',
       contact_phone: row.contact_phone ?? '',
       contact_email: row.contact_email ?? '',
       revenue: row.revenue ?? '',

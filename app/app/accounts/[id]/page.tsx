@@ -608,16 +608,16 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-medium text-[#1E293B]">{c.first_name} {c.last_name}</p>
+                            <p className="text-sm font-semibold text-[#1E293B]">{c.first_name} {c.last_name}</p>
                             {c.is_main_contact && (
                               <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 text-amber-600 text-xs font-medium rounded-lg">
                                 <Star className="w-2.5 h-2.5" />Principal
                               </span>
                             )}
                           </div>
-                          {c.role && <p className="text-xs text-[#64748B]">{c.role}</p>}
                           {c.phone && <p className="text-xs text-[#64748B]">{c.phone}</p>}
                           {c.email && <p className="text-xs text-[#3B82F6]">{c.email}</p>}
+                          {c.role && <p className="text-xs text-slate-500 italic mt-0.5">{c.role}</p>}
                         </div>
                       </div>
                       <button onClick={() => handleDeleteContact(c.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150">

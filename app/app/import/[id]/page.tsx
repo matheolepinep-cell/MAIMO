@@ -12,7 +12,7 @@ import { Header } from '@/components/layout/Header'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
 
-type MaimoField = 'company_name' | 'city' | 'industry' | 'status' | 'contact_name' | 'contact_phone' | 'contact_email' | 'revenue' | 'notes'
+type MaimoField = 'company_name' | 'city' | 'industry' | 'status' | 'contact_name' | 'contact_role' | 'contact_phone' | 'contact_email' | 'revenue' | 'notes'
 type Mapping = Record<MaimoField, string | null>
 type AnalyzedRow = Record<MaimoField, string> & {
   note_generated: string
@@ -26,6 +26,7 @@ const FIELD_LABELS: Record<MaimoField, string> = {
   industry: 'Secteur',
   status: 'Statut',
   contact_name: 'Contact',
+  contact_role: 'Poste',
   contact_phone: 'Téléphone',
   contact_email: 'Email',
   revenue: 'CA estimé',

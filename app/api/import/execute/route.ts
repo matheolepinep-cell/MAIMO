@@ -4,7 +4,7 @@ import { getAuthenticatedUser } from '@/lib/auth-server'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
 
-type MaimoField = 'company_name' | 'city' | 'industry' | 'status' | 'contact_name' | 'contact_phone' | 'contact_email' | 'revenue' | 'notes'
+type MaimoField = 'company_name' | 'city' | 'industry' | 'status' | 'contact_name' | 'contact_role' | 'contact_phone' | 'contact_email' | 'revenue' | 'notes'
 type PreviewRow = Record<MaimoField, string> & { note_generated: string; _raw: Record<string, unknown> }
 
 function normalize(name: string) {
@@ -138,6 +138,7 @@ export async function POST(request: Request) {
             account_id: existingId,
             first_name: parts[0] ?? '',
             last_name: (parts.slice(1).join(' ') || parts[0]) ?? '',
+            role: row.contact_role || null,
             phone: row.contact_phone || null,
             email: row.contact_email || null,
             is_main_contact: false,
@@ -182,6 +183,7 @@ export async function POST(request: Request) {
         account_id: acc.id,
         first_name: parts[0] ?? '',
         last_name: (parts.slice(1).join(' ') || parts[0]) ?? '',
+        role: row.contact_role || null,
         phone: row.contact_phone || null,
         email: row.contact_email || null,
         is_main_contact: true,
