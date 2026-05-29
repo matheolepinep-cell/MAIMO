@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   // Load bulk_import
   const { data: importRecord, error: loadErr } = await supabase
     .from('bulk_imports')
-    .select('preview, mapping, all_rows')
+    .select('preview')
     .eq('id', import_id)
     .single()
 
@@ -40,7 +40,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Import introuvable.' }, { status: 404 })
   }
 
-  const preview = importRecord.preview as PreviewRow[]
+  const previewData = importRecord.preview as { rows: PreviewRow[] }
+  const preview = previewData.rows
   const indices = selected_indices as number[]
 
   // Load existing account names for duplicate detection

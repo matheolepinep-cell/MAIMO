@@ -29,14 +29,17 @@ const FIELD_LABELS: Record<MaimoField, string> = {
 }
 const MAIMO_FIELDS = Object.keys(FIELD_LABELS) as MaimoField[]
 
+type PreviewPayload = {
+  mapping: Mapping
+  rows: PreviewRow[]
+  total_rows: number
+  warnings: string[]
+}
+
 type ImportData = {
   id: string
   file_name: string
-  total_rows: number
-  warnings: string[]
-  mapping: Mapping
-  preview: PreviewRow[]
-  all_rows: Record<string, unknown>[]
+  preview: PreviewPayload
 }
 
 export default function ImportValidatePage({ params }: { params: Promise<{ id: string }> }) {
@@ -64,16 +67,17 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
       .single()
       .then(({ data, error: err }) => {
         if (err || !data) { setError('Import introuvable.'); setLoading(false); return }
+        const payload = data.preview as PreviewPayload
         setImportData(data as ImportData)
-        setMapping(data.mapping as Mapping)
-        setPreview(data.preview as PreviewRow[])
+        setMapping(payload.mapping ?? ({} as Mapping))
+        setPreview(payload.rows ?? [])
         // Select all by default
-        setSelectedIndices(new Set((data.preview as PreviewRow[]).map((_, i) => i)))
+        setSelectedIndices(new Set((payload.rows ?? []).map((_, i) => i)))
         setLoading(false)
       })
   }, [id])
 
-  const allColumns = importData?.all_rows?.[0] ? Object.keys(importData.all_rows[0]) : []
+  const allColumns = preview[0]?._raw ? Object.keys(preview[0]._raw) : []
 
   const toggleRow = useCallback((idx: number) => {
     setSelectedIndices((prev) => {
@@ -102,7 +106,12 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
 
     // Update preview in DB with edited notes (so execute API has the right content)
     const supabase = createClient()
-    await supabase.from('bulk_imports').update({ preview: finalPreview }).eq('id', id)
+    await supabase.from('bulk_imports').update({
+      preview: {
+        ...(importData?.preview ?? {}),
+        rows: finalPreview,
+      },
+    }).eq('id', id)
 
     const res = await fetch('/api/import/execute', {
       method: 'POST',
@@ -192,12 +201,12 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
           </div>
 
           {/* Warnings */}
-          {importData.warnings.length > 0 && (
+          {(importData.preview.warnings ?? []).length > 0 && (
             <div className="rounded-xl p-4 mb-5 flex items-start gap-3"
               style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                {importData.warnings.map((w, i) => (
+                {(importData.preview.warnings ?? []).map((w, i) => (
                   <p key={i} className="text-sm text-amber-700">{w}</p>
                 ))}
               </div>

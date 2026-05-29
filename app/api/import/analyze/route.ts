@@ -165,20 +165,21 @@ Le statut doit être "client" ou "prospect" (si non détectable, mettre "prospec
     }
   }
 
-  // 5. Store in bulk_imports
+  // 5. Store in bulk_imports (preview jsonb contient tout)
   const { data: importRecord, error: insertError } = await supabase
     .from('bulk_imports')
     .insert({
       company_id,
       user_id: user.id,
       file_name,
-      file_path,
+      file_url: file_path,
       status: 'review',
-      mapping,
-      preview: fullPreview,
-      all_rows: rawRows,
-      total_rows: totalRows,
-      warnings,
+      preview: {
+        mapping,
+        rows: fullPreview,
+        total_rows: totalRows,
+        warnings,
+      },
     })
     .select('id')
     .single()
