@@ -24,7 +24,7 @@ function DonePageContent({ id }: { id: string }) {
 
         <Breadcrumb items={[
           { label: 'MAIMO', href: '/app/dashboard' },
-          { label: 'Import Excel', href: '/app/import' },
+          { label: 'Importer une liste clients', href: '/app/import' },
           { label: 'Terminé' },
         ]} />
 

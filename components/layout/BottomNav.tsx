@@ -142,8 +142,8 @@ export function BottomNav() {
                 <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <p className="font-medium text-[#0F172A] text-sm">Importer depuis Excel</p>
-                <p className="text-xs text-slate-400 mt-0.5">Analyse IA — .xlsx, .xls, .csv</p>
+                <p className="font-medium text-[#0F172A] text-sm">Importer une liste clients</p>
+                <p className="text-xs text-slate-400 mt-0.5">Analyse IA — .xlsx, .csv, .pdf…</p>
               </div>
             </button>
           </div>

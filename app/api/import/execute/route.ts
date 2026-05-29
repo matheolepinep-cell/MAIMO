@@ -113,13 +113,13 @@ export async function POST(request: Request) {
 
     // Create note
     const noteDate = new Date().toLocaleDateString('fr-FR')
-    const noteContent = row.note_generated || `Fiche importée depuis Excel le ${noteDate}.\nEntreprise : ${companyName}`
+    const noteContent = row.note_generated || `Fiche importée le ${noteDate}.\nEntreprise : ${companyName}`
 
     const { data: note } = await supabase.from('notes').insert({
       account_id: acc.id,
       company_id,
       user_id: user.id,
-      title: `Import Excel — ${noteDate}`,
+      title: `Import — ${noteDate}`,
       content: noteContent,
       source: 'import',
       is_deleted: false,

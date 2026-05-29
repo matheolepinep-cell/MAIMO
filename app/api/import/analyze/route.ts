@@ -26,7 +26,7 @@ function applyMapping(rawRow: Record<string, unknown>, mapping: Mapping): Record
 }
 
 function buildTemplateNote(row: Record<MaimoField, string>, fileName: string): string {
-  const parts: string[] = [`Import Excel — ${new Date().toLocaleDateString('fr-FR')} (${fileName})`]
+  const parts: string[] = [`Import — ${new Date().toLocaleDateString('fr-FR')} (${fileName})`]
   if (row.revenue) parts.push(`CA estimé : ${row.revenue}`)
   if (row.industry) parts.push(`Secteur : ${row.industry}`)
   if (row.contact_name) {
@@ -99,15 +99,15 @@ Toutes les lignes (${rowsForClaude.length} max) : ${JSON.stringify(rowsForClaude
 Analyse ce fichier et retourne UNIQUEMENT un JSON valide sans markdown, sans commentaire :
 {
   "mapping": {
-    "company_name": "<colonne Excel ou null>",
-    "city": "<colonne Excel ou null>",
-    "industry": "<colonne Excel ou null>",
-    "status": "<colonne Excel ou null>",
-    "contact_name": "<colonne Excel ou null>",
-    "contact_phone": "<colonne Excel ou null>",
-    "contact_email": "<colonne Excel ou null>",
-    "revenue": "<colonne Excel ou null>",
-    "notes": "<colonne Excel ou null>"
+    "company_name": "<colonne ou null>",
+    "city": "<colonne ou null>",
+    "industry": "<colonne ou null>",
+    "status": "<colonne ou null>",
+    "contact_name": "<colonne ou null>",
+    "contact_phone": "<colonne ou null>",
+    "contact_email": "<colonne ou null>",
+    "revenue": "<colonne ou null>",
+    "notes": "<colonne ou null>"
   },
   "confidence": 0.95,
   "warnings": [],

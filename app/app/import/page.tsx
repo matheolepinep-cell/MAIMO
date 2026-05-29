@@ -13,6 +13,7 @@ const ACCEPTED_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
   'text/csv',
+  'application/pdf',
 ]
 const MAX_SIZE_MB = 10
 
@@ -33,8 +34,8 @@ export default function ImportPage() {
   const [error, setError] = useState('')
 
   const validateFile = (f: File): string | null => {
-    if (!ACCEPTED_TYPES.includes(f.type) && !f.name.match(/\.(xlsx|xls|csv)$/i)) {
-      return 'Format non supporté. Utilisez .xlsx, .xls ou .csv.'
+    if (!ACCEPTED_TYPES.includes(f.type) && !f.name.match(/\.(xlsx|xls|csv|pdf)$/i)) {
+      return 'Format non supporté. Utilisez .xlsx, .xls, .csv ou .pdf.'
     }
     if (f.size > MAX_SIZE_MB * 1024 * 1024) {
       return `Fichier trop lourd (max ${MAX_SIZE_MB} MB).`
@@ -97,7 +98,7 @@ export default function ImportPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header title="Import Excel" />
+      <Header title="Import de liste clients" />
       <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full">
 
         <Breadcrumb items={[
@@ -108,7 +109,7 @@ export default function ImportPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">Importer une liste clients</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Votre Excel sera analysé par IA — vous validez avant tout import
+            Votre fichier sera analysé par IA — vous validez avant tout import
           </p>
         </div>
 
@@ -127,7 +128,7 @@ export default function ImportPage() {
           <input
             ref={inputRef}
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".xlsx,.xls,.csv,.pdf"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
           />
@@ -138,9 +139,9 @@ export default function ImportPage() {
                 style={{ background: 'rgba(76,110,245,0.1)' }}>
                 <FileSpreadsheet className="w-8 h-8 text-[#4C6EF5]" />
               </div>
-              <p className="font-semibold text-[#0F172A] mb-1">Glissez votre fichier Excel ici</p>
+              <p className="font-semibold text-[#0F172A] mb-1">Glissez votre fichier ici</p>
               <p className="text-sm text-slate-400 mb-3">ou cliquez pour parcourir</p>
-              <p className="text-xs text-slate-300">.xlsx · .xls · .csv · max {MAX_SIZE_MB} MB</p>
+              <p className="text-xs text-slate-300">.xlsx · .xls · .csv · .pdf · max {MAX_SIZE_MB} MB</p>
             </div>
           ) : (
             <div className="flex items-center gap-4 px-6 py-5">
