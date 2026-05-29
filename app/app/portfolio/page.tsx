@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Briefcase, Trash2 } from 'lucide-react'
+import { Briefcase, Trash2, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -141,9 +141,15 @@ export default function PortfolioPage() {
               </div>
             )}
           </div>
-          <Button onClick={() => setCreateOpen(true)} size="sm" className="shrink-0 ml-4">
-            + Nouvelle entreprise
-          </Button>
+          <div className="flex items-center gap-2 shrink-0 ml-4">
+            <Button onClick={() => router.push('/app/import')} size="sm" variant="ghost">
+              <Upload className="w-3.5 h-3.5 mr-1.5" />
+              Importer
+            </Button>
+            <Button onClick={() => setCreateOpen(true)} size="sm">
+              + Nouvelle entreprise
+            </Button>
+          </div>
         </div>
 
         {/* Filter pills */}

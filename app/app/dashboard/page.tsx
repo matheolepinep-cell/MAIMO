@@ -434,7 +434,12 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between px-5 py-4"
                     style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
                     <h2 className="font-semibold text-[#0F172A]">Mon portefeuille</h2>
-                    <button onClick={() => router.push('/app/portfolio')} className="text-xs text-[#4C6EF5] hover:underline font-medium">Voir tout →</button>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => router.push('/app/import')} className="flex items-center gap-1 text-xs text-slate-400 hover:text-[#4C6EF5] transition-colors duration-150 font-medium">
+                        <Upload className="w-3 h-3" />Importer
+                      </button>
+                      <button onClick={() => router.push('/app/portfolio')} className="text-xs text-[#4C6EF5] hover:underline font-medium">Voir tout →</button>
+                    </div>
                   </div>
                   {desktopLoading ? (
                     <div className="divide-y divide-[rgba(30,39,97,0.04)]">

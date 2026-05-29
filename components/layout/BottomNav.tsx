@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Search, Briefcase, Plus, User } from 'lucide-react'
+import { Search, Briefcase, Plus, User, FileSpreadsheet, Building2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -17,6 +17,7 @@ export function BottomNav() {
   const { profile } = useUser()
 
   const [open, setOpen] = useState(false)
+  const [sheet, setSheet] = useState<'menu' | 'create'>('menu')
   const [name, setName] = useState('')
   const [city, setCity] = useState('')
   const [industry, setIndustry] = useState('')
@@ -52,6 +53,7 @@ export function BottomNav() {
     })
 
     setOpen(false)
+    setSheet('menu')
     setName(''); setCity(''); setIndustry(''); setStatus('client')
     router.push(`/app/accounts/${acc.id}`)
   }
@@ -109,25 +111,62 @@ export function BottomNav() {
         </div>
       </nav>
 
-      <BottomSheet open={open} onClose={() => { setOpen(false); setError('') }} title="Nouvelle entreprise">
-        <form onSubmit={handleCreate} className="space-y-4">
-          <Input id="name" label="Raison sociale" placeholder="Entreprise Dupont" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-          <Input id="city" label="Ville (optionnel)" placeholder="Lyon" value={city} onChange={(e) => setCity(e.target.value)} />
-          <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={industry} onChange={(e) => setIndustry(e.target.value)} />
-          <div>
-            <label className="block text-sm font-medium text-[#0F172A] mb-1.5">Statut</label>
-            <div className="flex rounded-xl bg-[#F0F4FF] p-1">
-              <button type="button" onClick={() => setStatus('client')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'client' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Client</button>
-              <button type="button" onClick={() => setStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
+      <BottomSheet
+        open={open}
+        onClose={() => { setOpen(false); setError(''); setSheet('menu') }}
+        title={sheet === 'menu' ? 'Ajouter' : 'Nouvelle entreprise'}
+      >
+        {sheet === 'menu' ? (
+          <div className="space-y-3 pb-2">
+            <button
+              onClick={() => setSheet('create')}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200 hover:bg-[rgba(76,110,245,0.04)]"
+              style={{ border: '1px solid rgba(30,39,97,0.08)' }}
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(76,110,245,0.1)' }}>
+                <Building2 className="w-5 h-5 text-[#4C6EF5]" />
+              </div>
+              <div>
+                <p className="font-medium text-[#0F172A] text-sm">Nouvelle entreprise</p>
+                <p className="text-xs text-slate-400 mt-0.5">Créer une fiche manuellement</p>
+              </div>
+            </button>
+            <button
+              onClick={() => { setOpen(false); setSheet('menu'); router.push('/app/import') }}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200 hover:bg-[rgba(76,110,245,0.04)]"
+              style={{ border: '1px solid rgba(30,39,97,0.08)' }}
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(16,185,129,0.1)' }}>
+                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-medium text-[#0F172A] text-sm">Importer depuis Excel</p>
+                <p className="text-xs text-slate-400 mt-0.5">Analyse IA — .xlsx, .xls, .csv</p>
+              </div>
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleCreate} className="space-y-4">
+            <Input id="name" label="Raison sociale" placeholder="Entreprise Dupont" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+            <Input id="city" label="Ville (optionnel)" placeholder="Lyon" value={city} onChange={(e) => setCity(e.target.value)} />
+            <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={industry} onChange={(e) => setIndustry(e.target.value)} />
+            <div>
+              <label className="block text-sm font-medium text-[#0F172A] mb-1.5">Statut</label>
+              <div className="flex rounded-xl bg-[#F0F4FF] p-1">
+                <button type="button" onClick={() => setStatus('client')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'client' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Client</button>
+                <button type="button" onClick={() => setStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
+              </div>
             </div>
-          </div>
-          {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-xl">{error}</p>}
-          <p className="text-xs text-slate-400">Ajoutée à votre portefeuille, visible par toute l'équipe par défaut.</p>
-          <div className="flex gap-2 pb-2">
-            <Button variant="secondary" type="button" onClick={() => { setOpen(false); setError('') }} className="flex-1">Annuler</Button>
-            <Button type="submit" loading={creating} className="flex-1">Créer</Button>
-          </div>
-        </form>
+            {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-xl">{error}</p>}
+            <p className="text-xs text-slate-400">Ajoutée à votre portefeuille, visible par toute l'équipe par défaut.</p>
+            <div className="flex gap-2 pb-2">
+              <Button variant="secondary" type="button" onClick={() => setSheet('menu')} className="flex-1">Retour</Button>
+              <Button type="submit" loading={creating} className="flex-1">Créer</Button>
+            </div>
+          </form>
+        )}
       </BottomSheet>
     </>
   )
