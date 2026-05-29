@@ -11,12 +11,15 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'MAIMO',
-  description: 'La mémoire de ton équipe',
+  description: 'Votre mémoire commerciale',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'MAIMO',
+  },
+  icons: {
+    apple: '/icon-192.png',
   },
 }
 
@@ -25,6 +28,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
