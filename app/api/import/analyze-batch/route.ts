@@ -47,8 +47,9 @@ function buildTemplateNote(row: Record<MaimoField, string>, fileName: string): s
   const lines: string[] = []
   if (row.contact_name) {
     const role = row.contact_role ? ` — ${row.contact_role}` : ''
-    const company = row.company_name ? ` chez ${row.company_name}` : ''
-    lines.push(`${row.contact_name}${role}${company}.`)
+    const phone = row.contact_phone ? ` · ${row.contact_phone}` : ''
+    const email = row.contact_email ? ` · ${row.contact_email}` : ''
+    lines.push(`Interlocuteur : ${row.contact_name}${role}${phone}${email}`)
   }
   const meta: string[] = [`Import — ${new Date().toLocaleDateString('fr-FR')} (${fileName})`]
   if (row.revenue) meta.push(`CA estimé : ${row.revenue}`)

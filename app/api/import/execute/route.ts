@@ -99,7 +99,16 @@ export async function POST(request: Request) {
     if (!companyName) { skipped++; continue }
 
     const normName = normalize(companyName)
-    const noteContent = row.note_generated || `Import le ${noteDate}.\nEntreprise : ${companyName}`
+    let noteContent = row.note_generated
+    if (!noteContent) {
+      const contactLine = row.contact_name?.trim()
+        ? `Interlocuteur : ${row.contact_name.trim()}${row.contact_role ? ` — ${row.contact_role}` : ''}${row.contact_phone ? ` · ${row.contact_phone}` : ''}${row.contact_email ? ` · ${row.contact_email}` : ''}`
+        : null
+      const metaParts = [`Import — ${noteDate}`, companyName]
+      if (row.revenue) metaParts.push(`CA estimé : ${row.revenue}`)
+      if (row.industry) metaParts.push(`Secteur : ${row.industry}`)
+      noteContent = [contactLine, metaParts.join(' · ')].filter(Boolean).join('\n')
+    }
 
     if (existingNorm.has(normName)) {
       // ── MERGE into existing account ──
