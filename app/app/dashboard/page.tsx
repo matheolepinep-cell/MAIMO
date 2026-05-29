@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus } from 'lucide-react'
+import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
@@ -59,6 +59,13 @@ export default function DashboardPage() {
   const [recentAccounts, setRecentAccounts] = useState<{ id: string; name: string }[]>([])
   const [mobileItems, setMobileItems] = useState<MobileItem[]>([])
   const [time, setTime] = useState(formatTime())
+
+  /* client search */
+  const [clientQuery, setClientQuery] = useState('')
+  const [clientResults, setClientResults] = useState<{ id: string; name: string; city: string | null; status: string }[]>([])
+  const [clientLoading, setClientLoading] = useState(false)
+  const [showClientDrop, setShowClientDrop] = useState(false)
+  const clientSearchRef = useRef<HTMLDivElement>(null)
 
   /* desktop state */
   const [stats, setStats] = useState<Stats>({ accounts: 0, notes: 0, docs: 0, team: 0, notesWeek: 0, accountsWeek: 0 })
@@ -169,8 +176,96 @@ export default function DashboardPage() {
     })
   }, [profileLoading, profile])
 
+  useEffect(() => {
+    if (!clientQuery.trim() || !profile?.company_id) { setClientResults([]); setClientLoading(false); return }
+    setClientLoading(true)
+    const timer = setTimeout(async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('accounts')
+        .select('id, name, city, status')
+        .eq('company_id', profile.company_id)
+        .ilike('name', `%${clientQuery.trim()}%`)
+        .order('name')
+        .limit(7)
+      setClientResults(data ?? [])
+      setClientLoading(false)
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [clientQuery, profile])
+
   const firstName = profile?.full_name?.split(' ')[0] ?? ''
   const handleSearch = (q: string) => router.push(`/app/search?q=${encodeURIComponent(q)}`)
+
+  const clientSearchBox = (
+    <div className="relative" ref={clientSearchRef}>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Trouver une entreprise..."
+          value={clientQuery}
+          onChange={(e) => { setClientQuery(e.target.value); setShowClientDrop(true) }}
+          onFocus={() => setShowClientDrop(true)}
+          onBlur={() => setTimeout(() => setShowClientDrop(false), 150)}
+          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
+        />
+        {clientQuery && (
+          <button onMouseDown={() => { setClientQuery(''); setClientResults([]) }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {showClientDrop && (clientQuery || recentAccounts.length > 0) && (
+        <div className="absolute z-40 mt-1 w-full bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden">
+          {clientQuery ? (
+            clientLoading ? (
+              <div className="flex items-center gap-2 px-4 py-3 text-sm text-slate-400">
+                <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                Recherche…
+              </div>
+            ) : clientResults.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-slate-400">Aucune entreprise trouvée</div>
+            ) : clientResults.map((acc) => (
+              <button key={acc.id} onMouseDown={() => router.push(`/app/accounts/${acc.id}`)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F0F4FF] text-left transition-colors duration-100">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                  style={{ background: accentColor }}>
+                  {getInitials(acc.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[#0F172A] truncate">{acc.name}</p>
+                  {acc.city && <p className="text-xs text-slate-400">{acc.city}</p>}
+                </div>
+                <span className="shrink-0 text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={acc.status === 'client'
+                    ? { background: 'rgba(30,39,97,0.12)', color: '#1E2761' }
+                    : { background: 'rgba(30,39,97,0.05)', color: 'rgba(30,39,97,0.5)' }}>
+                  {acc.status === 'client' ? 'Client' : 'Prospect'}
+                </span>
+              </button>
+            ))
+          ) : (
+            <>
+              <p className="px-4 pt-3 pb-1 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Récents</p>
+              {recentAccounts.map((acc) => (
+                <button key={acc.id} onMouseDown={() => router.push(`/app/accounts/${acc.id}`)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F0F4FF] text-left transition-colors duration-100">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                    style={{ background: accentColor }}>
+                    {getInitials(acc.name)}
+                  </div>
+                  <p className="text-sm font-medium text-[#0F172A] truncate">{acc.name}</p>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
 
   const statCards = [
     {
@@ -218,9 +313,12 @@ export default function DashboardPage() {
 
       {/* ── MOBILE BODY ── */}
       <div className="md:hidden flex-1 p-5 max-w-2xl mx-auto w-full">
-        <div className="mb-6">
+        <div className="mb-5">
           <h1 className="text-2xl font-semibold text-[#0F172A] tracking-tight">{greeting()} {firstName} 👋</h1>
           <p className="text-sm text-slate-400 mt-0.5">{time} · {formatDate()}</p>
+        </div>
+        <div className="mb-3">
+          {clientSearchBox}
         </div>
         <div className="mb-6">
           <SearchBar large onSubmit={handleSearch} onVoiceResult={handleSearch} />
@@ -328,6 +426,11 @@ export default function DashboardPage() {
         {/* Body */}
         <div className="flex-1 bg-[#F0F4FF] px-4 md:px-10 py-6 md:py-8 -mt-6">
           <div className="max-w-7xl mx-auto space-y-6">
+
+            {/* Client search */}
+            <div className="max-w-lg">
+              {clientSearchBox}
+            </div>
 
             {/* ROW 1 — Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
