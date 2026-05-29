@@ -51,7 +51,7 @@ function SearchPageContent() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
 
-  const [activeTab, setActiveTab] = useState<SearchTab>('portfolio')
+  const [activeTab, setActiveTab] = useState<SearchTab>('global')
   const [portfolioAccounts, setPortfolioAccounts] = useState<{ id: string; name: string }[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
   const [globalAccountIds, setGlobalAccountIds] = useState<string[]>([])
