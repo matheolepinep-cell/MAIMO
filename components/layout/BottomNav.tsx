@@ -62,19 +62,19 @@ export function BottomNav() {
   const isPortfolio = pathname.startsWith('/app/portfolio')
   const isProfile = pathname.startsWith('/app/profile')
 
-  function NavLink({ href, icon: Icon, active }: { href: string; icon: React.ElementType; active: boolean }) {
+  function NavLink({ href, icon: Icon, label, active }: { href: string; icon: React.ElementType; label: string; active: boolean }) {
     return (
-      <Link href={href} className="flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-all duration-200">
+      <Link href={href} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200">
         <Icon
-          className={clsx('w-6 h-6 transition-all duration-200', active ? 'text-[#1E2761]' : 'text-slate-400')}
-          style={active ? { filter: 'drop-shadow(0 0 6px rgba(76,110,245,0.4))' } : {}}
+          className="w-6 h-6 transition-all duration-200"
+          style={{ color: active ? '#1E2761' : '#CBD5E1' }}
         />
-        {active && (
-          <span
-            className="w-1 h-1 rounded-full"
-            style={{ background: 'linear-gradient(135deg, #1E2761, #4C6EF5)' }}
-          />
-        )}
+        <span
+          className="text-[10px] font-medium transition-all duration-200"
+          style={{ color: active ? '#1E2761' : '#CBD5E1' }}
+        >
+          {label}
+        </span>
       </Link>
     )
   }
@@ -92,8 +92,8 @@ export function BottomNav() {
         }}
       >
         <div className="flex items-stretch h-16">
-          <NavLink href="/app/search" icon={Search} active={isSearch} />
-          <NavLink href="/app/portfolio" icon={Briefcase} active={isPortfolio} />
+          <NavLink href="/app/search" icon={Search} label="Accueil" active={isSearch} />
+          <NavLink href="/app/portfolio" icon={Briefcase} label="Portfolio" active={isPortfolio} />
 
           <button onClick={() => setOpen(true)} className="flex-1 flex flex-col items-center justify-center">
             <div
@@ -107,7 +107,7 @@ export function BottomNav() {
             </div>
           </button>
 
-          <NavLink href="/app/profile" icon={User} active={isProfile} />
+          <NavLink href="/app/profile" icon={User} label="Profil" active={isProfile} />
         </div>
       </nav>
 
