@@ -118,6 +118,13 @@ export async function POST(request: Request) {
       notesCreated++
       if (note?.id) await indexNote(supabase, note.id, noteContent, existingId, company_id)
 
+      await supabase.from('portfolio').upsert({
+        company_id,
+        user_id: user.id,
+        account_id: existingId,
+        visibility: 'team',
+      }, { onConflict: 'user_id,account_id' })
+
       if (row.contact_name?.trim()) {
         const { data: existingContacts } = await supabase
           .from('contacts')
@@ -170,12 +177,12 @@ export async function POST(request: Request) {
 
     existingNorm.set(normName, acc.id)
 
-    await supabase.from('portfolio').insert({
+    await supabase.from('portfolio').upsert({
       user_id: user.id,
       account_id: acc.id,
       company_id,
       visibility: 'team',
-    })
+    }, { onConflict: 'user_id,account_id' })
 
     if (row.contact_name?.trim()) {
       const parts = row.contact_name.trim().split(/\s+/)
