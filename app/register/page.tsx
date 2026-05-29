@@ -216,7 +216,7 @@ function RegisterContent() {
             value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
 
           {mode === 'admin' ? (
-            <Input id="companyName" label="Nom de votre négoce" placeholder="Négoce Martin"
+            <Input id="companyName" label="Nom de votre espace" placeholder="Mon espace"
               value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
           ) : (
             <Input id="inviteCode" label="Code d'invitation (6 caractères)" placeholder="ABC123"
