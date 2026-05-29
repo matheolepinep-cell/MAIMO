@@ -6,7 +6,7 @@ import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus } fro
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { SearchBar } from '@/components/ui/SearchBar'
-import { getAvatarColor, getInitials } from '@/components/ui/CompanyCard'
+import { getInitials } from '@/components/ui/CompanyCard'
 
 /* ─── types ─── */
 type MobileItem =
@@ -457,36 +457,24 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="divide-y divide-[rgba(30,39,97,0.04)]">
-                      {portfolio.map((item) => {
-                        const color = getAvatarColor(item.account_name)
-                        return (
+                      {portfolio.map((item) => (
                           <button
                             key={item.id}
                             onClick={() => router.push(`/app/accounts/${item.account_id}`)}
                             className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
                           >
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold ${color.bg} ${color.text}`}>
+                            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                              style={{ background: '#4C6EF5' }}>
                               {getInitials(item.account_name)}
                             </div>
                             <span className="flex-1 text-sm font-medium text-[#0F172A] truncate">{item.account_name}</span>
                             <span
-                              className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
-                              style={item.status === 'prospect' ? {
-                                background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
-                                color: '#92400E',
-                                borderColor: 'rgba(245,158,11,0.2)',
-                              } : {
-                                background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
-                                color: '#065F46',
-                                borderColor: 'rgba(16,185,129,0.2)',
-                              }}
-                            >
-                              {item.status === 'prospect' ? 'Prospect' : 'Client'}
-                            </span>
+                              className="shrink-0 w-2 h-2 rounded-full"
+                              style={{ background: item.status === 'client' ? '#10B981' : '#F59E0B' }}
+                            />
                             <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
                           </button>
-                        )
-                      })}
+                        ))}
                     </div>
                   )}
                 </div>
