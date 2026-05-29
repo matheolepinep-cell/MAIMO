@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, ChevronRight, MapPin, Briefcase } from 'lucide-react'
+import { Building2, ChevronRight, MapPin, Briefcase, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -44,6 +44,8 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'client' | 'prospect'>('all')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fetchAccounts = async () => {
     if (!profile?.company_id) return
@@ -72,6 +74,34 @@ export default function AccountsPage() {
   useEffect(() => {
     if (!profileLoading) fetchAccounts()
   }, [profileLoading, profile])
+
+  const handleDelete = async (accountId: string) => {
+    setDeletingId(accountId)
+    const supabase = createClient()
+
+    // Delete in dependency order to respect FK constraints
+    await supabase.from('chunks').delete().eq('account_id', accountId)
+    await supabase.from('notes').delete().eq('account_id', accountId)
+    await supabase.from('documents').delete().eq('account_id', accountId)
+    await supabase.from('contacts').delete().eq('account_id', accountId)
+
+    // Portfolio access rows (via portfolio ids for this account)
+    const { data: pfEntries } = await supabase
+      .from('portfolio')
+      .select('id')
+      .eq('account_id', accountId)
+    const pfIds = (pfEntries ?? []).map((p: { id: string }) => p.id)
+    if (pfIds.length > 0) {
+      await supabase.from('portfolio_access').delete().in('portfolio_id', pfIds)
+    }
+    await supabase.from('portfolio').delete().eq('account_id', accountId)
+
+    await supabase.from('accounts').delete().eq('id', accountId)
+
+    setAccounts((prev) => prev.filter((a) => a.id !== accountId))
+    setConfirmDeleteId(null)
+    setDeletingId(null)
+  }
 
   const filtered = accounts
     .filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
@@ -129,48 +159,93 @@ export default function AccountsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((account) => (
-              <div
-                key={account.id}
-                onClick={() => router.push(`/app/accounts/${account.id}`)}
-                className="bg-white rounded-2xl p-4 flex items-center gap-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5"
-                style={{
-                  border: '1px solid rgba(30,39,97,0.08)',
-                  boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 12px rgba(30,39,97,0.10), 0 8px 24px rgba(30,39,97,0.08)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}
-              >
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(76,110,245,0.1)' }}>
-                  <Building2 className="w-5 h-5 text-[#4C6EF5]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-[#0F172A] truncate">{account.name}</p>
-                    <span
-                      className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
-                      style={account.status === 'prospect' ? {
-                        background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
-                        color: '#92400E',
-                        borderColor: 'rgba(245,158,11,0.2)',
-                      } : {
-                        background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
-                        color: '#065F46',
-                        borderColor: 'rgba(16,185,129,0.2)',
-                      }}
-                    >
-                      {account.status === 'prospect' ? 'Prospect' : 'Client'}
-                    </span>
+            {filtered.map((account) => {
+              const isConfirming = confirmDeleteId === account.id
+              const isDeleting = deletingId === account.id
+
+              return (
+                <div
+                  key={account.id}
+                  className="bg-white rounded-2xl p-4 flex items-center gap-4 transition-all duration-200"
+                  style={{
+                    border: isConfirming ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(30,39,97,0.08)',
+                    boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
+                  }}
+                >
+                  {/* Avatar */}
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
+                    style={{ background: 'rgba(76,110,245,0.1)' }}
+                    onClick={() => !isConfirming && router.push(`/app/accounts/${account.id}`)}
+                  >
+                    <Building2 className="w-5 h-5 text-[#4C6EF5]" />
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    {account.city && <span className="flex items-center gap-1 text-xs text-slate-400"><MapPin className="w-3 h-3" />{account.city}</span>}
-                    {account.industry && <span className="flex items-center gap-1 text-xs text-slate-400"><Briefcase className="w-3 h-3" />{account.industry}</span>}
+
+                  {/* Info */}
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => !isConfirming && router.push(`/app/accounts/${account.id}`)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-[#0F172A] truncate">{account.name}</p>
+                      <span
+                        className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
+                        style={account.status === 'prospect' ? {
+                          background: 'rgba(30,39,97,0.05)',
+                          color: 'rgba(30,39,97,0.5)',
+                          borderColor: 'rgba(30,39,97,0.1)',
+                        } : {
+                          background: 'rgba(30,39,97,0.12)',
+                          color: '#1E2761',
+                          borderColor: 'rgba(30,39,97,0.2)',
+                        }}
+                      >
+                        {account.status === 'prospect' ? 'Prospect' : 'Client'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                      {account.city && <span className="flex items-center gap-1 text-xs text-slate-400"><MapPin className="w-3 h-3" />{account.city}</span>}
+                      {account.industry && <span className="flex items-center gap-1 text-xs text-slate-400"><Briefcase className="w-3 h-3" />{account.industry}</span>}
+                    </div>
                   </div>
+
+                  {/* Right actions */}
+                  {isConfirming ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <p className="text-xs text-red-500 font-medium hidden sm:block">Supprimer ?</p>
+                      <button
+                        onClick={() => handleDelete(account.id)}
+                        disabled={isDeleting}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-all disabled:opacity-60"
+                      >
+                        {isDeleting ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : null}
+                        Oui
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[#64748B] bg-gray-100 hover:bg-gray-200 transition-all"
+                      >
+                        Non
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(account.id) }}
+                        className="p-2 rounded-xl text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <ChevronRight
+                        className="w-4 h-4 text-slate-300 cursor-pointer"
+                        onClick={() => router.push(`/app/accounts/${account.id}`)}
+                      />
+                    </div>
+                  )}
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
