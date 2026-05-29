@@ -2,32 +2,31 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Briefcase, Building2, ChevronRight, Lock, Globe, Users, Trash2, MapPin } from 'lucide-react'
+import { Briefcase, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
-import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Modal } from '@/components/ui/Modal'
+import { BottomSheet } from '@/components/ui/BottomSheet'
+import { CompanyCard } from '@/components/ui/CompanyCard'
 
-type AccountRow = { id: string; name: string; city: string | null; industry: string | null; status: 'client' | 'prospect' }
 type PortfolioEntry = {
   id: string
   account_id: string
   visibility: 'team' | 'private' | 'custom'
   created_at: string
-  accounts: AccountRow | null
+  accounts: { id: string; name: string; city: string | null; industry: string | null; status: 'client' | 'prospect' } | null
 }
 
-const VISIBILITY_ICON = { team: Globe, private: Lock, custom: Users }
-const VISIBILITY_LABEL = { team: "Toute l'équipe", private: 'Privé', custom: 'Personnes choisies' }
+type Filter = 'all' | 'client' | 'prospect' | 'team' | 'private'
 
 export default function PortfolioPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const [entries, setEntries] = useState<PortfolioEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<Filter>('all')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -74,10 +73,7 @@ export default function PortfolioPage() {
     if (accErr || !acc) { setCreateError(accErr?.message ?? 'Erreur.'); setCreating(false); return }
 
     await supabase.from('portfolio').insert({
-      user_id: profile.id,
-      account_id: acc.id,
-      company_id: profile.company_id,
-      visibility: 'team',
+      user_id: profile.id, account_id: acc.id, company_id: profile.company_id, visibility: 'team',
     })
 
     router.push(`/app/accounts/${acc.id}`)
@@ -89,107 +85,136 @@ export default function PortfolioPage() {
     setEntries((prev) => prev.filter((e) => e.id !== entryId))
   }
 
+  const filtered = entries.filter((e) => {
+    const acc = e.accounts
+    if (!acc) return false
+    if (filter === 'client') return acc.status === 'client'
+    if (filter === 'prospect') return acc.status === 'prospect'
+    if (filter === 'team') return e.visibility === 'team'
+    if (filter === 'private') return e.visibility === 'private'
+    return true
+  })
+
   const clientCount = entries.filter((e) => e.accounts?.status === 'client').length
   const prospectCount = entries.filter((e) => e.accounts?.status === 'prospect').length
 
+  const filters: { value: Filter; label: string }[] = [
+    { value: 'all', label: 'Tous' },
+    { value: 'client', label: 'Clients' },
+    { value: 'prospect', label: 'Prospects' },
+    { value: 'team', label: 'Équipe' },
+    { value: 'private', label: 'Privés' },
+  ]
+
   return (
-    <div>
+    <div className="flex flex-col min-h-full">
       <Header title="Mon portefeuille" />
-      <div className="p-4 md:p-8 max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Mon portefeuille</h1>
-          <Button onClick={() => setCreateOpen(true)} size="sm" className="ml-auto">
-            <Plus className="w-4 h-4 mr-1.5" />Nouvelle entreprise
+      <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full">
+
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Mon portefeuille</h1>
+            {!loading && entries.length > 0 && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm text-slate-400">
+                  <span className="font-semibold text-[#0F172A]">{entries.length}</span> entreprise{entries.length !== 1 ? 's' : ''}
+                </span>
+                {clientCount > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{clientCount} client{clientCount !== 1 ? 's' : ''}</span>}
+                {prospectCount > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">{prospectCount} prospect{prospectCount !== 1 ? 's' : ''}</span>}
+              </div>
+            )}
+          </div>
+          <Button onClick={() => setCreateOpen(true)} size="sm" className="shrink-0 ml-4">
+            + Nouvelle entreprise
           </Button>
         </div>
 
-        {!loading && entries.length > 0 && (
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-sm text-[#64748B]">
-              <span className="font-semibold text-[#1E293B]">{entries.length}</span> entreprise{entries.length !== 1 ? 's' : ''}
-            </span>
-            {clientCount > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{clientCount} client{clientCount !== 1 ? 's' : ''}</span>}
-            {prospectCount > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">{prospectCount} prospect{prospectCount !== 1 ? 's' : ''}</span>}
-          </div>
-        )}
+        {/* Filter pills */}
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-hide">
+          {filters.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setFilter(value)}
+              className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
+                filter === value ? 'bg-[#1E2761] text-white' : 'bg-white border border-slate-200 text-slate-500 hover:border-slate-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
+        {/* Content */}
         {loading ? (
-          <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>
-        ) : entries.length === 0 ? (
+          <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />)}</div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-[#64748B] mb-4">Votre portefeuille est vide.</p>
-            <Button onClick={() => setCreateOpen(true)} variant="secondary" size="sm">
-              <Plus className="w-4 h-4 mr-1.5" />Créer une entreprise
-            </Button>
+            <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Briefcase className="w-6 h-6 text-slate-300" />
+            </div>
+            <p className="text-slate-500 text-sm mb-4">
+              {filter !== 'all' ? 'Aucune entreprise dans ce filtre.' : 'Votre portefeuille est vide.'}
+            </p>
+            {filter === 'all' && (
+              <Button onClick={() => setCreateOpen(true)} variant="secondary" size="sm">
+                + Créer une entreprise
+              </Button>
+            )}
           </div>
         ) : (
-          <div className="space-y-3">
-            {entries.map((entry) => {
+          <div className="space-y-2.5">
+            {filtered.map((entry) => {
               const acc = entry.accounts
               if (!acc) return null
-              const vis = entry.visibility ?? 'team'
-              const VisIcon = VISIBILITY_ICON[vis]
               return (
-                <Card key={entry.id} className="flex items-start gap-3">
-                  <div
-                    className="flex-1 min-w-0 flex items-start gap-3 cursor-pointer"
-                    onClick={() => router.push(`/app/accounts/${entry.account_id}`)}
-                  >
-                    <div className="w-10 h-10 bg-[#1E2761]/10 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      <Building2 className="w-5 h-5 text-[#1E2761]" />
+                <CompanyCard
+                  key={entry.id}
+                  name={acc.name}
+                  city={acc.city}
+                  industry={acc.industry}
+                  status={acc.status}
+                  visibility={entry.visibility}
+                  onClick={() => router.push(`/app/accounts/${entry.account_id}`)}
+                  rightSlot={
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRemove(entry.id) }}
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all duration-200"
+                        title="Retirer du portefeuille"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-[#1E293B] truncate">{acc.name}</p>
-                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${acc.status === 'prospect' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                          {acc.status === 'prospect' ? 'Prospect' : 'Client'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                        {acc.city && <span className="flex items-center gap-1 text-xs text-[#64748B]"><MapPin className="w-3 h-3" />{acc.city}</span>}
-                        {acc.industry && <span className="text-xs text-[#64748B]">{acc.industry}</span>}
-                        <span className="flex items-center gap-1 text-xs text-[#94A3B8]">
-                          <VisIcon className="w-3 h-3" />{VISIBILITY_LABEL[vis]}
-                        </span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-300 shrink-0 mt-1" />
-                  </div>
-                  <button
-                    onClick={() => handleRemove(entry.id)}
-                    title="Retirer du portefeuille"
-                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150 shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </Card>
+                  }
+                />
               )
             })}
           </div>
         )}
       </div>
 
-      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setCreateError('') }} title="Nouvelle entreprise">
+      {/* Create sheet */}
+      <BottomSheet open={createOpen} onClose={() => { setCreateOpen(false); setCreateError('') }} title="Nouvelle entreprise">
         <form onSubmit={handleCreate} className="space-y-4">
           <Input id="name" label="Raison sociale" placeholder="Entreprise Dupont" value={newName} onChange={(e) => setNewName(e.target.value)} required autoFocus />
           <Input id="city" label="Ville (optionnel)" placeholder="Lyon" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
           <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={newIndustry} onChange={(e) => setNewIndustry(e.target.value)} />
           <div>
-            <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Statut</label>
-            <div className="flex rounded-xl bg-gray-100 p-1">
-              <button type="button" onClick={() => setNewStatus('client')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${newStatus === 'client' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'}`}>Client</button>
-              <button type="button" onClick={() => setNewStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${newStatus === 'prospect' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'}`}>Prospect</button>
+            <label className="block text-sm font-medium text-[#0F172A] mb-1.5">Statut</label>
+            <div className="flex rounded-xl bg-slate-100 p-1">
+              <button type="button" onClick={() => setNewStatus('client')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${newStatus === 'client' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Client</button>
+              <button type="button" onClick={() => setNewStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${newStatus === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
             </div>
           </div>
-          {createError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{createError}</p>}
-          <p className="text-xs text-[#94A3B8]">L'entreprise sera ajoutée à votre portefeuille et visible par toute l'équipe par défaut.</p>
-          <div className="flex gap-2 pt-1">
+          {createError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-xl">{createError}</p>}
+          <p className="text-xs text-slate-400">Visible par toute l'équipe par défaut.</p>
+          <div className="flex gap-2 pb-2">
             <Button variant="secondary" type="button" onClick={() => { setCreateOpen(false); setCreateError('') }} className="flex-1">Annuler</Button>
             <Button type="submit" loading={creating} className="flex-1">Créer</Button>
           </div>
         </form>
-      </Modal>
+      </BottomSheet>
     </div>
   )
 }

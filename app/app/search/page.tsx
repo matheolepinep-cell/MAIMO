@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { Search, Mic, MicOff, Volume2, FileText, Upload, ExternalLink, Building2, Briefcase, Globe } from 'lucide-react'
+import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { Briefcase, Globe, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { SearchBar } from '@/components/ui/SearchBar'
+import { AnswerCard } from '@/components/ui/AnswerCard'
 import type { SearchSource } from '@/types/database'
 
 declare global {
@@ -19,46 +20,40 @@ declare global {
 type SearchTab = 'portfolio' | 'global'
 type StatusFilter = 'all' | 'client' | 'prospect'
 
-function fmt(d?: string) {
-  if (!d) return ''
-  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
-}
-
 async function getAccessibleAccountIds(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   companyId: string
 ): Promise<string[]> {
   const { data: entries } = await supabase
-    .from('portfolio')
-    .select('id, account_id, user_id, visibility')
-    .eq('company_id', companyId)
-
+    .from('portfolio').select('id, account_id, user_id, visibility').eq('company_id', companyId)
   const entryIds = (entries ?? []).map((p: { id: string }) => p.id)
-
   const { data: myAccess } = entryIds.length > 0
     ? await supabase.from('portfolio_access').select('portfolio_id').in('portfolio_id', entryIds).eq('user_id', userId)
     : { data: [] }
-
   const myAccessSet = new Set((myAccess ?? []).map((a: { portfolio_id: string }) => a.portfolio_id))
-
   return (entries ?? [])
     .filter((p: { user_id: string; visibility: string; id: string }) =>
-      p.user_id === userId ||
-      p.visibility === 'team' ||
-      (p.visibility === 'custom' && myAccessSet.has(p.id))
-    )
-    .map((p: { account_id: string }) => p.account_id)
+      p.user_id === userId || p.visibility === 'team' || (p.visibility === 'custom' && myAccessSet.has(p.id))
+    ).map((p: { account_id: string }) => p.account_id)
 }
 
-export default function SearchPage() {
-  const { profile, loading: profileLoading } = useUser()
-  const [activeTab, setActiveTab] = useState<SearchTab>('portfolio')
+const SUGGESTIONS = [
+  'Délai de livraison ?',
+  'Dernier contact ?',
+  'Conditions de remise ?',
+  'Qui appeler ?',
+]
 
+function SearchPageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const { profile, loading: profileLoading } = useUser()
+
+  const [activeTab, setActiveTab] = useState<SearchTab>('portfolio')
   const [portfolioAccounts, setPortfolioAccounts] = useState<{ id: string; name: string }[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
   const [globalAccountIds, setGlobalAccountIds] = useState<string[]>([])
-
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [city, setCity] = useState('')
 
@@ -66,9 +61,14 @@ export default function SearchPage() {
   const [answer, setAnswer] = useState('')
   const [sources, setSources] = useState<SearchSource[]>([])
   const [loading, setLoading] = useState(false)
-  const [recording, setRecording] = useState(false)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
+  // Read initial query from URL
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q) setQuery(q)
+  }, [searchParams])
+
+  // Load data
   useEffect(() => {
     if (profileLoading || !profile) return
     const supabase = createClient()
@@ -79,10 +79,9 @@ export default function SearchPage() {
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
-        type EntryRow = { accounts: { id: string; name: string } | null }
-        const accs = ((data ?? []) as unknown as EntryRow[])
-          .map((e) => e.accounts)
-          .filter(Boolean) as { id: string; name: string }[]
+        type Row = { accounts: { id: string; name: string } | null }
+        const accs = ((data ?? []) as unknown as Row[])
+          .map((e) => e.accounts).filter(Boolean) as { id: string; name: string }[]
         setPortfolioAccounts(accs)
       })
 
@@ -94,223 +93,167 @@ export default function SearchPage() {
     }
   }, [profileLoading, profile])
 
-  const isReady = query.trim().length > 0
+  // Auto-search when query comes from URL
+  const didAutoSearch = useRef(false)
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q && !didAutoSearch.current && !profileLoading && profile && portfolioAccounts.length > 0) {
+      didAutoSearch.current = true
+      doSearch(q)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, profileLoading, profile, portfolioAccounts])
 
-  const handleSearch = useCallback(async (q?: string) => {
-    const searchQuery = q ?? query
-    if (!searchQuery.trim() || !profile) return
-
-    setLoading(true)
-    setAnswer('')
-    setSources([])
-
+  const doSearch = useCallback(async (q: string) => {
+    if (!q.trim() || !profile) return
+    setLoading(true); setAnswer(''); setSources([])
     try {
       const body: Record<string, unknown> = {
-        query: searchQuery,
+        query: q,
         company_id: profile.company_id,
         status: statusFilter,
         city: city.trim() || undefined,
       }
-
       if (activeTab === 'portfolio') {
-        if (selectedAccountId) {
-          body.account_id = selectedAccountId
-        } else {
-          body.account_ids = portfolioAccounts.map((a) => a.id)
-        }
+        body[selectedAccountId ? 'account_id' : 'account_ids'] = selectedAccountId || portfolioAccounts.map((a) => a.id)
       } else {
         body.account_ids = globalAccountIds
       }
-
-      const res = await fetch('/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
+      const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json()
-      setAnswer(data.answer ?? '')
-      setSources(data.sources ?? [])
+      setAnswer(data.answer ?? ''); setSources(data.sources ?? [])
     } catch {
       setAnswer('Une erreur est survenue. Veuillez réessayer.')
-    } finally {
-      setLoading(false)
     }
-  }, [query, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city, profile])
+    setLoading(false)
+  }, [profile, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city])
 
-  const startVoice = useCallback(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SR) { alert('Reconnaissance vocale non supportée.'); return }
-    const recognition = new SR()
-    recognition.lang = 'fr-FR'
-    recognition.continuous = false
-    recognition.interimResults = false
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript
-      setQuery(transcript)
-      setRecording(false)
-      handleSearch(transcript)
-    }
-    recognition.onerror = () => setRecording(false)
-    recognition.onend = () => setRecording(false)
-    recognitionRef.current = recognition
-    recognition.start()
-    setRecording(true)
-  }, [handleSearch])
-
-  const stopVoice = () => { recognitionRef.current?.stop(); setRecording(false) }
+  const handleSubmit = (q: string) => {
+    setQuery(q)
+    doSearch(q)
+  }
 
   const speakAnswer = () => {
     if (!answer || !('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(answer)
-    utterance.lang = 'fr-FR'
-    window.speechSynthesis.speak(utterance)
+    window.speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(answer), { lang: 'fr-FR' }))
+  }
+
+  const handleSourceClick = (src: SearchSource) => {
+    if (src.type === 'document' && src.url) window.open(src.url, '_blank')
+    else router.push(`/app/accounts/${src.id}`)
   }
 
   return (
-    <div>
+    <div className="flex flex-col min-h-full">
       <Header title="Recherche IA" />
-      <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-4">
-        <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Recherche IA</h1>
+
+      <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full space-y-4">
+        <h1 className="text-2xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Recherche IA</h1>
+
+        {/* Search bar always at top */}
+        <SearchBar
+          onSubmit={handleSubmit}
+          defaultValue={query}
+          large
+          autoFocus
+          staticPlaceholder="Posez votre question…"
+        />
 
         {/* Tabs */}
-        <div className="flex rounded-xl bg-gray-100 p-1">
-          <button
-            onClick={() => { setActiveTab('portfolio'); setAnswer(''); setSources([]) }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${activeTab === 'portfolio' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'}`}
-          >
-            <Briefcase className="w-4 h-4" />Mon portefeuille
-          </button>
-          <button
-            onClick={() => { setActiveTab('global'); setAnswer(''); setSources([]) }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${activeTab === 'global' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'}`}
-          >
-            <Globe className="w-4 h-4" />Portefeuille global
-          </button>
+        <div className="flex border-b border-slate-200">
+          {([
+            { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
+            { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
+          ]).map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => { setActiveTab(value); setAnswer(''); setSources([]) }}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-px ${
+                activeTab === value
+                  ? 'border-[#1E2761] text-[#1E2761]'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />{label}
+            </button>
+          ))}
         </div>
 
-        {/* Portfolio tab: account selector */}
+        {/* Portfolio account selector */}
         {activeTab === 'portfolio' && (
-          <div>
-            <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Entreprise</label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-              <select
-                value={selectedAccountId}
-                onChange={(e) => setSelectedAccountId(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150"
-              >
-                <option value="">Toutes mes entreprises</option>
-                {portfolioAccounts.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </div>
+          <div className="relative">
+            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <select
+              value={selectedAccountId}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-all duration-200"
+            >
+              <option value="">Toutes mes entreprises</option>
+              {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
           </div>
         )}
 
-        {/* Status filter */}
-        <div className="flex gap-2">
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2">
           {(['all', 'client', 'prospect'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 ${
-                statusFilter === f ? 'bg-[#1E2761] text-white' : 'bg-white border border-gray-200 text-[#64748B] hover:bg-gray-50'
+            <button key={f} onClick={() => setStatusFilter(f)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
+                statusFilter === f ? 'bg-[#1E2761] text-white' : 'bg-white border border-slate-200 text-slate-500 hover:border-slate-300'
               }`}
             >
               {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
             </button>
           ))}
-        </div>
-
-        {/* City filter */}
-        <div>
-          <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
-            Ville <span className="text-[#94A3B8] font-normal">(optionnel)</span>
-          </label>
           <input
-            type="text"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder="Lyon, Paris..."
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150"
+            type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
+            className="px-3 py-1.5 rounded-xl text-xs border border-slate-200 bg-white text-slate-600 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-all duration-200 w-24"
           />
         </div>
 
-        {/* Question input */}
-        <div>
-          <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Question</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Quelle est la prochaine livraison prévue ?"
-              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150"
-            />
-            <button
-              onClick={recording ? stopVoice : startVoice}
-              className={`p-2.5 rounded-xl transition-all duration-150 ${
-                recording ? 'bg-red-500 text-white animate-pulse' : 'border border-gray-200 text-[#64748B] hover:bg-gray-50'
-              }`}
-            >
-              {recording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-
-        <Button onClick={() => handleSearch()} loading={loading} disabled={!isReady} className="w-full" size="lg">
-          <Search className="w-4 h-4 mr-2" />
-          Rechercher
-        </Button>
-
-        {loading && (
-          <div className="flex items-center justify-center gap-2 py-8">
-            <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce [animation-delay:-0.3s]" />
-            <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce [animation-delay:-0.15s]" />
-            <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce" />
+        {/* Suggestions (shown when no answer) */}
+        {!answer && !loading && (
+          <div>
+            <p className="text-xs font-medium text-slate-400 mb-2.5 uppercase tracking-wide">Suggestions</p>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleSubmit(s)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:border-[#1E2761] hover:text-[#1E2761] transition-all duration-200"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {answer && !loading && (
-          <Card>
-            <div className="flex items-start justify-between gap-2 mb-3">
-              <span className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Réponse</span>
-              <button onClick={speakAnswer} className="p-1.5 rounded-lg text-[#64748B] hover:bg-gray-100 transition-all duration-150" title="Lire à voix haute">
-                <Volume2 className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-sm text-[#1E293B] leading-relaxed whitespace-pre-wrap">{answer}</p>
+        {/* Loading */}
+        {loading && (
+          <AnswerCard answer="" sources={[]} isLoading />
+        )}
 
-            {sources.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs font-medium text-[#64748B] mb-2">Sources</p>
-                <div className="flex flex-wrap gap-2">
-                  {sources.map((source) => (
-                    source.type === 'document' && source.url ? (
-                      <a key={source.id} href={source.url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 text-xs font-medium text-purple-700 hover:bg-purple-100 transition-all duration-150">
-                        <Upload className="w-3 h-3" />
-                        {source.title}
-                        <ExternalLink className="w-3 h-3 opacity-60" />
-                      </a>
-                    ) : (
-                      <span key={source.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-xs font-medium text-blue-700">
-                        <FileText className="w-3 h-3" />
-                        {source.title}
-                        {source.author && <span className="opacity-70">· {source.author}</span>}
-                        {source.date && <span className="opacity-60">· {fmt(source.date)}</span>}
-                      </span>
-                    )
-                  ))}
-                </div>
-              </div>
-            )}
-          </Card>
+        {/* Answer */}
+        {!loading && answer && (
+          <AnswerCard
+            answer={answer}
+            sources={sources}
+            onSpeak={speakAnswer}
+            onClear={() => { setAnswer(''); setSources([]) }}
+            onSourceClick={handleSourceClick}
+          />
         )}
       </div>
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={null}>
+      <SearchPageContent />
+    </Suspense>
   )
 }

@@ -21,11 +21,31 @@ function fmtDay(d: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
 }
 
+const AVATAR_PALETTE = [
+  { bg: 'bg-blue-100', text: 'text-blue-700' },
+  { bg: 'bg-purple-100', text: 'text-purple-700' },
+  { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  { bg: 'bg-orange-100', text: 'text-orange-700' },
+  { bg: 'bg-pink-100', text: 'text-pink-700' },
+  { bg: 'bg-teal-100', text: 'text-teal-700' },
+  { bg: 'bg-indigo-100', text: 'text-indigo-700' },
+  { bg: 'bg-rose-100', text: 'text-rose-700' },
+]
+function getAvatarColor(name: string) {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0x7fffffff
+  return AVATAR_PALETTE[h % AVATAR_PALETTE.length]
+}
+function getInitials(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+}
+
 declare global {
   interface Window { SpeechRecognition: typeof SpeechRecognition; webkitSpeechRecognition: typeof SpeechRecognition }
 }
 
 type Tab = 'notes' | 'documents' | 'search'
+type MobileTab = 'info' | Tab
 
 /* ─── main page ─── */
 export default function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -40,6 +60,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [uploaderMap, setUploaderMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('notes')
+  const [mobileTab, setMobileTab] = useState<MobileTab>('info')
 
   // Info editing
   const [editing, setEditing] = useState(false)
@@ -101,6 +122,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       supabase.from('documents').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false }),
     ])
     setAccount(acc ?? null)
+    if (acc) {
+      try {
+        const key = 'maimo_recent_accounts'
+        const stored = JSON.parse(localStorage.getItem(key) ?? '[]') as { id: string; name: string }[]
+        const updated = [{ id: acc.id, name: acc.name }, ...stored.filter((a) => a.id !== acc.id)].slice(0, 5)
+        localStorage.setItem(key, JSON.stringify(updated))
+      } catch { /* ignore */ }
+    }
     setContacts(ctcs ?? [])
     setNotes(nts ?? [])
     const docList = docs ?? []
@@ -432,36 +461,63 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     { key: 'website', label: 'Site web', placeholder: 'https://...' },
   ]
 
+  const avatarColor = getAvatarColor(account.name)
+
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-30">
-        <button onClick={() => router.back()} className="p-2 rounded-xl text-[#64748B] hover:bg-gray-100 transition-all duration-150">
+      <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
+        <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-all duration-200 shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </button>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold ${avatarColor.bg} ${avatarColor.text}`}>
+          {getInitials(account.name)}
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="font-bold text-[#1E293B] truncate">{account.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="font-semibold text-[#0F172A] truncate">{account.name}</h1>
             <button
               onClick={handleStatusToggle}
-              className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all ${
+              className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-200 ${
                 account.status === 'prospect'
                   ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
-                  : 'bg-green-100 text-green-600 hover:bg-green-200'
+                  : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
               }`}
             >
               {account.status === 'prospect' ? 'Prospect' : 'Client'}
             </button>
           </div>
-          {account.city && <p className="text-xs text-[#64748B]">{account.city}{account.industry ? ` · ${account.industry}` : ''}</p>}
+          {(account.city || account.industry) && (
+            <p className="text-xs text-slate-400">{[account.city, account.industry].filter(Boolean).join(' · ')}</p>
+          )}
         </div>
       </div>
 
+      {/* Mobile tabs */}
+      <div className="md:hidden flex border-b border-slate-100 bg-white sticky top-[57px] z-20">
+        {([
+          { value: 'info', label: 'Info' },
+          { value: 'notes', label: 'Notes' },
+          { value: 'documents', label: 'Docs' },
+          { value: 'search', label: 'IA' },
+        ] as const).map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => { setMobileTab(value); if (value !== 'info') setTab(value as Tab) }}
+            className={`flex-1 py-3 text-sm font-medium transition-all duration-200 border-b-2 ${
+              mobileTab === value ? 'border-[#1E2761] text-[#1E2761]' : 'border-transparent text-slate-400'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Two-column layout */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 min-h-0">
 
         {/* ── LEFT COLUMN ── */}
-        <div className="border-b lg:border-b-0 lg:border-r border-gray-100 overflow-auto p-4 md:p-6 space-y-6">
+        <div className={`border-b md:border-b-0 md:border-r border-slate-100 overflow-auto p-4 md:p-6 space-y-6 ${mobileTab !== 'info' ? 'hidden md:block' : ''}`}>
 
           {/* Account Info */}
           <div>
@@ -613,14 +669,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* ── RIGHT COLUMN ── */}
-        <div className="flex flex-col min-h-0">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-100 bg-white">
+        <div className={`flex flex-col min-h-0 ${mobileTab === 'info' ? 'hidden md:flex' : ''}`}>
+          {/* Desktop tabs */}
+          <div className="hidden md:flex border-b border-slate-100 bg-white">
             {(['notes', 'documents', 'search'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-all duration-150 border-b-2 ${tab === t ? 'border-[#1E2761] text-[#1E2761]' : 'border-transparent text-[#64748B] hover:text-[#1E293B]'}`}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-all duration-200 border-b-2 ${tab === t ? 'border-[#1E2761] text-[#1E2761]' : 'border-transparent text-slate-400 hover:text-[#0F172A]'}`}
               >
                 {t === 'notes' && <><FileText className="w-4 h-4" />Notes</>}
                 {t === 'documents' && <><Upload className="w-4 h-4" />Documents</>}

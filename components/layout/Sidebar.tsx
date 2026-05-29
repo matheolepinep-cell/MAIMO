@@ -2,18 +2,35 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Building2, Briefcase, Search, Users, Settings, LogOut } from 'lucide-react'
+import { Search, Briefcase, Building2, Users, Settings, LogOut, User } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 
 const navItems = [
-  { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/app/portfolio', icon: Briefcase, label: 'Mon portefeuille' },
-  { href: '/app/accounts', icon: Building2, label: 'Entreprises accessibles' },
   { href: '/app/search', icon: Search, label: 'Recherche IA' },
+  { href: '/app/portfolio', icon: Briefcase, label: 'Mon portefeuille' },
+  { href: '/app/accounts', icon: Building2, label: 'Entreprises' },
   { href: '/app/team', icon: Users, label: 'Équipe' },
 ]
+
+function NavItem({ href, icon: Icon, label, active }: { href: string; icon: React.ElementType; label: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={clsx(
+        'relative group flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200',
+        active ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white hover:bg-white/10'
+      )}
+      title={label}
+    >
+      <Icon className="w-5 h-5" />
+      <span className="pointer-events-none absolute left-12 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 shadow-lg">
+        {label}
+      </span>
+    </Link>
+  )
+}
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -27,60 +44,68 @@ export function Sidebar() {
     router.refresh()
   }
 
+  const initials = profile?.full_name
+    ?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() ?? '?'
+
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-[#1E2761] min-h-screen">
-      <div className="px-6 py-6 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
-            <span className="text-white font-bold">M</span>
-          </div>
-          <span className="text-white font-bold text-lg">MemoBTP</span>
-        </div>
+    <aside className="hidden md:flex flex-col items-center w-16 bg-[#1E2761] min-h-screen py-4 shrink-0 overflow-visible">
+      {/* Logo */}
+      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-6 shrink-0">
+        <span className="text-white font-bold text-base">M</span>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ href, icon: Icon, label }) => (
-          <Link
+      {/* Nav */}
+      <nav className="flex flex-col items-center gap-1 flex-1">
+        {navItems.map(({ href, icon, label }) => (
+          <NavItem
             key={href}
             href={href}
-            className={clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-              pathname.startsWith(href)
-                ? 'bg-white/20 text-white'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-            )}
-          >
-            <Icon className="w-5 h-5" />
-            {label}
-          </Link>
+            icon={icon}
+            label={label}
+            active={pathname.startsWith(href) || (href === '/app/search' && pathname.startsWith('/app/dashboard'))}
+          />
         ))}
       </nav>
 
-      <div className="px-3 py-4 border-t border-white/10 space-y-1">
+      {/* Bottom: settings + user avatar */}
+      <div className="flex flex-col items-center gap-2 mt-auto">
         {profile?.role === 'admin' && (
-          <Link
+          <NavItem
             href="/app/settings"
-            className={clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-              pathname.startsWith('/app/settings')
-                ? 'bg-white/20 text-white'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-            )}
-          >
-            <Settings className="w-5 h-5" />
-            Paramètres
-          </Link>
+            icon={Settings}
+            label="Paramètres"
+            active={pathname.startsWith('/app/settings')}
+          />
         )}
-        <div className="px-3 py-2">
-          <p className="text-white text-sm font-medium truncate">{profile?.full_name}</p>
-          <p className="text-white/50 text-xs truncate">{profile?.email}</p>
-        </div>
+
+        <Link
+          href="/app/profile"
+          className={clsx(
+            'relative group flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200',
+            pathname.startsWith('/app/profile') ? 'bg-white/20' : 'hover:bg-white/10'
+          )}
+          title={profile?.full_name ?? 'Profil'}
+        >
+          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+            {initials !== '?'
+              ? <span className="text-white text-xs font-semibold">{initials}</span>
+              : <User className="w-4 h-4 text-white/70" />
+            }
+          </div>
+          <span className="pointer-events-none absolute left-12 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 shadow-lg">
+            {profile?.full_name ?? 'Profil'}
+          </span>
+        </Link>
+
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-all duration-150"
+          className="relative group flex items-center justify-center w-10 h-10 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-all duration-200"
+          title="Déconnexion"
         >
-          <LogOut className="w-5 h-5" />
-          Déconnexion
+          <LogOut className="w-4 h-4" />
+          <span className="pointer-events-none absolute left-12 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 shadow-lg">
+            Déconnexion
+          </span>
         </button>
       </div>
     </aside>
