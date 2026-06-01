@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2 } from 'lucide-react'
+import { Briefcase, Globe, Building2, Send, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -20,6 +20,7 @@ declare global {
 
 type SearchTab = 'portfolio' | 'global'
 type StatusFilter = 'all' | 'client' | 'prospect'
+type Message = { role: 'user' | 'assistant'; content: string; sources?: SearchSource[] }
 
 async function getAccessibleAccountIds(
   supabase: ReturnType<typeof createClient>,
@@ -59,9 +60,15 @@ function SearchPageContent() {
   const [city, setCity] = useState('')
 
   const [query, setQuery] = useState('')
-  const [answer, setAnswer] = useState('')
-  const [sources, setSources] = useState<SearchSource[]>([])
+  const [conversation, setConversation] = useState<Message[]>([])
+  const [followUp, setFollowUp] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const followUpRef = useRef<HTMLInputElement>(null)
+  const didAutoSearch = useRef(false)
+
+  const inConversation = conversation.length > 0 || loading
 
   useEffect(() => {
     const q = searchParams.get('q')
@@ -92,7 +99,50 @@ function SearchPageContent() {
     }
   }, [profileLoading, profile])
 
-  const didAutoSearch = useRef(false)
+  // Auto-scroll on new messages
+  useEffect(() => {
+    if (inConversation) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }
+  }, [conversation.length, loading, inConversation])
+
+  // Focus follow-up input after assistant replies
+  useEffect(() => {
+    if (!loading && conversation.length > 0) {
+      followUpRef.current?.focus()
+    }
+  }, [loading, conversation.length])
+
+  const doSearch = useCallback(async (q: string) => {
+    if (!q.trim() || !profile) return
+    setLoading(true)
+
+    const history = conversation.map(m => ({ role: m.role, content: m.content }))
+    setConversation(prev => [...prev, { role: 'user', content: q }])
+    setFollowUp('')
+
+    try {
+      const body: Record<string, unknown> = {
+        query: q,
+        company_id: profile.company_id,
+        status: statusFilter,
+        city: city.trim() || undefined,
+        history,
+      }
+      if (activeTab === 'portfolio') {
+        body[selectedAccountId ? 'account_id' : 'account_ids'] = selectedAccountId || portfolioAccounts.map((a) => a.id)
+      } else {
+        body.account_ids = globalAccountIds
+      }
+      const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json()
+      setConversation(prev => [...prev, { role: 'assistant', content: data.answer ?? '', sources: data.sources ?? [] }])
+    } catch {
+      setConversation(prev => [...prev, { role: 'assistant', content: 'Une erreur est survenue. Veuillez réessayer.', sources: [] }])
+    }
+    setLoading(false)
+  }, [profile, conversation, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city])
+
   useEffect(() => {
     const q = searchParams.get('q')
     if (q && !didAutoSearch.current && !profileLoading && profile && portfolioAccounts.length > 0) {
@@ -102,39 +152,22 @@ function SearchPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, profileLoading, profile, portfolioAccounts])
 
-  const doSearch = useCallback(async (q: string) => {
-    if (!q.trim() || !profile) return
-    setLoading(true); setAnswer(''); setSources([])
-    try {
-      const body: Record<string, unknown> = {
-        query: q,
-        company_id: profile.company_id,
-        status: statusFilter,
-        city: city.trim() || undefined,
-      }
-      if (activeTab === 'portfolio') {
-        body[selectedAccountId ? 'account_id' : 'account_ids'] = selectedAccountId || portfolioAccounts.map((a) => a.id)
-      } else {
-        body.account_ids = globalAccountIds
-      }
-      const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const data = await res.json()
-      setAnswer(data.answer ?? ''); setSources(data.sources ?? [])
-    } catch {
-      setAnswer('Une erreur est survenue. Veuillez réessayer.')
-    }
-    setLoading(false)
-  }, [profile, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city])
-
   const handleSubmit = (q: string) => {
     setQuery(q)
     doSearch(q)
   }
 
-  const speakAnswer = () => {
-    if (!answer || !('speechSynthesis' in window)) return
+  const handleReset = () => {
+    setConversation([])
+    setFollowUp('')
+    setQuery('')
+  }
+
+  const speakLast = () => {
+    const last = [...conversation].reverse().find(m => m.role === 'assistant')
+    if (!last || !('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(answer), { lang: 'fr-FR' }))
+    window.speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(last.content), { lang: 'fr-FR' }))
   }
 
   const handleSourceClick = (src: SearchSource) => {
@@ -155,13 +188,16 @@ function SearchPageContent() {
 
         <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Recherche IA</h1>
 
-        <SearchBar
-          onSubmit={handleSubmit}
-          defaultValue={query}
-          large
-          autoFocus
-          staticPlaceholder="Posez votre question…"
-        />
+        {/* SearchBar — only in initial mode */}
+        {!inConversation && (
+          <SearchBar
+            onSubmit={handleSubmit}
+            defaultValue={query}
+            large
+            autoFocus
+            staticPlaceholder="Posez votre question…"
+          />
+        )}
 
         {/* Tabs */}
         <div className="flex" style={{ borderBottom: '1px solid rgba(30,39,97,0.10)' }}>
@@ -171,7 +207,7 @@ function SearchPageContent() {
           ]).map(({ value, label, icon: Icon }) => (
             <button
               key={value}
-              onClick={() => { setActiveTab(value); setAnswer(''); setSources([]) }}
+              onClick={() => setActiveTab(value)}
               className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-px"
               style={activeTab === value ? {
                 borderBottomColor: '#4C6EF5',
@@ -234,8 +270,8 @@ function SearchPageContent() {
           />
         </div>
 
-        {/* Suggestions */}
-        {!answer && !loading && (
+        {/* Suggestions — initial mode only */}
+        {!inConversation && (
           <div>
             <p className="text-[10px] font-semibold text-slate-400 mb-2.5 uppercase tracking-widest">Suggestions</p>
             <div className="flex flex-wrap gap-2">
@@ -259,17 +295,91 @@ function SearchPageContent() {
           </div>
         )}
 
-        {loading && <AnswerCard answer="" sources={[]} isLoading />}
+        {/* Conversation mode */}
+        {inConversation && (
+          <div className="space-y-3">
 
-        {!loading && answer && (
-          <AnswerCard
-            answer={answer}
-            sources={sources}
-            onSpeak={speakAnswer}
-            onClear={() => { setAnswer(''); setSources([]) }}
-            onSourceClick={handleSourceClick}
-          />
+            {/* Header row */}
+            <div className="flex items-center justify-end">
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#1E2761] transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Nouvelle recherche
+              </button>
+            </div>
+
+            {/* Message bubbles */}
+            {conversation.map((msg, i) => {
+              if (msg.role === 'user') {
+                return (
+                  <div key={i} className="flex justify-end">
+                    <div
+                      className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm text-white leading-relaxed"
+                      style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                )
+              }
+
+              const isLast = i === conversation.length - 1
+              return (
+                <div key={i}>
+                  <AnswerCard
+                    answer={msg.content}
+                    sources={msg.sources ?? []}
+                    onSpeak={isLast ? speakLast : undefined}
+                    onClear={isLast ? handleReset : undefined}
+                    onSourceClick={handleSourceClick}
+                  />
+                </div>
+              )
+            })}
+
+            {/* Loading */}
+            {loading && <AnswerCard answer="" sources={[]} isLoading />}
+
+            <div ref={bottomRef} />
+
+            {/* Follow-up input */}
+            {!loading && (
+              <div className="flex gap-2 pt-1">
+                <input
+                  ref={followUpRef}
+                  type="text"
+                  value={followUp}
+                  onChange={(e) => setFollowUp(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      if (followUp.trim()) doSearch(followUp)
+                    }
+                  }}
+                  placeholder="Poser une question de suivi..."
+                  className="flex-1 px-4 py-3 rounded-xl text-sm text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all"
+                  style={{
+                    background: 'white',
+                    border: '1px solid rgba(30,39,97,0.12)',
+                    boxShadow: '0 1px 3px rgba(30,39,97,0.04)',
+                  }}
+                />
+                <button
+                  onClick={() => followUp.trim() && doSearch(followUp)}
+                  disabled={!followUp.trim()}
+                  className="px-4 py-3 rounded-xl text-white transition-all disabled:opacity-40"
+                  style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
+                  title="Envoyer (Entrée)"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
         )}
+
       </div>
     </div>
   )

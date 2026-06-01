@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { query, account_id, account_ids, status = 'all', city, company_id } = await request.json()
+  const { query, account_id, account_ids, status = 'all', city, company_id, history = [] } = await request.json()
 
   if (!query || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -167,11 +167,17 @@ export async function POST(request: Request) {
     }
   }).join('\n\n---\n\n')
 
+  type HistMsg = { role: 'user' | 'assistant'; content: string }
+  const historySlice = (history as HistMsg[]).slice(-8)
+
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
     system: `Tu es l'assistant commercial de l'équipe. Réponds uniquement à partir des extraits fournis. Si l'information n'est pas dans les extraits, dis-le clairement. Cite toujours ta source (note du JJ/MM/AAAA par Prénom, ou document "Titre").`,
-    messages: [{ role: 'user', content: `Extraits disponibles :\n\n${contextParts}\n\n---\n\nQuestion : ${query}` }],
+    messages: [
+      ...historySlice,
+      { role: 'user' as const, content: `Extraits disponibles :\n\n${contextParts}\n\n---\n\nQuestion : ${query}` },
+    ],
   })
 
   const answer = message.content[0].type === 'text' ? message.content[0].text : ''
