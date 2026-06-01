@@ -26,18 +26,29 @@ export async function POST(request: Request) {
   const { data: urlData } = supabase.storage.from('imports').getPublicUrl(file_path)
   const file_url = urlData?.publicUrl ?? file_path
 
+  // Map raw extension to documents.file_type enum ('pdf'|'docx'|'xlsx'|'image')
+  const ext = file_name.split('.').pop()?.toLowerCase() ?? ''
+  const resolvedFileType: 'pdf' | 'docx' | 'xlsx' | 'image' =
+    file_type && ['pdf', 'docx', 'xlsx', 'image'].includes(file_type)
+      ? file_type
+      : ['png', 'jpeg', 'jpg', 'gif', 'webp'].includes(ext)
+        ? 'image'
+        : (['pdf', 'docx', 'xlsx'] as const).includes(ext as 'pdf' | 'docx' | 'xlsx')
+          ? (ext as 'pdf' | 'docx' | 'xlsx')
+          : 'image'
+
   // Create document record
   const { data: doc, error: docErr } = await supabase
     .from('documents')
     .insert({
       account_id,
       company_id,
+      user_id: user.id,
       file_name,
       file_url,
-      file_type: file_type || file_name.split('.').pop()?.toLowerCase() || 'unknown',
+      file_type: resolvedFileType,
       title: file_name.replace(/\.[^.]+$/, ''),
-      source: 'import',
-      uploaded_by: user.id,
+      is_deleted: false,
     })
     .select('id')
     .single()
