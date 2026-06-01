@@ -7,7 +7,7 @@ export default function AuthConfirmPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-6"
-      style={{ background: 'linear-gradient(160deg, #0A1628 0%, #1E2761 60%, #0A1628 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5 mb-12">
