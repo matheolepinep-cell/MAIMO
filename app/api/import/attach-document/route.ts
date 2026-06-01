@@ -1,0 +1,83 @@
+import { NextResponse } from 'next/server'
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { getAuthenticatedUser } from '@/lib/auth-server'
+import { chunkText } from '@/lib/chunker'
+import { embedBatch } from '@/lib/embeddings'
+
+export async function POST(request: Request) {
+  const user = await getAuthenticatedUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { text, file_path, file_name, file_type, account_id, company_id } = await request.json()
+
+  if (!text || !file_path || !file_name || !account_id || !company_id) {
+    return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  }
+  if (company_id !== user.company_id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const supabase = createSupabaseAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Build public URL for the file (stored in imports bucket)
+  const { data: urlData } = supabase.storage.from('imports').getPublicUrl(file_path)
+  const file_url = urlData?.publicUrl ?? file_path
+
+  // Create document record
+  const { data: doc, error: docErr } = await supabase
+    .from('documents')
+    .insert({
+      account_id,
+      company_id,
+      file_name,
+      file_url,
+      file_type: file_type || file_name.split('.').pop()?.toLowerCase() || 'unknown',
+      title: file_name.replace(/\.[^.]+$/, ''),
+      source: 'import',
+      uploaded_by: user.id,
+    })
+    .select('id')
+    .single()
+
+  if (docErr || !doc) {
+    console.error('attach-document insert error:', docErr)
+    return NextResponse.json({ error: 'Erreur lors de la création du document.' }, { status: 500 })
+  }
+
+  // Create note linking the import
+  await supabase.from('notes').insert({
+    account_id,
+    company_id,
+    user_id: user.id,
+    title: `Document importé : ${file_name}`,
+    content: `Document importé le ${new Date().toLocaleDateString('fr-FR')} : ${file_name}`,
+    source: 'import',
+    is_deleted: false,
+  })
+
+  // Chunk + embed for RAG
+  try {
+    const chunks = chunkText(text)
+    if (chunks.length > 0) {
+      const embeddings = await embedBatch(chunks)
+      await supabase.from('chunks').insert(
+        chunks.map((chunk, i) => ({
+          company_id,
+          account_id,
+          source_type: 'document' as const,
+          source_id: doc.id,
+          content: chunk,
+          embedding: embeddings[i],
+        }))
+      )
+    }
+  } catch (err) {
+    console.error('attach-document embedding error:', err)
+    // Non-blocking: document is created, indexing failed
+  }
+
+  return NextResponse.json({ document_id: doc.id, account_id })
+}
