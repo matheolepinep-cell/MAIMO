@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { ArrowRight, Mic, FileText, Search, Zap, Shield, Users } from 'lucide-react'
 import { AuthModal } from '@/components/AuthModal'
 
@@ -175,13 +176,26 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-100 bg-white px-6 py-6 text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
+      <footer className="border-t border-slate-100 bg-white px-6 py-8 text-center">
+        <div className="flex items-center justify-center gap-2 mb-3">
           <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white font-bold text-xs"
             style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}>
             M
           </div>
           <span className="font-bold text-[#1E2761]">Maimoo</span>
+        </div>
+        <div className="flex items-center justify-center gap-4 mb-3">
+          <Link href="/mentions-legales" className="text-xs text-[#94A3B8] hover:text-[#1E2761] transition-colors">
+            Mentions légales
+          </Link>
+          <span className="text-[#E2E8F0]">·</span>
+          <Link href="/confidentialite" className="text-xs text-[#94A3B8] hover:text-[#1E2761] transition-colors">
+            Confidentialité
+          </Link>
+          <span className="text-[#E2E8F0]">·</span>
+          <Link href="/contact" className="text-xs text-[#94A3B8] hover:text-[#1E2761] transition-colors">
+            Contact
+          </Link>
         </div>
         <p className="text-xs text-[#94A3B8]">© 2026 Maimoo. Tous droits réservés.</p>
       </footer>
