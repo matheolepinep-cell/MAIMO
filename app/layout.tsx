@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   icons: {
     apple: '/icons/icon-192.png',
   },
+  other: {
+    // Required for Android Chrome standalone mode
+    'mobile-web-app-capable': 'yes',
+  },
 }
 
 export const viewport: Viewport = {
