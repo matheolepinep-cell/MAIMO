@@ -6,10 +6,10 @@ import { Search, LayoutDashboard, Briefcase, Users, Settings, User, Menu } from 
 import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
 
 const navItems = [
-  { href: '/app/search', icon: Search },
-  { href: '/app/dashboard', icon: LayoutDashboard },
-  { href: '/app/portfolio', icon: Briefcase },
-  { href: '/app/team', icon: Users },
+  { href: '/app/search', icon: Search, label: 'Recherche' },
+  { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/app/portfolio', icon: Briefcase, label: 'Portefeuille' },
+  { href: '/app/team', icon: Users, label: 'Équipe' },
 ]
 
 export function MobileSidebar() {
@@ -35,66 +35,103 @@ export function MobileSidebar() {
         </button>
       )}
 
-      {/* Sidebar overlay — shown when open */}
-      {open && (
-        <div className="md:hidden fixed inset-0 z-50" onClick={close}>
-          <aside
-            className="fixed left-0 top-0 bottom-0 w-11 flex flex-col items-center py-3 gap-1"
-            style={{ background: '#0A1628' }}
-            onClick={(e) => e.stopPropagation()}
+      {/* Sidebar overlay — always rendered for smooth slide-in animation */}
+      <div
+        className="md:hidden fixed inset-0 z-50 transition-all duration-200"
+        style={{
+          background: open ? 'rgba(0,0,0,0.4)' : 'transparent',
+          pointerEvents: open ? 'auto' : 'none',
+        }}
+        onClick={close}
+      >
+        <aside
+          className="fixed left-0 top-0 bottom-0 flex flex-col py-5 gap-1 transition-transform duration-200 ease-out"
+          style={{
+            background: '#0A1628',
+            width: 220,
+            transform: open ? 'translateX(0)' : 'translateX(-100%)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Logo */}
+          <Link href="/app/search" className="flex items-center gap-3 px-4 mb-6 shrink-0" onClick={close}>
+            <div
+              className="flex items-center justify-center shrink-0 text-white font-bold text-base"
+              style={{ background: '#4C6EF5', width: 36, height: 36, borderRadius: 10 }}
+            >
+              M
+            </div>
+            <span className="font-extrabold text-white text-lg" style={{ letterSpacing: '0.18em' }}>
+              MAIMOO
+            </span>
+          </Link>
+
+          {/* Nav items */}
+          {navItems.map(({ href, icon: Icon, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
+              style={{
+                padding: '12px 16px',
+                background: isActive(href) ? '#1E3A6E' : 'transparent',
+              }}
+              onClick={close}
+            >
+              <Icon
+                style={{ color: isActive(href) ? 'white' : '#8899BB', width: 26, height: 26 }}
+              />
+              <span
+                style={{
+                  color: isActive(href) ? 'white' : '#8899BB',
+                  fontSize: 15,
+                  fontWeight: 500,
+                }}
+              >
+                {label}
+              </span>
+            </Link>
+          ))}
+
+          <div className="flex-1" />
+
+          {/* Settings */}
+          <Link
+            href="/app/settings"
+            className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
+            style={{
+              padding: '12px 16px',
+              background: pathname.startsWith('/app/settings') ? '#1E3A6E' : 'transparent',
+            }}
+            onClick={close}
           >
-            <Link href="/app/search" className="mb-3 shrink-0" onClick={close}>
-              <div
-                className="w-[30px] h-[30px] rounded-lg flex items-center justify-center"
-                style={{ background: '#4C6EF5' }}
-              >
-                <span className="text-white font-bold text-xs">M</span>
-              </div>
-            </Link>
+            <Settings
+              style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', width: 26, height: 26 }}
+            />
+            <span style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
+              Paramètres
+            </span>
+          </Link>
 
-            {navItems.map(({ href, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 shrink-0"
-                style={isActive(href) ? { background: '#1E3A6E' } : {}}
-                onClick={close}
-              >
-                <Icon
-                  className="w-[18px] h-[18px]"
-                  style={{ color: isActive(href) ? 'white' : '#8899BB' }}
-                />
-              </Link>
-            ))}
-
-            <div className="flex-1" />
-
-            <Link
-              href="/app/settings"
-              className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 shrink-0"
-              style={pathname.startsWith('/app/settings') ? { background: '#1E3A6E' } : {}}
-              onClick={close}
-            >
-              <Settings
-                className="w-[18px] h-[18px]"
-                style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB' }}
-              />
-            </Link>
-
-            <Link
-              href="/app/profile"
-              className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 shrink-0"
-              style={pathname.startsWith('/app/profile') ? { background: '#1E3A6E' } : {}}
-              onClick={close}
-            >
-              <User
-                className="w-[18px] h-[18px]"
-                style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB' }}
-              />
-            </Link>
-          </aside>
-        </div>
-      )}
+          {/* Profile */}
+          <Link
+            href="/app/profile"
+            className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
+            style={{
+              padding: '12px 16px',
+              background: pathname.startsWith('/app/profile') ? '#1E3A6E' : 'transparent',
+            }}
+            onClick={close}
+          >
+            <User
+              style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB', width: 26, height: 26 }}
+            />
+            <span style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
+              Profil
+            </span>
+          </Link>
+        </aside>
+      </div>
     </>
   )
 }
