@@ -147,7 +147,7 @@ export default function PortfolioPage() {
           className="flex items-center justify-between px-4 pl-14 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
         >
-          <span className="text-[15px] font-bold text-[#0A1628]">Portefeuille</span>
+          <span className="text-[16px] font-bold text-[#0A1628]">Portefeuille</span>
           <button
             onClick={() => setCreateOpen(true)}
             className="flex items-center justify-center"
@@ -166,7 +166,7 @@ export default function PortfolioPage() {
             <button
               key={tab}
               onClick={() => setMobileTab(tab)}
-              className="px-3 py-1.5 rounded-full text-[13px] font-medium transition-all"
+              className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-all"
               style={mobileTab === tab
                 ? { background: '#1E2761', color: 'white' }
                 : { background: '#F0F4FF', color: '#8899BB' }}
@@ -177,7 +177,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-[10px]">
+        <div className="flex-1 overflow-y-auto px-[10px] py-3 space-y-[8px]">
           {(loading || globalLoading) ? (
             [...Array(5)].map((_, i) => (
               <div key={i} className="h-[52px] bg-white rounded-2xl animate-pulse"
@@ -198,13 +198,13 @@ export default function PortfolioPage() {
               <button
                 key={acc.id}
                 onClick={() => router.push(`/app/accounts/${acc.id}`)}
-                className="w-full flex items-center gap-3 bg-white rounded-2xl px-[14px] py-[14px] text-left transition-all duration-150 hover:-translate-y-0.5"
+                className="w-full flex items-center gap-3 bg-white rounded-2xl px-[12px] py-[10px] text-left transition-all duration-150 hover:-translate-y-0.5"
                 style={{ border: '1px solid rgba(30,39,97,0.07)', boxShadow: '0 1px 3px rgba(30,39,97,0.04)' }}
               >
                 {/* Status dot */}
                 <div
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ background: acc.status === 'client' ? '#22C55E' : '#F59E0B' }}
+                  className="rounded-full shrink-0"
+                  style={{ width: 7, height: 7, background: acc.status === 'client' ? '#22C55E' : '#F59E0B' }}
                 />
                 {/* Avatar */}
                 <div
@@ -215,9 +215,9 @@ export default function PortfolioPage() {
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-[15px] font-bold text-[#0A1628] truncate">{acc.name}</p>
+                  <p className="text-[13px] font-bold text-[#0A1628] truncate">{acc.name}</p>
                   {(acc.city || acc.industry) && (
-                    <p className="text-[12px] text-[#8899BB] truncate">
+                    <p className="text-[11px] text-[#8899BB] truncate">
                       {[acc.city, acc.industry].filter(Boolean).join(' · ')}
                     </p>
                   )}

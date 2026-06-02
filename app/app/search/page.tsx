@@ -189,7 +189,7 @@ function SearchPageContent() {
         minHeight: 56,
       }}
     >
-      <MessageSquare className="shrink-0 text-slate-400" style={{ width: 22, height: 22 }} />
+      <MessageSquare className="shrink-0 text-slate-400" style={{ width: 18, height: 18 }} />
       <input
         ref={inputRef}
         type="text"
@@ -210,21 +210,21 @@ function SearchPageContent() {
       <button
         onClick={isRecording ? stopVoice : startVoice}
         className="rounded-full flex items-center justify-center shrink-0 transition-all"
-        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 42, height: 42 }}
+        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 34, height: 34 }}
       >
         {isRecording
-          ? <MicOff className="text-white" style={{ width: 20, height: 20 }} />
-          : <Mic className="text-white" style={{ width: 20, height: 20 }} />
+          ? <MicOff className="text-white" style={{ width: 16, height: 16 }} />
+          : <Mic className="text-white" style={{ width: 16, height: 16 }} />
         }
       </button>
       <button
         onClick={handleSubmit}
         disabled={loading}
         className="rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
-        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 42, height: 42 }}
+        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 34, height: 34 }}
         aria-label="Envoyer"
       >
-        <ArrowUp className="text-white" style={{ width: 20, height: 20 }} />
+        <ArrowUp className="text-white" style={{ width: 16, height: 16 }} />
       </button>
     </div>
   )
@@ -238,7 +238,7 @@ function SearchPageContent() {
         <button
           key={tab}
           onClick={() => setActiveTab(tab)}
-          className="px-3 py-1.5 rounded-full text-[13px] font-medium transition-all"
+          className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-all"
           style={activeTab === tab
             ? { background: '#1E2761', color: 'white' }
             : { background: '#F0F4FF', color: '#8899BB' }}
@@ -280,7 +280,7 @@ function SearchPageContent() {
             <div key={i} className="flex justify-end">
               <div
                 className="max-w-[85%] px-4 py-2.5 leading-relaxed"
-                style={{ background: '#4C6EF5', borderRadius: '12px 12px 4px 12px', fontSize: 14, color: 'white' }}
+                style={{ background: '#4C6EF5', borderRadius: '12px 12px 4px 12px', fontSize: 13, color: 'white' }}
               >
                 {msg.content}
               </div>
@@ -291,12 +291,12 @@ function SearchPageContent() {
           <div key={i} className="flex flex-col gap-1 items-start">
             <div
               className="max-w-[90%] px-4 py-3 leading-relaxed"
-              style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', fontSize: 14, color: '#2D3A5A' }}
+              style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', fontSize: 13, color: '#2D3A5A' }}
             >
               {msg.content}
             </div>
             {msg.sources && msg.sources.length > 0 && (
-              <p className="text-[11px] text-[#8899BB] px-1">
+              <p className="text-[10px] text-[#8899BB] px-1">
                 Sources : {msg.sources.map((s) => s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')).join(' · ')}
               </p>
             )}
@@ -331,14 +331,14 @@ function SearchPageContent() {
           className="flex items-center gap-3 px-4 pl-14 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
         >
-          <span className="flex-1 text-[15px] font-bold text-[#0A1628]">Recherche IA</span>
+          <span className="flex-1 text-[16px] font-bold text-[#0A1628]">Recherche IA</span>
           <button
             onClick={() => router.push('/app/import')}
             className="flex items-center justify-center transition-opacity hover:opacity-70"
-            style={{ background: '#F0F4FF', borderRadius: 8, width: 34, height: 34 }}
+            style={{ background: '#F0F4FF', borderRadius: 8, width: 28, height: 28 }}
             title="Importer un fichier"
           >
-            <Upload className="text-[#4C6EF5]" style={{ width: 18, height: 18 }} />
+            <Upload className="text-[#4C6EF5]" style={{ width: 14, height: 14 }} />
           </button>
         </div>
 

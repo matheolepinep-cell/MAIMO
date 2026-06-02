@@ -306,7 +306,7 @@ export default function DashboardPage() {
       </header>
 
       {/* ── MOBILE BODY ── */}
-      <div className="md:hidden flex-1 p-5 max-w-2xl mx-auto w-full">
+      <div className="md:hidden flex-1 px-[10px] py-5 max-w-2xl mx-auto w-full">
         <div className="mb-5">
           <h1 className="text-2xl font-semibold text-[#0F172A] tracking-tight">{greeting()} {firstName} 👋</h1>
           <p className="text-sm text-slate-400 mt-0.5">{time} · {formatDate()}</p>
@@ -323,13 +323,13 @@ export default function DashboardPage() {
             <div className="space-y-2">
               {recentAccounts.map((acc) => (
                 <button key={acc.id} onClick={() => router.push(`/app/accounts/${acc.id}`)}
-                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3 hover:-translate-y-0.5 transition-all duration-200"
+                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-[12px] py-[10px] hover:-translate-y-0.5 transition-all duration-200"
                   style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
                     style={{ background: 'rgba(76,110,245,0.1)' }}>
-                    <Building2 className="w-4 h-4 text-[#4C6EF5]" />
+                    <Building2 style={{ width: 18, height: 18 }} className="text-[#4C6EF5]" />
                   </div>
-                  <span className="flex-1 text-sm font-medium text-[#0F172A] text-left truncate">{acc.name}</span>
+                  <span className="flex-1 text-[13px] font-medium text-[#0F172A] text-left truncate">{acc.name}</span>
                   <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
                 </button>
               ))}
@@ -342,24 +342,24 @@ export default function DashboardPage() {
             <div className="space-y-2">
               {mobileItems.map((item) => (
                 <button key={`${item.kind}-${item.id}`} onClick={() => router.push(`/app/accounts/${item.account_id}`)}
-                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3 hover:-translate-y-0.5 transition-all duration-200"
+                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-[12px] py-[10px] hover:-translate-y-0.5 transition-all duration-200"
                   style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
                   {item.kind === 'note' ? (
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
                       style={{ background: item.source === 'vocal' ? 'rgba(239,68,68,0.1)' : 'rgba(76,110,245,0.1)' }}>
-                      {item.source === 'vocal' ? <Mic className="w-4 h-4 text-red-500" /> : <Type className="w-4 h-4 text-[#4C6EF5]" />}
+                      {item.source === 'vocal' ? <Mic style={{ width: 18, height: 18 }} className="text-red-500" /> : <Type style={{ width: 18, height: 18 }} className="text-[#4C6EF5]" />}
                     </div>
                   ) : (
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
                       style={{ background: 'rgba(139,92,246,0.1)' }}>
-                      <FileText className="w-4 h-4 text-purple-500" />
+                      <FileText style={{ width: 18, height: 18 }} className="text-purple-500" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium text-[#0F172A] truncate">
+                    <p className="text-[13px] font-medium text-[#0F172A] truncate">
                       {item.kind === 'note' ? (item.title ?? item.content.slice(0, 40)) : (item.title ?? item.file_name)}
                     </p>
-                    <p className="text-xs text-slate-400">{item.account_name} · {timeAgo(item.created_at)}</p>
+                    <p className="text-[11px] text-slate-400">{item.account_name} · {timeAgo(item.created_at)}</p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
                 </button>

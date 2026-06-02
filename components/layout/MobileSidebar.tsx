@@ -31,7 +31,7 @@ export function MobileSidebar() {
           onClick={toggle}
           aria-label="Menu"
         >
-          <Menu className="w-7 h-7 text-[#0A1628]" />
+          <Menu className="text-[#0A1628]" style={{ width: 22, height: 22 }} />
         </button>
       )}
 
@@ -79,7 +79,7 @@ export function MobileSidebar() {
               onClick={close}
             >
               <Icon
-                style={{ color: isActive(href) ? 'white' : '#8899BB', width: 26, height: 26 }}
+                style={{ color: isActive(href) ? 'white' : '#8899BB', width: 22, height: 22 }}
               />
               <span
                 style={{
@@ -106,7 +106,7 @@ export function MobileSidebar() {
             onClick={close}
           >
             <Settings
-              style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', width: 26, height: 26 }}
+              style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', width: 22, height: 22 }}
             />
             <span style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
               Paramètres
@@ -124,7 +124,7 @@ export function MobileSidebar() {
             onClick={close}
           >
             <User
-              style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB', width: 26, height: 26 }}
+              style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB', width: 22, height: 22 }}
             />
             <span style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
               Profil
