@@ -265,7 +265,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         for (const item of attachments) {
           const { file } = item
           const filePath = `${profile?.company_id}/${id}/${note.id}/${Date.now()}-${file.name}`
-          const { error: storErr } = await sb.storage.from('documents').upload(filePath, file)
+          const { error: storErr } = await sb.storage.from('imports').upload(filePath, file)
           if (storErr) continue
           const isImage = file.type.startsWith('image/')
           const fileType: 'pdf' | 'docx' | 'xlsx' | 'image' = isImage ? 'image'

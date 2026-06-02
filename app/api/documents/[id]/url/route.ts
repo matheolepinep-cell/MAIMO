@@ -2,13 +2,19 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+function parseBucketAndPath(fileUrl: string): { bucket: string; path: string } {
+  if (fileUrl.startsWith('http')) {
+    const match = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/?]+)\/(.+?)(?:\?.*)?$/)
+    if (match) return { bucket: match[1], path: match[2] }
+  }
+  return { bucket: 'imports', path: fileUrl }
+}
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   const user = await getAuthenticatedUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const supabase = createSupabaseAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,27 +27,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .eq('id', id)
     .single()
 
-  if (error || !document) {
-    return NextResponse.json({ error: 'Document not found' }, { status: 404 })
-  }
+  if (error || !document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+  if (document.company_id !== user.company_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  if (document.company_id !== user.company_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  // Derive storage path: file_url can be either a plain path or a full public URL
-  let storagePath = document.file_url
-  if (storagePath.startsWith('http')) {
-    const marker = '/object/public/documents/'
-    const idx = storagePath.indexOf(marker)
-    if (idx !== -1) {
-      storagePath = storagePath.slice(idx + marker.length)
-    }
-  }
+  const { bucket, path } = parseBucketAndPath(document.file_url)
 
   const { data: signed, error: signError } = await supabase.storage
-    .from('documents')
-    .createSignedUrl(storagePath, 3600)
+    .from(bucket)
+    .createSignedUrl(path, 3600)
 
   if (signError || !signed?.signedUrl) {
     return NextResponse.json({ error: 'Could not generate signed URL' }, { status: 500 })

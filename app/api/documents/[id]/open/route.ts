@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 
+function parseBucketAndPath(fileUrl: string): { bucket: string; path: string } {
+  if (fileUrl.startsWith('http')) {
+    const match = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/?]+)\/(.+?)(?:\?.*)?$/)
+    if (match) return { bucket: match[1], path: match[2] }
+  }
+  return { bucket: 'imports', path: fileUrl }
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
@@ -22,16 +30,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (error || !document) return new NextResponse('Not found', { status: 404 })
   if (document.company_id !== user.company_id) return new NextResponse('Forbidden', { status: 403 })
 
-  let storagePath = document.file_url
-  if (storagePath.startsWith('http')) {
-    const marker = '/object/public/documents/'
-    const idx = storagePath.indexOf(marker)
-    if (idx !== -1) storagePath = storagePath.slice(idx + marker.length)
-  }
+  const { bucket, path } = parseBucketAndPath(document.file_url)
 
   const { data: signed, error: signError } = await supabase.storage
-    .from('documents')
-    .createSignedUrl(storagePath, 3600)
+    .from(bucket)
+    .createSignedUrl(path, 3600)
 
   if (signError || !signed?.signedUrl) return new NextResponse('Could not generate URL', { status: 500 })
 
