@@ -1013,15 +1013,35 @@ function NoteCard({ note, noteDocuments, onDelete, onOpenDoc }: {
 
 /* ─── DocPreviewModal ─── */
 function DocPreviewModal({ doc, url, onClose }: { doc: Document; url: string; onClose: () => void }) {
-  const [imgScale, setImgScale] = useState(1)
+  const [isMobile, setIsMobile] = useState(false)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [iframeFailed, setIframeFailed] = useState(false)
+
   const isImage = doc.file_type === 'image'
   const isPdf = doc.file_type === 'pdf'
   const isOffice = doc.file_type === 'docx' || doc.file_type === 'xlsx'
+  const usesIframe = isPdf || isOffice
+
+  useEffect(() => {
+    setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
+  }, [])
+
+  useEffect(() => {
+    if (!usesIframe) return
+    setIframeLoaded(false)
+    setIframeFailed(false)
+    const timer = setTimeout(() => setIframeFailed(true), 5000)
+    return () => clearTimeout(timer)
+  }, [usesIframe, url])
+
+  const gdocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`
+  // Desktop PDF → direct iframe; mobile PDF or any Office → Google Docs Viewer
+  const iframeSrc = isPdf && !isMobile ? url : gdocsUrl
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.85)' }}
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex: 9999, background: 'rgba(0,0,0,0.85)' }}
       onClick={onClose}
     >
       <div
@@ -1050,46 +1070,64 @@ function DocPreviewModal({ doc, url, onClose }: { doc: Document; url: string; on
           </button>
         </div>
 
-        {/* Body */}
-        {isPdf && (
-          <iframe src={url} className="flex-1 w-full border-0" title={doc.title ?? doc.file_name} />
-        )}
-
+        {/* Image — native img tag for mobile pinch-zoom */}
         {isImage && (
           <div
-            className="flex-1 overflow-auto flex items-center justify-center"
-            style={{ background: '#111', touchAction: 'manipulation' }}
+            className="flex-1 flex items-center justify-center overflow-auto"
+            style={{ background: '#111' }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={url}
               alt={doc.title ?? doc.file_name}
-              onClick={() => setImgScale((s) => (s === 1 ? 2.5 : 1))}
-              style={{
-                maxWidth: imgScale === 1 ? '100%' : 'none',
-                maxHeight: imgScale === 1 ? '100%' : 'none',
-                width: imgScale === 1 ? 'auto' : `${imgScale * 100}%`,
-                cursor: imgScale === 1 ? 'zoom-in' : 'zoom-out',
-                transition: 'width 0.2s ease, max-width 0.2s ease',
-                objectFit: 'contain',
-              }}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', touchAction: 'manipulation' }}
             />
           </div>
         )}
 
-        {isOffice && (
-          <div className="flex-1 flex flex-col">
+        {/* PDF / Office via iframe with spinner + fallback */}
+        {usesIframe && !iframeFailed && (
+          <div className="flex-1 relative flex flex-col min-h-0">
+            {!iframeLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
+                <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin" />
+              </div>
+            )}
             <iframe
-              src={`https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`}
-              className="flex-1 w-full border-0"
+              src={iframeSrc}
+              className="flex-1 w-full border-0 min-h-0"
               title={doc.title ?? doc.file_name}
+              onLoad={() => setIframeLoaded(true)}
+              onError={() => setIframeFailed(true)}
             />
-            <p className="text-center text-[10px] text-[#94A3B8] py-1 shrink-0">
-              Prévisualisation via Google Docs
-            </p>
+            {isOffice && (
+              <p className="text-center text-[10px] text-[#94A3B8] py-1 shrink-0">
+                Prévisualisation via Google Docs
+              </p>
+            )}
           </div>
         )}
 
+        {/* Iframe fallback */}
+        {usesIframe && iframeFailed && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+            <FileText className="w-12 h-12 text-[#CBD5E1]" />
+            <p className="text-sm font-medium text-[#1E293B] text-center">{doc.title ?? doc.file_name}</p>
+            <p className="text-xs text-[#94A3B8] text-center">
+              {isPdf ? "La prévisualisation PDF n'est pas disponible." : "La prévisualisation n'est pas disponible."}
+            </p>
+            <button
+              onClick={() => window.open(url, '_blank')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all duration-150"
+              style={{ background: '#3B82F6' }}
+            >
+              <ExternalLink className="w-4 h-4" />
+              Ouvrir dans Safari →
+            </button>
+          </div>
+        )}
+
+        {/* Unsupported type */}
         {!isPdf && !isImage && !isOffice && (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
             <FileText className="w-12 h-12 text-[#CBD5E1]" />
