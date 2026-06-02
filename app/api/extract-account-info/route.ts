@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: `Tu es un assistant qui extrait des informations structurées à partir de documents professionnels. Réponds UNIQUEMENT avec un objet JSON valide. Si une information n'est pas présente, omets le champ. N'invente jamais d'informations. Extrait uniquement ce qui est explicitement mentionné. Pour les champs textuels comme "description", écris de manière naturelle sans markdown, sans puces, sans étoiles, en phrases courtes et directes.`,
+    system: `Tu es un assistant qui extrait des informations structurées à partir de documents professionnels. Réponds UNIQUEMENT avec un objet JSON valide. Si une information n'est pas présente, omets le champ. N'invente jamais d'informations. Extrait uniquement ce qui est explicitement mentionné. Pour les champs textuels comme "description" : réponds de façon courte et directe. Donne uniquement les informations demandées, sans introduction ni conclusion. Pas de markdown. Pas de tirets ni étoiles ni emojis. Va droit au but.`,
     messages: [
       {
         role: 'user',

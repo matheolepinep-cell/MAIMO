@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const excerpt = text.slice(0, 3000)
 
   const prompt = `Analyse ce document et identifie à quelle entreprise cliente il correspond parmi la liste suivante.
-Réponds UNIQUEMENT en JSON valide sans markdown : { "matched": true|false, "company_name": "<nom exact de la liste ou vide>", "confidence": "high"|"medium"|"low", "reason": "<explication courte en 1 phrase, sans puces ni étoiles>" }
+Réponds UNIQUEMENT en JSON valide sans markdown : { "matched": true|false, "company_name": "<nom exact de la liste ou vide>", "confidence": "high"|"medium"|"low", "reason": "<explication courte et directe en 1 phrase, sans markdown ni caractères spéciaux>" }
 
 Liste des entreprises : ${companyList}
 
