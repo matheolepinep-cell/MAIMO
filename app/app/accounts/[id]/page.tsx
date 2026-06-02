@@ -4,7 +4,7 @@ import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
-  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink
+  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -16,6 +16,21 @@ import { Modal } from '@/components/ui/Modal'
 import type { Account, Contact, Note, Document, SearchSource } from '@/types/database'
 
 /* ─── helpers ─── */
+function docTypeColor(type: string) {
+  if (type === 'pdf') return '#EF4444'
+  if (type === 'docx') return '#3B82F6'
+  if (type === 'xlsx') return '#10B981'
+  if (type === 'image') return '#8B5CF6'
+  return '#94A3B8'
+}
+function docTypeBg(type: string) {
+  if (type === 'pdf') return 'rgba(239,68,68,0.1)'
+  if (type === 'docx') return 'rgba(59,130,246,0.1)'
+  if (type === 'xlsx') return 'rgba(16,185,129,0.1)'
+  if (type === 'image') return 'rgba(139,92,246,0.1)'
+  return 'rgba(148,163,184,0.1)'
+}
+
 function fmt(d: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 }
@@ -73,6 +88,9 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [attachments, setAttachments] = useState<AttachItem[]>([])
   const [uploadingAttachments, setUploadingAttachments] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+
+  // Standalone document upload
+  const [docUploading, setDocUploading] = useState(false)
 
   // AI Search tab
   const [searchQuery, setSearchQuery] = useState('')
@@ -329,6 +347,36 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     } catch { /* nothing */ }
   }
 
+  const handleStandaloneDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length || !profile) return
+    setDocUploading(true)
+    const sb = createClient()
+    for (const file of files) {
+      const filePath = `${profile.company_id}/${Date.now()}-${file.name}`
+      const { error: storErr } = await sb.storage.from('documents').upload(filePath, file)
+      if (storErr) continue
+      const isImage = file.type.startsWith('image/')
+      const fileType: 'pdf' | 'docx' | 'xlsx' | 'image' = isImage ? 'image'
+        : file.type.includes('pdf') ? 'pdf'
+        : file.type.includes('wordprocessing') ? 'docx' : 'xlsx'
+      await sb.from('documents').insert({
+        account_id: id, company_id: profile.company_id, user_id: profile.id,
+        note_id: null, file_name: file.name, file_url: filePath,
+        file_type: fileType, title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false,
+      })
+      if (!isImage) {
+        fetch('/api/index-document', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_url: filePath, file_type: fileType, account_id: id, company_id: profile.company_id }),
+        }).catch(console.error)
+      }
+    }
+    e.target.value = ''
+    setDocUploading(false)
+    fetchAll()
+  }
+
   /* ─── AI search ─── */
   const handleSearch = useCallback(async (q?: string) => {
     const query = q ?? searchQuery
@@ -551,6 +599,47 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                     {c.notes && <p className="text-xs text-[#64748B] mt-2 pt-2 border-t border-gray-100">{c.notes}</p>}
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Documents */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-[#1E293B]">Documents ({documents.length})</h2>
+              <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#4C6EF5] bg-[#F0F4FF] hover:bg-[#E8EEFF] cursor-pointer transition-all duration-150">
+                {docUploading
+                  ? <span className="w-3 h-3 border-2 border-[#4C6EF5] border-t-transparent rounded-full animate-spin" />
+                  : <><Upload className="w-3 h-3 mr-0.5" />Ajouter</>
+                }
+                <input type="file" multiple className="hidden" onChange={handleStandaloneDocUpload} disabled={docUploading} />
+              </label>
+            </div>
+            {documents.length === 0 ? (
+              <p className="text-sm text-[#64748B]">Aucun document.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {documents.map((doc) => (
+                  <button
+                    key={doc.id}
+                    onClick={() => handleOpenDocument(doc)}
+                    className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-all duration-150 text-left hover:bg-gray-50"
+                    style={{ border: '1px solid rgba(30,39,97,0.07)' }}
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: docTypeBg(doc.file_type) }}>
+                      {doc.file_type === 'image'
+                        ? <ImageIcon className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
+                        : <FileText className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
+                      <p className="text-[10px] text-[#94A3B8]">{fmtDay(doc.created_at)}</p>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-[#C5D0F0] shrink-0" />
+                  </button>
                 ))}
               </div>
             )}
