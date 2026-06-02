@@ -4,7 +4,7 @@ import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
-  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload
+  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -87,11 +87,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   // Attachments (pièces jointes dans les notes)
   const [attachments, setAttachments] = useState<AttachItem[]>([])
   const [uploadingAttachments, setUploadingAttachments] = useState(false)
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   // Standalone document upload
   const [docUploading, setDocUploading] = useState(false)
   const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null)
+
+  // Document preview modal
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoadingDocId, setPreviewLoadingDocId] = useState<string | null>(null)
 
   // AI Search tab
   const [searchQuery, setSearchQuery] = useState('')
@@ -339,17 +343,13 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const handleOpenDocument = async (doc: Document) => {
-    if (doc.file_type === 'image') {
-      // Lightbox: fetch signed URL asynchronously (no popup needed)
-      try {
-        const res = await fetch(`/api/documents/${doc.id}/url`)
-        const { url } = await res.json()
-        if (url) setLightboxUrl(url)
-      } catch { /* nothing */ }
-      return
-    }
-    // Server-side redirect: window.open is synchronous → no popup blocker
-    window.open(`/api/documents/${doc.id}/open`, '_blank', 'noopener,noreferrer')
+    setPreviewLoadingDocId(doc.id)
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/url`)
+      const { url } = await res.json()
+      if (url) { setPreviewDoc(doc); setPreviewUrl(url) }
+    } catch { /* nothing */ }
+    setPreviewLoadingDocId(null)
   }
 
   const handleDeleteDocument = async (docId: string) => {
@@ -640,13 +640,16 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                     {/* Clickable open area */}
                     <button
                       onClick={() => handleOpenDocument(doc)}
+                      disabled={previewLoadingDocId === doc.id}
                       className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left min-w-0"
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                         style={{ background: docTypeBg(doc.file_type) }}>
-                        {doc.file_type === 'image'
-                          ? <ImageIcon className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
-                          : <FileText className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
+                        {previewLoadingDocId === doc.id
+                          ? <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: docTypeColor(doc.file_type), borderTopColor: 'transparent' }} />
+                          : doc.file_type === 'image'
+                            ? <ImageIcon className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
+                            : <FileText className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
                         }
                       </div>
                       <div className="flex-1 min-w-0">
@@ -944,14 +947,13 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         </form>
       </Modal>
 
-      {/* Lightbox image */}
-      {lightboxUrl && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
-          <img src={lightboxUrl} alt="Pièce jointe" className="max-w-full max-h-full object-contain rounded-lg" />
-          <button onClick={() => setLightboxUrl(null)} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+      {/* Document preview modal */}
+      {previewDoc && previewUrl && (
+        <DocPreviewModal
+          doc={previewDoc}
+          url={previewUrl}
+          onClose={() => { setPreviewDoc(null); setPreviewUrl(null) }}
+        />
       )}
     </div>
   )
@@ -1005,6 +1007,107 @@ function NoteCard({ note, noteDocuments, onDelete, onOpenDoc }: {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/* ─── DocPreviewModal ─── */
+function DocPreviewModal({ doc, url, onClose }: { doc: Document; url: string; onClose: () => void }) {
+  const [imgScale, setImgScale] = useState(1)
+  const isImage = doc.file_type === 'image'
+  const isPdf = doc.file_type === 'pdf'
+  const isOffice = doc.file_type === 'docx' || doc.file_type === 'xlsx'
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.85)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative flex flex-col w-full h-full md:w-[80vw] md:h-[85vh] md:rounded-2xl overflow-hidden"
+        style={{ background: '#fff' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 shrink-0">
+          <FileText className="w-4 h-4 text-[#64748B] shrink-0" />
+          <span className="flex-1 text-sm font-medium text-[#1E293B] truncate min-w-0">
+            {doc.title ?? doc.file_name}
+          </span>
+          <button
+            onClick={() => window.open(`/api/documents/${doc.id}/open`, '_blank')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] bg-gray-100 hover:bg-gray-200 transition-all duration-150 shrink-0"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Télécharger</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-150 shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        {isPdf && (
+          <iframe src={url} className="flex-1 w-full border-0" title={doc.title ?? doc.file_name} />
+        )}
+
+        {isImage && (
+          <div
+            className="flex-1 overflow-auto flex items-center justify-center"
+            style={{ background: '#111', touchAction: 'manipulation' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={url}
+              alt={doc.title ?? doc.file_name}
+              onClick={() => setImgScale((s) => (s === 1 ? 2.5 : 1))}
+              style={{
+                maxWidth: imgScale === 1 ? '100%' : 'none',
+                maxHeight: imgScale === 1 ? '100%' : 'none',
+                width: imgScale === 1 ? 'auto' : `${imgScale * 100}%`,
+                cursor: imgScale === 1 ? 'zoom-in' : 'zoom-out',
+                transition: 'width 0.2s ease, max-width 0.2s ease',
+                objectFit: 'contain',
+              }}
+            />
+          </div>
+        )}
+
+        {isOffice && (
+          <div className="flex-1 flex flex-col">
+            <iframe
+              src={`https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`}
+              className="flex-1 w-full border-0"
+              title={doc.title ?? doc.file_name}
+            />
+            <p className="text-center text-[10px] text-[#94A3B8] py-1 shrink-0">
+              Prévisualisation via Google Docs
+            </p>
+          </div>
+        )}
+
+        {!isPdf && !isImage && !isOffice && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+            <FileText className="w-12 h-12 text-[#CBD5E1]" />
+            <p className="text-sm font-medium text-[#1E293B] text-center">{doc.title ?? doc.file_name}</p>
+            <p className="text-xs text-[#94A3B8] text-center">
+              Ce type de fichier ne peut pas être prévisualisé directement.
+            </p>
+            <button
+              onClick={() => window.open(`/api/documents/${doc.id}/open`, '_blank')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all duration-150"
+              style={{ background: '#3B82F6' }}
+            >
+              <Download className="w-4 h-4" />
+              Télécharger le fichier
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
