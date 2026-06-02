@@ -362,9 +362,9 @@ function SearchPageContent() {
         ) : (
           /* Empty state — ChatGPT-style centered layout */
           <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full">
-            <div className="text-center space-y-2">
-              <h2 className="font-extrabold text-[#0A1628]" style={{ fontSize: 36 }}>Maimoo</h2>
-              <p className="text-slate-400" style={{ fontSize: 15 }}>Posez une question sur vos clients</p>
+            <div className="text-center">
+              <p style={{ fontSize: 18, fontWeight: 600, color: '#0A1628' }}>La mémoire de votre équipe commerciale</p>
+              <p style={{ fontSize: 13, color: '#8899BB', marginTop: 6 }}>Posez une question sur n'importe quel client</p>
             </div>
             <div className="w-full px-[12px]">
               {inputBarInner(mobileInputRef)}
