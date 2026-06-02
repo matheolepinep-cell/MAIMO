@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   try {
     const sampleRows = rawRows.slice(0, 3)
 
-    const noteInstruction = `Pour note_generated : si un interlocuteur est présent, commencer OBLIGATOIREMENT par "[PRENOM NOM] — [POSTE] chez [ENTREPRISE]." puis 1-2 phrases de contexte commercial en français. Si pas d'interlocuteur, rédiger directement 1-2 phrases de contexte.`
+    const noteInstruction = `Pour note_generated : si un interlocuteur est présent, commencer OBLIGATOIREMENT par "[PRENOM NOM] — [POSTE] chez [ENTREPRISE]." puis 1-2 phrases de contexte commercial en français. Si pas d'interlocuteur, rédiger directement 1-2 phrases de contexte. Écrire en langage naturel sans markdown, sans puces, sans étoiles ni tirets.`
 
     const prompt = isFirstBatch
       ? `Tu es un assistant d'import de données commerciales.

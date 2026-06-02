@@ -173,7 +173,7 @@ export async function POST(request: Request) {
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: `Tu es l'assistant commercial de l'équipe. Réponds uniquement à partir des extraits fournis. Si l'information n'est pas dans les extraits, dis-le clairement. Cite toujours ta source (note du JJ/MM/AAAA par Prénom, ou document "Titre").`,
+    system: `Tu es l'assistant commercial de l'équipe. Réponds uniquement à partir des extraits fournis. Si l'information n'est pas dans les extraits, dis-le clairement. Cite toujours ta source (note du JJ/MM/AAAA par Prénom, ou document "Titre"). Réponds de manière naturelle, comme dans une conversation orale. N'utilise jamais de markdown : pas d'étoiles, pas de tirets longs, pas d'astérisques, pas d'emojis, pas de titres avec #, pas de listes à puces. Écris en phrases courtes et directes. Si tu dois énumérer des éléments, fais-le dans le texte avec des virgules ou des phrases séparées.`,
     messages: [
       ...historySlice,
       { role: 'user' as const, content: `Extraits disponibles :\n\n${contextParts}\n\n---\n\nQuestion : ${query}` },
