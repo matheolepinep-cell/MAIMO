@@ -26,12 +26,12 @@ export function MobileSidebar() {
       {/* Floating burger button — always visible on mobile when sidebar is closed */}
       {!open && (
         <button
-          className="md:hidden fixed top-3 left-3 z-50 w-9 h-9 flex items-center justify-center rounded-xl"
+          className="md:hidden fixed top-3 left-3 z-50 w-10 h-10 flex items-center justify-center rounded-xl"
           style={{ background: 'rgba(255,255,255,0.95)', boxShadow: '0 2px 8px rgba(10,22,40,0.10)' }}
           onClick={toggle}
           aria-label="Menu"
         >
-          <Menu className="w-5 h-5 text-[#0A1628]" />
+          <Menu className="w-7 h-7 text-[#0A1628]" />
         </button>
       )}
 

@@ -13,8 +13,8 @@ export function Header({ title }: HeaderProps) {
     <header className="md:hidden bg-white border-b border-[rgba(30,39,97,0.08)] px-4 pl-14 py-3 flex items-center gap-3 sticky top-0 z-30">
       <span className={
         title
-          ? 'flex-1 font-semibold text-[#0F172A] text-sm'
-          : 'flex-1 font-extrabold text-[#1E2761] text-sm'
+          ? 'flex-1 font-semibold text-[#0F172A] text-[15px]'
+          : 'flex-1 font-extrabold text-[#1E2761] text-[15px]'
       }
         style={!title ? { letterSpacing: '0.15em' } : {}}>
         {title || 'MAIMOO'}

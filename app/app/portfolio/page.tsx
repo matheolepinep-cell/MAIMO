@@ -147,13 +147,13 @@ export default function PortfolioPage() {
           className="flex items-center justify-between px-4 pl-14 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
         >
-          <span className="text-[13px] font-bold text-[#0A1628]">Portefeuille</span>
+          <span className="text-[15px] font-bold text-[#0A1628]">Portefeuille</span>
           <button
             onClick={() => setCreateOpen(true)}
-            className="w-7 h-7 flex items-center justify-center"
-            style={{ background: '#F0F4FF', borderRadius: 8 }}
+            className="flex items-center justify-center"
+            style={{ background: '#F0F4FF', borderRadius: 8, width: 34, height: 34 }}
           >
-            <Plus className="w-4 h-4 text-[#4C6EF5]" />
+            <Plus className="text-[#4C6EF5]" style={{ width: 18, height: 18 }} />
           </button>
         </div>
 
@@ -166,7 +166,7 @@ export default function PortfolioPage() {
             <button
               key={tab}
               onClick={() => setMobileTab(tab)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+              className="px-3 py-1.5 rounded-full text-[13px] font-medium transition-all"
               style={mobileTab === tab
                 ? { background: '#1E2761', color: 'white' }
                 : { background: '#F0F4FF', color: '#8899BB' }}
@@ -203,7 +203,7 @@ export default function PortfolioPage() {
               >
                 {/* Status dot */}
                 <div
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ background: acc.status === 'client' ? '#22C55E' : '#F59E0B' }}
                 />
                 {/* Avatar */}
@@ -215,9 +215,9 @@ export default function PortfolioPage() {
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-[11px] font-bold text-[#0A1628] truncate">{acc.name}</p>
+                  <p className="text-[15px] font-bold text-[#0A1628] truncate">{acc.name}</p>
                   {(acc.city || acc.industry) && (
-                    <p className="text-[9px] text-[#8899BB] truncate">
+                    <p className="text-[12px] text-[#8899BB] truncate">
                       {[acc.city, acc.industry].filter(Boolean).join(' · ')}
                     </p>
                   )}

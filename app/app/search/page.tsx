@@ -185,7 +185,7 @@ function SearchPageContent() {
         <button
           key={tab}
           onClick={() => setActiveTab(tab)}
-          className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+          className="px-3 py-1.5 rounded-full text-[13px] font-medium transition-all"
           style={activeTab === tab
             ? { background: '#1E2761', color: 'white' }
             : { background: '#F0F4FF', color: '#8899BB' }}
@@ -233,22 +233,22 @@ function SearchPageContent() {
         />
         <button
           onClick={isRecording ? stopVoice : startVoice}
-          className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 transition-all"
-          style={{ background: isRecording ? '#EF4444' : '#4C6EF5' }}
+          className="rounded-full flex items-center justify-center shrink-0 transition-all"
+          style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: isMobile ? 38 : 26, height: isMobile ? 38 : 26 }}
         >
           {isRecording
-            ? <MicOff className="w-3.5 h-3.5 text-white" />
-            : <Mic className="w-3.5 h-3.5 text-white" />
+            ? <MicOff className="text-white" style={{ width: isMobile ? 20 : 14, height: isMobile ? 20 : 14 }} />
+            : <Mic className="text-white" style={{ width: isMobile ? 20 : 14, height: isMobile ? 20 : 14 }} />
           }
         </button>
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
-          style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1' }}
+          className="rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
+          style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: isMobile ? 38 : 26, height: isMobile ? 38 : 26 }}
           aria-label="Envoyer"
         >
-          <ArrowUp className="w-3.5 h-3.5 text-white" />
+          <ArrowUp className="text-white" style={{ width: isMobile ? 20 : 14, height: isMobile ? 20 : 14 }} />
         </button>
       </div>
     </div>
@@ -290,7 +290,7 @@ function SearchPageContent() {
               {msg.content}
             </div>
             {msg.sources && msg.sources.length > 0 && (
-              <p className="text-[9px] text-[#8899BB] px-1">
+              <p className="text-[11px] text-[#8899BB] px-1">
                 Sources : {msg.sources.map((s) => s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')).join(' · ')}
               </p>
             )}
@@ -325,14 +325,14 @@ function SearchPageContent() {
           className="flex items-center gap-3 px-4 pl-14 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
         >
-          <span className="flex-1 text-[13px] font-bold text-[#0A1628]">Recherche IA</span>
+          <span className="flex-1 text-[15px] font-bold text-[#0A1628]">Recherche IA</span>
           <button
             onClick={() => router.push('/app/import')}
-            className="w-7 h-7 flex items-center justify-center transition-opacity hover:opacity-70"
-            style={{ background: '#F0F4FF', borderRadius: 8 }}
+            className="flex items-center justify-center transition-opacity hover:opacity-70"
+            style={{ background: '#F0F4FF', borderRadius: 8, width: 34, height: 34 }}
             title="Importer un fichier"
           >
-            <Upload className="w-4 h-4 text-[#4C6EF5]" />
+            <Upload className="text-[#4C6EF5]" style={{ width: 18, height: 18 }} />
           </button>
         </div>
 
