@@ -116,6 +116,25 @@ export interface PortfolioAccess {
   created_at: string
 }
 
+export interface Notification {
+  id: string
+  account_id: string | null
+  user_id: string
+  type: 'note_added' | 'document_added' | 'document_shared' | 'message_received' | 'company_updated'
+  title: string
+  body: string | null
+  data: Record<string, string>
+  read: boolean
+  created_at: string
+}
+
+export interface MutedCompany {
+  id: string
+  user_id: string
+  company_id: string
+  created_at: string
+}
+
 export interface SearchSource {
   type: 'note' | 'document'
   id: string

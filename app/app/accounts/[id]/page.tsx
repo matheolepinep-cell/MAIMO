@@ -4,7 +4,7 @@ import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
-  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download, Share2
+  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download, Share2, Bell, BellOff
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -106,6 +106,9 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [searchRecording, setSearchRecording] = useState(false)
   const [expandedSource, setExpandedSource] = useState<string | null>(null)
 
+  // Notification mute
+  const [isMuted, setIsMuted] = useState(false)
+
   // Access section
   const [portfolioEntry, setPortfolioEntry] = useState<{ id: string; visibility: 'team' | 'private' | 'custom' } | null>(null)
   const [visibility, setVisibility] = useState<'team' | 'private' | 'custom'>('team')
@@ -168,6 +171,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         .eq('company_id', profile.company_id)
         .neq('id', profile.id)
       setCompanyMembers(members ?? [])
+
+      const { data: mutedRow } = await supabase
+        .from('muted_companies')
+        .select('id')
+        .eq('user_id', profile.id)
+        .eq('company_id', id)
+        .maybeSingle()
+      setIsMuted(!!mutedRow)
     }
   }, [id, profile])
 
@@ -183,6 +194,18 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     const { data, error } = await supabase.from('accounts').update(editData).eq('id', id).select().single()
     if (!error && data) { setAccount(data); setEditing(false) }
     setSaving(false)
+  }
+
+  /* ─── notification mute ─── */
+  const handleToggleMute = async () => {
+    if (!profile) return
+    const supabase = createClient()
+    if (isMuted) {
+      await supabase.from('muted_companies').delete().eq('user_id', profile.id).eq('company_id', id)
+    } else {
+      await supabase.from('muted_companies').insert({ user_id: profile.id, company_id: id })
+    }
+    setIsMuted((v) => !v)
   }
 
   /* ─── contacts ─── */
@@ -493,6 +516,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             <p className="text-xs text-slate-400">{[account.city, account.industry].filter(Boolean).join(' · ')}</p>
           )}
         </div>
+        <button
+          onClick={handleToggleMute}
+          title={isMuted ? 'Réactiver les notifications' : 'Désactiver les notifications'}
+          className="p-2 rounded-xl transition-all duration-200 shrink-0"
+          style={{ color: isMuted ? '#94A3B8' : accentColor, background: isMuted ? 'transparent' : `${accentColor}15` }}
+        >
+          {isMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+        </button>
       </div>
 
       {/* Mobile tabs */}
