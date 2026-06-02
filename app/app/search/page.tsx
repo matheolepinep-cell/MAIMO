@@ -2,11 +2,10 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, RotateCcw, Upload, MessageSquare, Mic, MicOff, Send } from 'lucide-react'
+import { Briefcase, Globe, Building2, RotateCcw, Upload, MessageSquare, Mic, MicOff, ArrowUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
-import { BurgerButton } from '@/components/layout/BurgerButton'
 import type { SearchSource } from '@/types/database'
 
 declare global {
@@ -232,15 +231,6 @@ function SearchPageContent() {
             }
           }}
         />
-        {input.trim() && (
-          <button
-            onClick={handleSubmit}
-            className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 transition-all"
-            style={{ background: '#4C6EF5' }}
-          >
-            <Send className="w-3.5 h-3.5 text-white" />
-          </button>
-        )}
         <button
           onClick={isRecording ? stopVoice : startVoice}
           className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 transition-all"
@@ -250,6 +240,15 @@ function SearchPageContent() {
             ? <MicOff className="w-3.5 h-3.5 text-white" />
             : <Mic className="w-3.5 h-3.5 text-white" />
           }
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
+          style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1' }}
+          aria-label="Envoyer"
+        >
+          <ArrowUp className="w-3.5 h-3.5 text-white" />
         </button>
       </div>
     </div>
@@ -323,10 +322,9 @@ function SearchPageContent() {
 
         {/* Header */}
         <div
-          className="flex items-center gap-3 px-4 py-3 bg-white shrink-0"
+          className="flex items-center gap-3 px-4 pl-14 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
         >
-          <BurgerButton />
           <span className="flex-1 text-[13px] font-bold text-[#0A1628]">Recherche IA</span>
           <button
             onClick={() => router.push('/app/import')}

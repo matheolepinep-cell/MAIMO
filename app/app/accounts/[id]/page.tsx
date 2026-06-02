@@ -401,7 +401,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center gap-3 sticky top-0 z-30"
+      <div className="bg-white px-4 pl-14 md:pl-4 py-3 flex items-center gap-3 sticky top-0 z-30"
         style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
         <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-[#F0F4FF] transition-all duration-200 shrink-0">
           <ArrowLeft className="w-5 h-5" />

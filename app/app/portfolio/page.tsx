@@ -144,7 +144,7 @@ export default function PortfolioPage() {
       <div className="md:hidden flex flex-col flex-1">
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4 py-3 bg-white shrink-0"
+          className="flex items-center justify-between px-4 pl-14 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
         >
           <span className="text-[13px] font-bold text-[#0A1628]">Portefeuille</span>

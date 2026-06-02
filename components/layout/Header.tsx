@@ -1,7 +1,6 @@
 'use client'
 
 import { useUser } from '@/contexts/UserContext'
-import { BurgerButton } from '@/components/layout/BurgerButton'
 
 interface HeaderProps {
   title?: string
@@ -11,8 +10,7 @@ export function Header({ title }: HeaderProps) {
   const { profile } = useUser()
 
   return (
-    <header className="md:hidden bg-white border-b border-[rgba(30,39,97,0.08)] px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
-      <BurgerButton />
+    <header className="md:hidden bg-white border-b border-[rgba(30,39,97,0.08)] px-4 pl-14 py-3 flex items-center gap-3 sticky top-0 z-30">
       <span className={
         title
           ? 'flex-1 font-semibold text-[#0F172A] text-sm'
