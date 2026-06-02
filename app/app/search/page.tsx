@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, Send, RotateCcw } from 'lucide-react'
+import { Briefcase, Globe, Building2, RotateCcw, Upload, MessageSquare, Mic, MicOff, Send } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -47,6 +47,11 @@ const SUGGESTIONS = [
   'Qui appeler ?',
 ]
 
+function fmt(d?: string) {
+  if (!d) return ''
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(d))
+}
+
 function SearchPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -63,6 +68,12 @@ function SearchPageContent() {
   const [conversation, setConversation] = useState<Message[]>([])
   const [followUp, setFollowUp] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Mobile input state
+  const [mobileInput, setMobileInput] = useState('')
+  const [isRecording, setIsRecording] = useState(false)
+  const mobileInputRef = useRef<HTMLInputElement>(null)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const followUpRef = useRef<HTMLInputElement>(null)
@@ -99,14 +110,12 @@ function SearchPageContent() {
     }
   }, [profileLoading, profile])
 
-  // Auto-scroll on new messages
   useEffect(() => {
     if (inConversation) {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     }
   }, [conversation.length, loading, inConversation])
 
-  // Focus follow-up input after assistant replies
   useEffect(() => {
     if (!loading && conversation.length > 0) {
       followUpRef.current?.focus()
@@ -161,7 +170,34 @@ function SearchPageContent() {
     setConversation([])
     setFollowUp('')
     setQuery('')
+    setMobileInput('')
   }
+
+  const handleMobileSubmit = useCallback(() => {
+    const q = mobileInput.trim()
+    if (!q || loading) return
+    setMobileInput('')
+    doSearch(q)
+  }, [mobileInput, loading, doSearch])
+
+  const startVoice = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return
+    const r = new SR()
+    r.lang = 'fr-FR'; r.continuous = false; r.interimResults = false
+    r.onresult = (e: SpeechRecognitionEvent) => {
+      const t = e.results[0][0].transcript
+      setMobileInput(t)
+      setIsRecording(false)
+    }
+    r.onerror = () => setIsRecording(false)
+    r.onend = () => setIsRecording(false)
+    recognitionRef.current = r
+    r.start()
+    setIsRecording(true)
+  }, [])
+
+  const stopVoice = () => { recognitionRef.current?.stop(); setIsRecording(false) }
 
   const speakLast = () => {
     const last = [...conversation].reverse().find(m => m.role === 'assistant')
@@ -176,212 +212,373 @@ function SearchPageContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
-      <Header title="Recherche IA" />
+    <>
+      {/* ── MOBILE LAYOUT ── */}
+      <div className="md:hidden flex flex-col" style={{ height: '100dvh' }}>
 
-      <div className="flex-1 p-4 md:p-8 max-w-2xl mx-auto w-full space-y-4">
-
-        <Breadcrumb items={[
-          { label: 'MAIMOO', href: '/app/dashboard' },
-          { label: 'Recherche IA' },
-        ]} />
-
-        <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Recherche IA</h1>
-
-        {/* SearchBar — only in initial mode */}
-        {!inConversation && (
-          <SearchBar
-            onSubmit={handleSubmit}
-            defaultValue={query}
-            large
-            autoFocus
-            staticPlaceholder="Posez votre question…"
-          />
-        )}
-
-        {/* Tabs */}
-        <div className="flex" style={{ borderBottom: '1px solid rgba(30,39,97,0.10)' }}>
-          {([
-            { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
-            { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
-          ]).map(({ value, label, icon: Icon }) => (
-            <button
-              key={value}
-              onClick={() => setActiveTab(value)}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-px"
-              style={activeTab === value ? {
-                borderBottomColor: '#4C6EF5',
-                color: '#1E2761',
-              } : {
-                borderBottomColor: 'transparent',
-                color: '#94A3B8',
-              }}
-            >
-              <Icon className="w-3.5 h-3.5" />{label}
-            </button>
-          ))}
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-3 bg-white shrink-0"
+          style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
+        >
+          <span className="text-[13px] font-bold text-[#0A1628]">Recherche IA</span>
+          <button
+            onClick={() => router.push('/app/import')}
+            className="w-7 h-7 flex items-center justify-center transition-opacity hover:opacity-70"
+            style={{ background: '#F0F4FF', borderRadius: 8 }}
+            title="Importer un fichier"
+          >
+            <Upload className="w-4 h-4 text-[#4C6EF5]" />
+          </button>
         </div>
 
-        {/* Portfolio account selector */}
-        {activeTab === 'portfolio' && (
-          <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        {/* Tabs */}
+        <div
+          className="flex shrink-0 px-3 py-2 bg-white gap-2"
+          style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}
+        >
+          {(['portfolio', 'global'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+              style={activeTab === tab
+                ? { background: '#1E2761', color: 'white' }
+                : { background: '#F0F4FF', color: '#8899BB' }}
+            >
+              {tab === 'portfolio' ? 'Perso' : 'Global'}
+            </button>
+          ))}
+
+          {activeTab === 'portfolio' && portfolioAccounts.length > 0 && (
             <select
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none transition-all duration-200"
+              className="ml-auto text-xs rounded-full px-2 py-1 focus:outline-none"
+              style={{ background: '#F0F4FF', color: '#8899BB', border: 'none' }}
+            >
+              <option value="">Toutes</option>
+              {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          )}
+        </div>
+
+        {/* Conversation area */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-3">
+
+          {inConversation && (
+            <div className="flex justify-center">
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-[#1E2761] transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Nouvelle recherche
+              </button>
+            </div>
+          )}
+
+          {!inConversation && (
+            <div className="pt-2">
+              <p className="text-[10px] font-semibold text-slate-400 mb-3 uppercase tracking-widest">Suggestions</p>
+              <div className="flex flex-wrap gap-2">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => { setMobileInput(''); doSearch(s) }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white transition-all hover:-translate-y-px"
+                    style={{ border: '1px solid rgba(30,39,97,0.12)', color: '#64748B' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {conversation.map((msg, i) => {
+            if (msg.role === 'user') {
+              return (
+                <div key={i} className="flex justify-end">
+                  <div
+                    className="max-w-[85%] px-4 py-2.5 text-sm text-white leading-relaxed"
+                    style={{ background: '#4C6EF5', borderRadius: '12px 12px 4px 12px' }}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              )
+            }
+            return (
+              <div key={i} className="flex flex-col gap-1 items-start">
+                <div
+                  className="max-w-[90%] px-4 py-3 text-sm text-[#2D3A5A] leading-relaxed"
+                  style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px' }}
+                >
+                  {msg.content}
+                </div>
+                {msg.sources && msg.sources.length > 0 && (
+                  <p className="text-[9px] text-[#8899BB] px-1">
+                    Sources : {msg.sources.map((s) => s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')).join(' · ')}
+                  </p>
+                )}
+              </div>
+            )
+          })}
+
+          {loading && (
+            <div className="flex flex-col gap-1 items-start">
+              <div
+                className="px-4 py-3 space-y-2"
+                style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', minWidth: 120 }}
+              >
+                <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-32" />
+                <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-48" />
+                <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-40" />
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input bar */}
+        <div
+          className="shrink-0 px-3 py-2.5 bg-white"
+          style={{ borderTop: '1px solid #E5EAF5' }}
+        >
+          <div
+            className="flex items-center gap-2 px-3 py-2"
+            style={{ background: '#F5F7FA', borderRadius: 14, border: '1px solid #E5EAF5' }}
+          >
+            <MessageSquare className="w-4 h-4 text-slate-400 shrink-0" />
+            <input
+              ref={mobileInputRef}
+              type="text"
+              className="flex-1 bg-transparent text-sm text-[#0F172A] placeholder-slate-400 focus:outline-none"
+              placeholder="Poser une question..."
+              value={mobileInput}
+              onChange={(e) => setMobileInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleMobileSubmit()
+                }
+              }}
+            />
+            <button
+              onClick={isRecording ? stopVoice : startVoice}
+              className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 transition-all"
+              style={{ background: isRecording ? '#EF4444' : '#4C6EF5' }}
+            >
+              {isRecording
+                ? <MicOff className="w-3.5 h-3.5 text-white" />
+                : <Mic className="w-3.5 h-3.5 text-white" />
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── DESKTOP LAYOUT ── */}
+      <div className="hidden md:flex flex-col min-h-full">
+        <Header title="Recherche IA" />
+
+        <div className="flex-1 p-8 max-w-2xl mx-auto w-full space-y-4">
+
+          <Breadcrumb items={[
+            { label: 'MAIMOO', href: '/app/dashboard' },
+            { label: 'Recherche IA' },
+          ]} />
+
+          <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Recherche IA</h1>
+
+          {!inConversation && (
+            <SearchBar
+              onSubmit={handleSubmit}
+              defaultValue={query}
+              large
+              autoFocus
+              staticPlaceholder="Posez votre question…"
+            />
+          )}
+
+          {/* Tabs */}
+          <div className="flex" style={{ borderBottom: '1px solid rgba(30,39,97,0.10)' }}>
+            {([
+              { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
+              { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
+            ]).map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setActiveTab(value)}
+                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-px"
+                style={activeTab === value ? {
+                  borderBottomColor: '#4C6EF5',
+                  color: '#1E2761',
+                } : {
+                  borderBottomColor: 'transparent',
+                  color: '#94A3B8',
+                }}
+              >
+                <Icon className="w-3.5 h-3.5" />{label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === 'portfolio' && (
+            <div className="relative">
+              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <select
+                value={selectedAccountId}
+                onChange={(e) => setSelectedAccountId(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none transition-all duration-200"
+                style={{
+                  background: 'rgba(240,244,255,0.8)',
+                  border: '1px solid rgba(30,39,97,0.12)',
+                }}
+              >
+                <option value="">Toutes mes entreprises</option>
+                {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2">
+            {(['all', 'client', 'prospect'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
+                style={statusFilter === f ? {
+                  background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
+                  color: 'white',
+                } : {
+                  background: 'white',
+                  color: '#64748B',
+                  border: '1px solid rgba(30,39,97,0.12)',
+                }}
+              >
+                {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
+              </button>
+            ))}
+            <input
+              type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
+              className="px-3 py-1.5 rounded-xl text-xs text-slate-600 placeholder-slate-400 focus:outline-none transition-all duration-200 w-24"
               style={{
                 background: 'rgba(240,244,255,0.8)',
                 border: '1px solid rgba(30,39,97,0.12)',
               }}
-            >
-              <option value="">Toutes mes entreprises</option>
-              {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            />
           </div>
-        )}
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          {(['all', 'client', 'prospect'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setStatusFilter(f)}
-              className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
-              style={statusFilter === f ? {
-                background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
-                color: 'white',
-              } : {
-                background: 'white',
-                color: '#64748B',
-                border: '1px solid rgba(30,39,97,0.12)',
-              }}
-            >
-              {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
-            </button>
-          ))}
-          <input
-            type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
-            className="px-3 py-1.5 rounded-xl text-xs text-slate-600 placeholder-slate-400 focus:outline-none transition-all duration-200 w-24"
-            style={{
-              background: 'rgba(240,244,255,0.8)',
-              border: '1px solid rgba(30,39,97,0.12)',
-            }}
-          />
-        </div>
-
-        {/* Suggestions — initial mode only */}
-        {!inConversation && (
-          <div>
-            <p className="text-[10px] font-semibold text-slate-400 mb-2.5 uppercase tracking-widest">Suggestions</p>
-            <div className="flex flex-wrap gap-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleSubmit(s)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white transition-all duration-200 hover:-translate-y-px"
-                  style={{
-                    border: '1px solid rgba(30,39,97,0.12)',
-                    color: '#64748B',
-                    boxShadow: '0 1px 3px rgba(30,39,97,0.04)',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#1E2761'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(76,110,245,0.3)' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#64748B'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(30,39,97,0.12)' }}
-                >
-                  {s}
-                </button>
-              ))}
+          {!inConversation && (
+            <div>
+              <p className="text-[10px] font-semibold text-slate-400 mb-2.5 uppercase tracking-widest">Suggestions</p>
+              <div className="flex flex-wrap gap-2">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleSubmit(s)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white transition-all duration-200 hover:-translate-y-px"
+                    style={{
+                      border: '1px solid rgba(30,39,97,0.12)',
+                      color: '#64748B',
+                      boxShadow: '0 1px 3px rgba(30,39,97,0.04)',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#1E2761'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(76,110,245,0.3)' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#64748B'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(30,39,97,0.12)' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Conversation mode */}
-        {inConversation && (
-          <div className="space-y-3">
-
-            {/* Header row */}
-            <div className="flex items-center justify-end">
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#1E2761] transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Nouvelle recherche
-              </button>
-            </div>
-
-            {/* Message bubbles */}
-            {conversation.map((msg, i) => {
-              if (msg.role === 'user') {
-                return (
-                  <div key={i} className="flex justify-end">
-                    <div
-                      className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm text-white leading-relaxed"
-                      style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
-                    >
-                      {msg.content}
-                    </div>
-                  </div>
-                )
-              }
-
-              const isLast = i === conversation.length - 1
-              return (
-                <div key={i}>
-                  <AnswerCard
-                    answer={msg.content}
-                    sources={msg.sources ?? []}
-                    onSpeak={isLast ? speakLast : undefined}
-                    onClear={isLast ? handleReset : undefined}
-                    onSourceClick={handleSourceClick}
-                  />
-                </div>
-              )
-            })}
-
-            {/* Loading */}
-            {loading && <AnswerCard answer="" sources={[]} isLoading />}
-
-            <div ref={bottomRef} />
-
-            {/* Follow-up input */}
-            {!loading && (
-              <div className="flex gap-2 pt-1">
-                <input
-                  ref={followUpRef}
-                  type="text"
-                  value={followUp}
-                  onChange={(e) => setFollowUp(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      if (followUp.trim()) doSearch(followUp)
-                    }
-                  }}
-                  placeholder="Poser une question de suivi..."
-                  className="flex-1 px-4 py-3 rounded-xl text-sm text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all"
-                  style={{
-                    background: 'white',
-                    border: '1px solid rgba(30,39,97,0.12)',
-                    boxShadow: '0 1px 3px rgba(30,39,97,0.04)',
-                  }}
-                />
+          {inConversation && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-end">
                 <button
-                  onClick={() => followUp.trim() && doSearch(followUp)}
-                  disabled={!followUp.trim()}
-                  className="px-4 py-3 rounded-xl text-white transition-all disabled:opacity-40"
-                  style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
-                  title="Envoyer (Entrée)"
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#1E2761] transition-colors"
                 >
-                  <Send className="w-4 h-4" />
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Nouvelle recherche
                 </button>
               </div>
-            )}
-          </div>
-        )}
 
+              {conversation.map((msg, i) => {
+                if (msg.role === 'user') {
+                  return (
+                    <div key={i} className="flex justify-end">
+                      <div
+                        className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm text-white leading-relaxed"
+                        style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  )
+                }
+
+                const isLast = i === conversation.length - 1
+                return (
+                  <div key={i}>
+                    <AnswerCard
+                      answer={msg.content}
+                      sources={msg.sources ?? []}
+                      onSpeak={isLast ? speakLast : undefined}
+                      onClear={isLast ? handleReset : undefined}
+                      onSourceClick={handleSourceClick}
+                    />
+                  </div>
+                )
+              })}
+
+              {loading && <AnswerCard answer="" sources={[]} isLoading />}
+
+              <div ref={bottomRef} />
+
+              {!loading && (
+                <div className="flex gap-2 pt-1">
+                  <input
+                    ref={followUpRef}
+                    type="text"
+                    value={followUp}
+                    onChange={(e) => setFollowUp(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        if (followUp.trim()) doSearch(followUp)
+                      }
+                    }}
+                    placeholder="Poser une question de suivi..."
+                    className="flex-1 px-4 py-3 rounded-xl text-sm text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all"
+                    style={{
+                      background: 'white',
+                      border: '1px solid rgba(30,39,97,0.12)',
+                      boxShadow: '0 1px 3px rgba(30,39,97,0.04)',
+                    }}
+                  />
+                  <button
+                    onClick={() => followUp.trim() && doSearch(followUp)}
+                    disabled={!followUp.trim()}
+                    className="px-4 py-3 rounded-xl text-white transition-all disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
+                    title="Envoyer (Entrée)"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

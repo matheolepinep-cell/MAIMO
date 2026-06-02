@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Briefcase, Trash2, Upload } from 'lucide-react'
+import { Briefcase, Trash2, Upload, ChevronRight, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -10,7 +10,8 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { BottomSheet } from '@/components/ui/BottomSheet'
-import { CompanyCard } from '@/components/ui/CompanyCard'
+import { CompanyCard, getInitials } from '@/components/ui/CompanyCard'
+import { useAccentColor } from '@/contexts/AccentColorContext'
 
 type PortfolioEntry = {
   id: string
@@ -22,12 +23,20 @@ type PortfolioEntry = {
 
 type Filter = 'all' | 'client' | 'prospect' | 'team' | 'private'
 
+type GlobalAccount = { id: string; name: string; city: string | null; industry: string | null; status: 'client' | 'prospect' }
+
 export default function PortfolioPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
+  const { accentColor } = useAccentColor()
   const [entries, setEntries] = useState<PortfolioEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('all')
+
+  // Mobile tab: 'perso' | 'global'
+  const [mobileTab, setMobileTab] = useState<'perso' | 'global'>('perso')
+  const [globalAccounts, setGlobalAccounts] = useState<GlobalAccount[]>([])
+  const [globalLoading, setGlobalLoading] = useState(false)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -52,6 +61,21 @@ export default function PortfolioPage() {
   useEffect(() => {
     if (!profileLoading) fetchEntries()
   }, [profileLoading, fetchEntries])
+
+  useEffect(() => {
+    if (mobileTab !== 'global' || !profile) return
+    setGlobalLoading(true)
+    const supabase = createClient()
+    supabase
+      .from('accounts')
+      .select('id, name, city, industry, status')
+      .eq('company_id', profile.company_id)
+      .order('name')
+      .then(({ data }) => {
+        setGlobalAccounts((data ?? []) as GlobalAccount[])
+        setGlobalLoading(false)
+      })
+  }, [mobileTab, profile])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -107,8 +131,106 @@ export default function PortfolioPage() {
     { value: 'private', label: 'Privés' },
   ]
 
+  const mobilePersoAccounts = entries
+    .map((e) => e.accounts)
+    .filter(Boolean) as { id: string; name: string; city: string | null; industry: string | null; status: 'client' | 'prospect' }[]
+
+  const mobileDisplayAccounts = mobileTab === 'perso' ? mobilePersoAccounts : globalAccounts
+
   return (
     <div className="flex flex-col min-h-full overflow-x-hidden">
+
+      {/* ── MOBILE SECTION ── */}
+      <div className="md:hidden flex flex-col flex-1">
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-3 bg-white shrink-0"
+          style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
+        >
+          <span className="text-[13px] font-bold text-[#0A1628]">Portefeuille</span>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="w-7 h-7 flex items-center justify-center"
+            style={{ background: '#F0F4FF', borderRadius: 8 }}
+          >
+            <Plus className="w-4 h-4 text-[#4C6EF5]" />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div
+          className="flex shrink-0 px-3 py-2 bg-white gap-2"
+          style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}
+        >
+          {(['perso', 'global'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setMobileTab(tab)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+              style={mobileTab === tab
+                ? { background: '#1E2761', color: 'white' }
+                : { background: '#F0F4FF', color: '#8899BB' }}
+            >
+              {tab === 'perso' ? 'Perso' : 'Global'}
+            </button>
+          ))}
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+          {(loading || globalLoading) ? (
+            [...Array(5)].map((_, i) => (
+              <div key={i} className="h-[52px] bg-white rounded-2xl animate-pulse"
+                style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
+            ))
+          ) : mobileDisplayAccounts.length === 0 ? (
+            <div className="text-center py-16">
+              <Briefcase className="w-8 h-8 text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">
+                {mobileTab === 'perso' ? 'Votre portefeuille est vide.' : 'Aucune entreprise.'}
+              </p>
+            </div>
+          ) : mobileDisplayAccounts.map((acc) => {
+            const entryId = mobileTab === 'perso'
+              ? entries.find((e) => e.accounts?.id === acc.id)?.id
+              : undefined
+            return (
+              <button
+                key={acc.id}
+                onClick={() => router.push(`/app/accounts/${acc.id}`)}
+                className="w-full flex items-center gap-3 bg-white rounded-2xl px-3 py-3 text-left transition-all duration-150 hover:-translate-y-0.5"
+                style={{ border: '1px solid rgba(30,39,97,0.07)', boxShadow: '0 1px 3px rgba(30,39,97,0.04)' }}
+              >
+                {/* Status dot */}
+                <div
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ background: acc.status === 'client' ? '#22C55E' : '#F59E0B' }}
+                />
+                {/* Avatar */}
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                  style={{ background: accentColor }}
+                >
+                  {getInitials(acc.name)}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-[11px] font-bold text-[#0A1628] truncate">{acc.name}</p>
+                  {(acc.city || acc.industry) && (
+                    <p className="text-[9px] text-[#8899BB] truncate">
+                      {[acc.city, acc.industry].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
+                </div>
+                <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#C5D0F0' }} />
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── DESKTOP SECTION ── */}
+      <div className="hidden md:flex flex-col flex-1">
       <Header title="Mon portefeuille" />
       <div className="flex-1 px-4 py-4 md:px-8 md:py-8 max-w-2xl mx-auto w-full">
 
@@ -226,6 +348,8 @@ export default function PortfolioPage() {
           </div>
         )}
       </div>
+
+      </div>{/* end desktop inner */}
 
       <BottomSheet open={createOpen} onClose={() => { setCreateOpen(false); setCreateError('') }} title="Nouvelle entreprise">
         <form onSubmit={handleCreate} className="space-y-4">
