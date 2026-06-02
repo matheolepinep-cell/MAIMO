@@ -11,14 +11,6 @@ declare global {
   }
 }
 
-const PLACEHOLDERS = [
-  'Quel est le délai Ferretti ?',
-  'Qui contacter chez Roux BTP ?',
-  'Conditions remise Dupont ?',
-  'Dernier RDV Bouygues ?',
-  'Prochaine livraison ?',
-]
-
 interface SearchBarProps {
   onSubmit: (query: string) => void
   onVoiceResult?: (transcript: string) => void
@@ -40,19 +32,12 @@ export function SearchBar({
 }: SearchBarProps) {
   const [value, setValue] = useState(defaultValue)
   const [isRecording, setIsRecording] = useState(false)
-  const [idx, setIdx] = useState(0)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
-
-  useEffect(() => {
-    if (staticPlaceholder) return
-    const id = setInterval(() => setIdx((i) => (i + 1) % PLACEHOLDERS.length), 3500)
-    return () => clearInterval(id)
-  }, [staticPlaceholder])
 
   const handleSubmit = useCallback(() => {
     if (!value.trim()) return
@@ -80,7 +65,7 @@ export function SearchBar({
 
   const stopVoice = () => { recognitionRef.current?.stop(); setIsRecording(false) }
 
-  const placeholder = staticPlaceholder ?? PLACEHOLDERS[idx]
+  const placeholder = staticPlaceholder ?? 'Posez votre question…'
 
   return (
     <div className={clsx('relative', className)}>
