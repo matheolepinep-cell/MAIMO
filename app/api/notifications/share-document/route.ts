@@ -10,62 +10,59 @@ function adminClient() {
   )
 }
 
-async function getOrCreateConversation(supabase: ReturnType<typeof adminClient>, companyId: string, userId: string, recipientId: string): Promise<string> {
+async function getOrCreateConversation(
+  supabase: ReturnType<typeof adminClient>,
+  userId: string,
+  recipientId: string
+): Promise<string> {
+  const participants = [userId, recipientId]
+
   // Find existing conversation between the two users
-  const { data: myMemberships } = await supabase
-    .from('conversation_members')
-    .select('conversation_id')
-    .eq('user_id', userId)
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('id')
+    .contains('participants', participants)
+    .limit(1)
 
-  if (myMemberships?.length) {
-    const myConvIds = myMemberships.map((m: { conversation_id: string }) => m.conversation_id)
-    const { data: recipientMemberships } = await supabase
-      .from('conversation_members')
-      .select('conversation_id')
-      .eq('user_id', recipientId)
-      .in('conversation_id', myConvIds)
+  if (existing?.[0]) return existing[0].id
 
-    if (recipientMemberships?.length) {
-      return recipientMemberships[0].conversation_id
-    }
-  }
-
-  // Create new conversation
   const { data: conv } = await supabase
     .from('conversations')
-    .insert({ company_id: companyId })
-    .select()
+    .insert({ participants })
+    .select('id')
     .single()
 
-  await supabase.from('conversation_members').insert([
-    { conversation_id: conv.id, user_id: userId },
-    { conversation_id: conv.id, user_id: recipientId },
-  ])
-
-  return conv.id
+  return conv!.id
 }
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { recipientId, documentId, documentName } = await request.json()
+  const { recipientId, documentId, documentName, filePath, fileType } = await request.json()
   if (!recipientId || !documentId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
   const supabase = adminClient()
+  const conversationId = await getOrCreateConversation(supabase, user.id, recipientId)
 
-  const conversationId = await getOrCreateConversation(supabase, user.company_id, user.id, recipientId)
-
-  // Insert document message
+  // Insert document message using new schema (file_path / file_name / file_type)
   await supabase.from('messages').insert({
     conversation_id: conversationId,
     sender_id: user.id,
     content: null,
-    document_id: documentId,
-    message_type: 'document',
+    file_path: filePath ?? null,
+    file_name: documentName ?? null,
+    file_type: fileType ?? null,
+    read_by: [user.id],
   })
 
-  // Create notification
+  // Update conversation last_message
+  await supabase.from('conversations').update({
+    last_message: `📎 ${documentName ?? 'Document'}`,
+    last_message_at: new Date().toISOString(),
+  }).eq('id', conversationId)
+
+  // Notification for recipient
   await createNotification(
     recipientId,
     null,

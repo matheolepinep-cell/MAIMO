@@ -8,14 +8,15 @@ import { Header } from '@/components/layout/Header'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import type { UserProfile, Document } from '@/types/database'
 
-type ConvMember = { id: string; full_name: string; email: string }
+type TeamMember = Pick<UserProfile, 'id' | 'full_name' | 'email'>
 
 type Conversation = {
   id: string
-  company_id: string
+  participants: string[]
+  last_message: string | null
+  last_message_at: string
   created_at: string
-  other_user: ConvMember
-  last_message?: { content: string | null; message_type: string; created_at: string; sender_id: string } | null
+  other_user: TeamMember
   unread_count: number
 }
 
@@ -24,11 +25,11 @@ type Message = {
   conversation_id: string
   sender_id: string
   content: string | null
-  document_id: string | null
-  message_type: 'text' | 'document'
-  read: boolean
+  file_path: string | null
+  file_name: string | null
+  file_type: string | null
   created_at: string
-  document?: Document | null
+  read_by: string[]
 }
 
 function initials(name: string) {
@@ -38,16 +39,16 @@ function initials(name: string) {
 function timeShort(d: string) {
   const date = new Date(d)
   const now = new Date()
-  const isToday = date.toDateString() === now.toDateString()
-  if (isToday) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  if (date.toDateString() === now.toDateString())
+    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
 }
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444']
 function userColor(id: string) {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff
-  return COLORS[Math.abs(hash) % COLORS.length]
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffffffff
+  return COLORS[Math.abs(h) % COLORS.length]
 }
 
 export default function MessagesPage() {
@@ -62,103 +63,63 @@ export default function MessagesPage() {
   const [attachOpen, setAttachOpen] = useState(false)
   const [companyDocs, setCompanyDocs] = useState<Document[]>([])
   const [docsLoading, setDocsLoading] = useState(false)
+  const [mobileView, setMobileView] = useState<'list' | 'conv'>('list')
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Mobile: show conversation list or active conversation
-  const [mobileView, setMobileView] = useState<'list' | 'conv'>('list')
-
+  /* ─── fetch conversations ─── */
   const fetchConversations = useCallback(async () => {
     if (!profile) return
     const supabase = createClient()
 
-    // Get all conversations where current user is a member
-    const { data: memberships } = await supabase
-      .from('conversation_members')
-      .select('conversation_id')
-      .eq('user_id', profile.id)
+    // Conversations where current user is a participant
+    const { data: convs } = await supabase
+      .from('conversations')
+      .select('*')
+      .contains('participants', [profile.id])
+      .order('last_message_at', { ascending: false })
 
-    if (!memberships?.length) {
-      // No conversations yet — build list from team members
-      const { data: members } = await supabase
-        .from('users')
-        .select('id, full_name, email')
-        .eq('company_id', profile.company_id)
-        .neq('id', profile.id)
-      setConversations((members ?? []).map((m: ConvMember) => ({
-        id: '',
-        company_id: profile.company_id,
-        created_at: '',
-        other_user: m,
-        last_message: null,
-        unread_count: 0,
-      })))
-      setLoading(false)
-      return
-    }
-
-    const convIds = memberships.map((m: { conversation_id: string }) => m.conversation_id)
-
-    const [{ data: convs }, { data: allMembers }] = await Promise.all([
-      supabase.from('conversations').select('*').in('id', convIds),
-      supabase.from('conversation_members').select('conversation_id, user_id').in('conversation_id', convIds),
-    ])
-
-    const otherUserIds = (allMembers ?? [])
-      .filter((m: { user_id: string }) => m.user_id !== profile.id)
-      .map((m: { user_id: string }) => m.user_id)
-
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, full_name, email')
-      .in('id', otherUserIds)
-
-    const usersMap: Record<string, ConvMember> = {}
-    for (const u of users ?? []) usersMap[u.id] = u
-
-    const convMemberMap: Record<string, string> = {}
-    for (const m of allMembers ?? []) {
-      if (m.user_id !== profile.id) convMemberMap[m.conversation_id] = m.user_id
-    }
-
-    // Fetch last message and unread count per conversation
-    const enriched: Conversation[] = []
-    for (const conv of convs ?? []) {
-      const otherId = convMemberMap[conv.id]
-      const other = usersMap[otherId]
-      if (!other) continue
-
-      const [{ data: lastMsgs }, { count: unread }] = await Promise.all([
-        supabase.from('messages').select('content, message_type, created_at, sender_id').eq('conversation_id', conv.id).order('created_at', { ascending: false }).limit(1),
-        supabase.from('messages').select('id', { count: 'exact', head: true }).eq('conversation_id', conv.id).eq('read', false).neq('sender_id', profile.id),
-      ])
-
-      enriched.push({
-        ...conv,
-        other_user: other,
-        last_message: lastMsgs?.[0] ?? null,
-        unread_count: unread ?? 0,
-      })
-    }
-
-    // Also add team members who have no conversation yet
-    const { data: allTeam } = await supabase
+    // Team members
+    const { data: team } = await supabase
       .from('users')
       .select('id, full_name, email')
       .eq('company_id', profile.company_id)
       .neq('id', profile.id)
 
-    const coveredIds = new Set(enriched.map((c) => c.other_user.id))
-    for (const m of allTeam ?? []) {
-      if (!coveredIds.has(m.id)) {
-        enriched.push({ id: '', company_id: profile.company_id, created_at: '', other_user: m, last_message: null, unread_count: 0 })
-      }
+    const teamMap: Record<string, TeamMember> = {}
+    for (const m of team ?? []) teamMap[m.id] = m
+
+    const enriched: Conversation[] = []
+
+    for (const conv of convs ?? []) {
+      const otherId = conv.participants.find((p: string) => p !== profile.id)
+      const other = otherId ? teamMap[otherId] : null
+      if (!other) continue
+
+      const { count: unread } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', conv.id)
+        .neq('sender_id', profile.id)
+        .not('read_by', 'cs', `{${profile.id}}`)
+
+      enriched.push({ ...conv, other_user: other, unread_count: unread ?? 0 })
     }
 
-    enriched.sort((a, b) => {
-      const ta = a.last_message?.created_at ?? a.created_at
-      const tb = b.last_message?.created_at ?? b.created_at
-      return tb.localeCompare(ta)
-    })
+    // Add team members with no conversation yet
+    const usedIds = new Set(enriched.map((c) => c.other_user.id))
+    for (const m of team ?? []) {
+      if (!usedIds.has(m.id)) {
+        enriched.push({
+          id: '',
+          participants: [profile.id, m.id],
+          last_message: null,
+          last_message_at: '',
+          created_at: '',
+          other_user: m,
+          unread_count: 0,
+        })
+      }
+    }
 
     setConversations(enriched)
     setLoading(false)
@@ -166,43 +127,52 @@ export default function MessagesPage() {
 
   useEffect(() => { fetchConversations() }, [fetchConversations])
 
+  /* ─── open conversation ─── */
   const openConversation = useCallback(async (conv: Conversation) => {
     setActiveConv(conv)
     setMobileView('conv')
-    if (!conv.id || !profile) {
-      setMessages([])
-      return
-    }
+    if (!conv.id || !profile) { setMessages([]); return }
+
     setMsgLoading(true)
     const supabase = createClient()
     const { data } = await supabase
       .from('messages')
-      .select('*, document:document_id(*)')
+      .select('*')
       .eq('conversation_id', conv.id)
       .order('created_at', { ascending: true })
     setMessages((data as Message[]) ?? [])
     setMsgLoading(false)
-    // Mark as read
-    await supabase.from('messages').update({ read: true }).eq('conversation_id', conv.id).neq('sender_id', profile.id).eq('read', false)
-    fetchConversations()
+
+    // Mark unread messages as read
+    const unreadMsgs = ((data as Message[]) ?? [])
+      .filter((m) => m.sender_id !== profile.id && !m.read_by.includes(profile.id))
+    for (const msg of unreadMsgs) {
+      await supabase
+        .from('messages')
+        .update({ read_by: [...msg.read_by, profile.id] })
+        .eq('id', msg.id)
+    }
+    if (unreadMsgs.length > 0) fetchConversations()
   }, [profile, fetchConversations])
 
-  // Realtime subscription
+  /* ─── realtime ─── */
   useEffect(() => {
     if (!activeConv?.id || !profile) return
     const supabase = createClient()
     const channel = supabase
       .channel(`messages-${activeConv.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${activeConv.id}` }, async (payload) => {
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages',
+        filter: `conversation_id=eq.${activeConv.id}`,
+      }, (payload) => {
         const msg = payload.new as Message
-        if (msg.document_id) {
-          const { data: doc } = await supabase.from('documents').select('*').eq('id', msg.document_id).single()
-          setMessages((prev) => [...prev, { ...msg, document: doc }])
-        } else {
-          setMessages((prev) => [...prev, msg])
-        }
+        setMessages((prev) => [...prev, msg])
         if (msg.sender_id !== profile.id) {
-          await supabase.from('messages').update({ read: true }).eq('id', msg.id)
+          supabase.from('messages').select('read_by').eq('id', msg.id).single().then(({ data: row }) => {
+            if (row && !row.read_by.includes(profile.id)) {
+              supabase.from('messages').update({ read_by: [...row.read_by, profile.id] }).eq('id', msg.id)
+            }
+          })
         }
       })
       .subscribe()
@@ -213,28 +183,41 @@ export default function MessagesPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  /* ─── get or create conversation ─── */
   const getOrCreateConversation = async (): Promise<string | null> => {
     if (!profile || !activeConv) return null
     if (activeConv.id) return activeConv.id
 
     const supabase = createClient()
+    const participants = [profile.id, activeConv.other_user.id]
+
+    // Check if conversation already exists
+    const { data: existing } = await supabase
+      .from('conversations')
+      .select('id')
+      .contains('participants', participants)
+      .limit(1)
+
+    if (existing?.[0]) {
+      const id = existing[0].id
+      setActiveConv((prev) => prev ? { ...prev, id } : prev)
+      setConversations((prev) => prev.map((c) => c.other_user.id === activeConv.other_user.id ? { ...c, id } : c))
+      return id
+    }
+
     const { data: conv } = await supabase
       .from('conversations')
-      .insert({ company_id: profile.company_id })
+      .insert({ participants })
       .select()
       .single()
+
     if (!conv) return null
-
-    await supabase.from('conversation_members').insert([
-      { conversation_id: conv.id, user_id: profile.id },
-      { conversation_id: conv.id, user_id: activeConv.other_user.id },
-    ])
-
     setActiveConv((prev) => prev ? { ...prev, id: conv.id } : prev)
     setConversations((prev) => prev.map((c) => c.other_user.id === activeConv.other_user.id ? { ...c, id: conv.id } : c))
     return conv.id
   }
 
+  /* ─── send message ─── */
   const handleSend = async () => {
     if (!text.trim() || !profile) return
     setSending(true)
@@ -246,12 +229,19 @@ export default function MessagesPage() {
       conversation_id: convId,
       sender_id: profile.id,
       content: text.trim(),
-      message_type: 'text',
+      read_by: [profile.id],
     })
-    setText('')
 
-    // Notification to recipient
-    await fetch('/api/notifications/message', {
+    // Update conversation last_message
+    await supabase.from('conversations').update({
+      last_message: text.trim(),
+      last_message_at: new Date().toISOString(),
+    }).eq('id', convId)
+
+    setText('')
+    fetchConversations()
+
+    fetch('/api/notifications/message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -260,11 +250,12 @@ export default function MessagesPage() {
         content: text.trim(),
         conversationId: convId,
       }),
-    })
+    }).catch(() => {})
 
     setSending(false)
   }
 
+  /* ─── document attachment ─── */
   const loadCompanyDocs = async () => {
     if (!profile) return
     setDocsLoading(true)
@@ -287,48 +278,54 @@ export default function MessagesPage() {
     if (!convId) return
 
     const supabase = createClient()
+    const preview = `${doc.title ?? doc.file_name} (${doc.file_type?.toUpperCase()})`
+
     await supabase.from('messages').insert({
       conversation_id: convId,
       sender_id: profile.id,
       content: null,
-      document_id: doc.id,
-      message_type: 'document',
+      file_path: doc.file_url,
+      file_name: doc.title ?? doc.file_name,
+      file_type: doc.file_type,
+      read_by: [profile.id],
     })
 
-    // Notification
-    await fetch('/api/notifications/message', {
+    await supabase.from('conversations').update({
+      last_message: `📎 ${doc.title ?? doc.file_name}`,
+      last_message_at: new Date().toISOString(),
+    }).eq('id', convId)
+
+    fetchConversations()
+
+    fetch('/api/notifications/message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         recipientId: activeConv.other_user.id,
         senderName: profile.full_name,
-        content: `A partagé un document : ${doc.title ?? doc.file_name}`,
+        content: `A partagé un document : ${preview}`,
         conversationId: convId,
         type: 'document_shared',
-        documentId: doc.id,
       }),
-    })
+    }).catch(() => {})
   }
 
   if (!profile) return null
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col" style={{ height: '100dvh' }}>
       <Header title="Messages" />
 
-      <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 57px)' }}>
+      <div className="flex flex-1 overflow-hidden">
         {/* Conversation list */}
         <div
-          className={`${mobileView === 'conv' ? 'hidden' : 'flex'} md:flex flex-col border-r border-gray-100`}
-          style={{ width: '100%', maxWidth: '100%', background: '#fff' }}
+          className={`${mobileView === 'conv' ? 'hidden md:flex' : 'flex'} flex-col bg-white border-r border-gray-100`}
+          style={{ width: '100%', maxWidth: 'min(100%, 320px)' }}
         >
-          <div className="hidden md:block" style={{ maxWidth: 320, width: '100%' }}>
-            <div className="px-4 py-4 border-b border-gray-100">
-              <p className="font-semibold text-[#0F172A]">Messages</p>
-            </div>
+          <div className="px-4 py-4 border-b border-gray-100 hidden md:block">
+            <p className="font-semibold text-[#0F172A] text-sm">Messages</p>
           </div>
-
-          <div className="flex-1 overflow-y-auto" style={{ maxWidth: 'min(100%, 320px)' }}>
+          <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin" />
@@ -355,17 +352,13 @@ export default function MessagesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
                       <p className="text-sm font-medium text-[#1E293B] truncate">{conv.other_user.full_name}</p>
-                      {conv.last_message && (
-                        <p className="text-[10px] text-[#94A3B8] shrink-0">{timeShort(conv.last_message.created_at)}</p>
+                      {conv.last_message_at && (
+                        <p className="text-[10px] text-[#94A3B8] shrink-0">{timeShort(conv.last_message_at)}</p>
                       )}
                     </div>
-                    {conv.last_message ? (
-                      <p className="text-xs text-[#94A3B8] truncate">
-                        {conv.last_message.message_type === 'document' ? '📎 Document' : conv.last_message.content ?? ''}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-[#CBD5E1]">Démarrer une conversation</p>
-                    )}
+                    <p className="text-xs text-[#94A3B8] truncate">
+                      {conv.last_message ?? 'Démarrer une conversation'}
+                    </p>
                   </div>
                   {conv.unread_count > 0 && (
                     <span className="shrink-0 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#3B82F6' }}>
@@ -379,9 +372,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Conversation view */}
-        <div
-          className={`${mobileView === 'list' ? 'hidden' : 'flex'} md:flex flex-1 flex-col bg-[#F8FAFC]`}
-        >
+        <div className={`${mobileView === 'list' ? 'hidden md:flex' : 'flex'} flex-1 flex-col bg-[#F8FAFC]`}>
           {!activeConv ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <MessageCircle className="w-12 h-12 text-gray-200" />
@@ -389,7 +380,6 @@ export default function MessagesPage() {
             </div>
           ) : (
             <>
-              {/* Conv header */}
               <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shrink-0">
                 <button onClick={() => setMobileView('list')} className="md:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
                   <ArrowLeft className="w-4 h-4" />
@@ -403,40 +393,52 @@ export default function MessagesPage() {
                 <p className="font-medium text-[#0F172A] text-sm">{activeConv.other_user.full_name}</p>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
                 {msgLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin" />
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center gap-2 py-12">
+                  <div className="flex-1 flex items-center justify-center">
                     <p className="text-sm text-[#94A3B8]">Commencez la conversation</p>
                   </div>
                 ) : (
                   messages.map((msg) => {
                     const isMine = msg.sender_id === profile.id
+                    const hasFile = !!msg.file_path
+
                     return (
                       <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                        {msg.message_type === 'document' && msg.document ? (
+                        {hasFile ? (
                           <div
                             className="flex items-center gap-2 px-3 py-2.5 rounded-2xl max-w-[240px]"
-                            style={{ background: isMine ? '#3B82F6' : '#fff', border: isMine ? 'none' : '1px solid #E2E8F0' }}
+                            style={{
+                              background: isMine ? '#3B82F6' : '#fff',
+                              border: isMine ? 'none' : '1px solid #E2E8F0',
+                            }}
                           >
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: isMine ? 'rgba(255,255,255,0.2)' : '#F0F4FF' }}>
-                              {msg.document.file_type === 'image'
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ background: isMine ? 'rgba(255,255,255,0.2)' : '#F0F4FF' }}
+                            >
+                              {msg.file_type === 'image'
                                 ? <ImageIcon className="w-4 h-4" style={{ color: isMine ? 'white' : '#3B82F6' }} />
                                 : <FileText className="w-4 h-4" style={{ color: isMine ? 'white' : '#3B82F6' }} />}
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-xs font-medium truncate" style={{ color: isMine ? 'white' : '#1E293B' }}>
-                                {msg.document.title ?? msg.document.file_name}
+                                {msg.file_name}
                               </p>
                               <p className="text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.7)' : '#94A3B8' }}>
-                                {msg.document.file_type?.toUpperCase()}
+                                {msg.file_type?.toUpperCase()}
                               </p>
                             </div>
-                            <a href={`/api/documents/${msg.document.id}/open`} target="_blank" rel="noreferrer" className="shrink-0">
+                            <a
+                              href={`/api/documents/by-path?path=${encodeURIComponent(msg.file_path ?? '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="shrink-0"
+                            >
                               <ExternalLink className="w-3.5 h-3.5" style={{ color: isMine ? 'rgba(255,255,255,0.7)' : '#94A3B8' }} />
                             </a>
                           </div>
@@ -459,7 +461,6 @@ export default function MessagesPage() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Input bar */}
               <div className="px-4 py-3 bg-white border-t border-gray-100 flex items-end gap-2 shrink-0">
                 <button
                   onClick={() => { setAttachOpen(true); loadCompanyDocs() }}
@@ -474,7 +475,7 @@ export default function MessagesPage() {
                   placeholder="Écrire un message..."
                   rows={1}
                   className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-300 bg-[#F8FAFC]"
-                  style={{ maxHeight: 120, lineHeight: 1.5 }}
+                  style={{ maxHeight: 120 }}
                 />
                 <button
                   onClick={handleSend}
@@ -490,7 +491,6 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* Attach document sheet */}
       <BottomSheet open={attachOpen} onClose={() => setAttachOpen(false)} title="Partager un document">
         {docsLoading ? (
           <div className="flex items-center justify-center py-8">

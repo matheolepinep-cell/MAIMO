@@ -1141,7 +1141,7 @@ function DocPreviewModal({ doc, url, onClose }: { doc: Document; url: string; on
       await fetch('/api/notifications/share-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientId: member.id, documentId: doc.id, documentName: doc.title ?? doc.file_name }),
+        body: JSON.stringify({ recipientId: member.id, documentId: doc.id, documentName: doc.title ?? doc.file_name, filePath: doc.file_url, fileType: doc.file_type }),
       })
     } catch { /* best-effort */ }
     setShareStatus(`Document partagé avec ${member.full_name}`)
