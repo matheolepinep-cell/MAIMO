@@ -4,7 +4,7 @@ import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
-  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download
+  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download, Share2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Modal } from '@/components/ui/Modal'
+import { BottomSheet } from '@/components/ui/BottomSheet'
 import type { Account, Contact, Note, Document, SearchSource } from '@/types/database'
 
 /* ─── helpers ─── */
@@ -1013,9 +1014,14 @@ function NoteCard({ note, noteDocuments, onDelete, onOpenDoc }: {
 
 /* ─── DocPreviewModal ─── */
 function DocPreviewModal({ doc, url, onClose }: { doc: Document; url: string; onClose: () => void }) {
+  const { profile } = useUser()
   const [isMobile, setIsMobile] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<{ id: string; full_name: string }[]>([])
+  const [shareStatus, setShareStatus] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState(false)
 
   const isImage = doc.file_type === 'image'
   const isPdf = doc.file_type === 'pdf'
@@ -1034,118 +1040,241 @@ function DocPreviewModal({ doc, url, onClose }: { doc: Document; url: string; on
     return () => clearTimeout(timer)
   }, [usesIframe, url])
 
+  useEffect(() => {
+    if (!shareOpen || !profile?.company_id || teamMembers.length > 0) return
+    const supabase = createClient()
+    supabase
+      .from('users')
+      .select('id, full_name')
+      .eq('company_id', profile.company_id)
+      .neq('id', profile.id)
+      .then(({ data }) => setTeamMembers(data ?? []))
+  }, [shareOpen, profile, teamMembers.length])
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      const file = new File([blob], doc.file_name, { type: blob.type })
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: doc.file_name })
+        return
+      }
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = doc.file_name
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+    } catch {
+      window.open(url, '_blank')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const handleSystemShare = async () => {
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      const file = new File([blob], doc.file_name, { type: blob.type })
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: doc.file_name })
+        setShareOpen(false)
+        return
+      }
+    } catch { /* fall through */ }
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareStatus('Lien copié dans le presse-papier')
+    } catch {
+      setShareStatus('Impossible de copier le lien')
+    }
+    setTimeout(() => setShareStatus(null), 3000)
+  }
+
+  const handleInternalShare = (member: { id: string; full_name: string }) => {
+    // notification + message créés en étape 5
+    setShareStatus(`Document partagé avec ${member.full_name}`)
+    setTimeout(() => { setShareStatus(null); setShareOpen(false) }, 2000)
+  }
+
   const gdocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`
-  // Desktop PDF → direct iframe; mobile PDF or any Office → Google Docs Viewer
   const iframeSrc = isPdf && !isMobile ? url : gdocsUrl
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center"
-      style={{ zIndex: 9999, background: 'rgba(0,0,0,0.85)' }}
-      onClick={onClose}
-    >
+    <>
       <div
-        className="relative flex flex-col w-full h-full md:w-[80vw] md:h-[85vh] md:rounded-2xl overflow-hidden"
-        style={{ background: '#fff' }}
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 flex items-center justify-center"
+        style={{ zIndex: 9999, background: 'rgba(0,0,0,0.85)' }}
+        onClick={onClose}
       >
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 shrink-0">
-          <FileText className="w-4 h-4 text-[#64748B] shrink-0" />
-          <span className="flex-1 text-sm font-medium text-[#1E293B] truncate min-w-0">
-            {doc.title ?? doc.file_name}
-          </span>
-          <button
-            onClick={() => window.open(`/api/documents/${doc.id}/open`, '_blank')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] bg-gray-100 hover:bg-gray-200 transition-all duration-150 shrink-0"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Télécharger</span>
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-150 shrink-0"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div
+          className="relative flex flex-col w-full h-full md:w-[80vw] md:h-[85vh] md:rounded-2xl overflow-hidden"
+          style={{ background: '#fff' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
+            <FileText className="w-4 h-4 text-[#64748B] shrink-0" />
+            <span className="flex-1 text-sm font-medium text-[#1E293B] truncate min-w-0">
+              {doc.title ?? doc.file_name}
+            </span>
+            <button
+              onClick={() => setShareOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] bg-gray-100 hover:bg-gray-200 transition-all duration-150 shrink-0"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Partager</span>
+            </button>
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] bg-gray-100 hover:bg-gray-200 transition-all duration-150 shrink-0 disabled:opacity-60"
+            >
+              {downloading
+                ? <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin" />
+                : <Download className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">Télécharger</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-150 shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Image */}
+          {isImage && (
+            <div className="flex-1 flex items-center justify-center overflow-auto" style={{ background: '#111' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={doc.title ?? doc.file_name}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', touchAction: 'manipulation' }}
+              />
+            </div>
+          )}
+
+          {/* PDF / Office via iframe */}
+          {usesIframe && !iframeFailed && (
+            <div className="flex-1 relative flex flex-col min-h-0">
+              {!iframeLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
+                  <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin" />
+                </div>
+              )}
+              <iframe
+                src={iframeSrc}
+                className="flex-1 w-full border-0 min-h-0"
+                title={doc.title ?? doc.file_name}
+                onLoad={() => setIframeLoaded(true)}
+                onError={() => setIframeFailed(true)}
+              />
+              {isOffice && (
+                <p className="text-center text-[10px] text-[#94A3B8] py-1 shrink-0">
+                  Prévisualisation via Google Docs
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Iframe fallback */}
+          {usesIframe && iframeFailed && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+              <FileText className="w-12 h-12 text-[#CBD5E1]" />
+              <p className="text-sm font-medium text-[#1E293B] text-center">{doc.title ?? doc.file_name}</p>
+              <p className="text-xs text-[#94A3B8] text-center">
+                {isPdf ? "La prévisualisation PDF n'est pas disponible." : "La prévisualisation n'est pas disponible."}
+              </p>
+              <button
+                onClick={() => window.open(url, '_blank')}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all duration-150"
+                style={{ background: '#3B82F6' }}
+              >
+                <ExternalLink className="w-4 h-4" />
+                Ouvrir dans Safari →
+              </button>
+            </div>
+          )}
+
+          {/* Unsupported type */}
+          {!isPdf && !isImage && !isOffice && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+              <FileText className="w-12 h-12 text-[#CBD5E1]" />
+              <p className="text-sm font-medium text-[#1E293B] text-center">{doc.title ?? doc.file_name}</p>
+              <p className="text-xs text-[#94A3B8] text-center">
+                Ce type de fichier ne peut pas être prévisualisé directement.
+              </p>
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all duration-150"
+                style={{ background: '#3B82F6' }}
+              >
+                <Download className="w-4 h-4" />
+                Télécharger le fichier
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Share bottom sheet */}
+      <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)} title="Partager le document">
+        {shareStatus && (
+          <div className="mb-4 px-3 py-2 rounded-xl text-sm font-medium text-center" style={{ background: '#F0FDF4', color: '#16A34A' }}>
+            {shareStatus}
+          </div>
+        )}
+
+        <div className="mb-5">
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#94A3B8' }}>
+            Partager en interne
+          </p>
+          {teamMembers.length === 0 ? (
+            <p className="text-sm text-center py-2" style={{ color: '#94A3B8' }}>Aucun autre membre dans l'équipe</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {teamMembers.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => handleInternalShare(m)}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all duration-150 text-left w-full"
+                >
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: '#3B82F6' }}>
+                    <span className="text-xs font-bold text-white">
+                      {m.full_name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-[#1E293B]">{m.full_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Image — native img tag for mobile pinch-zoom */}
-        {isImage && (
-          <div
-            className="flex-1 flex items-center justify-center overflow-auto"
-            style={{ background: '#111' }}
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#94A3B8' }}>
+            Partager via le système
+          </p>
+          <button
+            onClick={handleSystemShare}
+            className="flex items-center gap-3 w-full px-3 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all duration-150"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={url}
-              alt={doc.title ?? doc.file_name}
-              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', touchAction: 'manipulation' }}
-            />
-          </div>
-        )}
-
-        {/* PDF / Office via iframe with spinner + fallback */}
-        {usesIframe && !iframeFailed && (
-          <div className="flex-1 relative flex flex-col min-h-0">
-            {!iframeLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
-                <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin" />
-              </div>
-            )}
-            <iframe
-              src={iframeSrc}
-              className="flex-1 w-full border-0 min-h-0"
-              title={doc.title ?? doc.file_name}
-              onLoad={() => setIframeLoaded(true)}
-              onError={() => setIframeFailed(true)}
-            />
-            {isOffice && (
-              <p className="text-center text-[10px] text-[#94A3B8] py-1 shrink-0">
-                Prévisualisation via Google Docs
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Iframe fallback */}
-        {usesIframe && iframeFailed && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
-            <FileText className="w-12 h-12 text-[#CBD5E1]" />
-            <p className="text-sm font-medium text-[#1E293B] text-center">{doc.title ?? doc.file_name}</p>
-            <p className="text-xs text-[#94A3B8] text-center">
-              {isPdf ? "La prévisualisation PDF n'est pas disponible." : "La prévisualisation n'est pas disponible."}
-            </p>
-            <button
-              onClick={() => window.open(url, '_blank')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all duration-150"
-              style={{ background: '#3B82F6' }}
-            >
-              <ExternalLink className="w-4 h-4" />
-              Ouvrir dans Safari →
-            </button>
-          </div>
-        )}
-
-        {/* Unsupported type */}
-        {!isPdf && !isImage && !isOffice && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
-            <FileText className="w-12 h-12 text-[#CBD5E1]" />
-            <p className="text-sm font-medium text-[#1E293B] text-center">{doc.title ?? doc.file_name}</p>
-            <p className="text-xs text-[#94A3B8] text-center">
-              Ce type de fichier ne peut pas être prévisualisé directement.
-            </p>
-            <button
-              onClick={() => window.open(`/api/documents/${doc.id}/open`, '_blank')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all duration-150"
-              style={{ background: '#3B82F6' }}
-            >
-              <Download className="w-4 h-4" />
-              Télécharger le fichier
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: '#8B5CF6' }}>
+              <Share2 className="w-4 h-4 text-white" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-medium text-[#1E293B]">Partager via...</p>
+              <p className="text-xs" style={{ color: '#94A3B8' }}>Mail, Messages, WhatsApp, AirDrop...</p>
+            </div>
+          </button>
+        </div>
+      </BottomSheet>
+    </>
   )
 }
