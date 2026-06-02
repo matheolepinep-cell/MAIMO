@@ -6,10 +6,11 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { accountId, companyId, fileName, accountName } = await request.json()
-  if (!accountId || !companyId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  const { accountId, fileName, accountName } = await request.json()
+  if (!accountId) return NextResponse.json({ error: 'Missing accountId' }, { status: 400 })
 
-  const userIds = await getNotifiableUsers(accountId, companyId, user.id)
+  // company_id always comes from the authenticated user's profile, never from the request body
+  const userIds = await getNotifiableUsers(accountId, user.company_id, user.id)
   if (userIds.length === 0) return NextResponse.json({ ok: true })
 
   await notifyTeam(
