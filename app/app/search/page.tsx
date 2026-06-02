@@ -178,7 +178,7 @@ function SearchPageContent() {
 
   const tabsBar = (
     <div
-      className="flex shrink-0 px-3 py-2 bg-white gap-2 md:px-0 md:bg-transparent"
+      className="flex shrink-0 px-4 py-2 bg-white gap-2 md:px-0 md:bg-transparent"
       style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}
     >
       {(['portfolio', 'global'] as const).map((tab) => (
@@ -209,11 +209,11 @@ function SearchPageContent() {
 
   const inputBar = (isMobile: boolean) => (
     <div
-      className="shrink-0 px-3 py-2.5 bg-white md:px-6 md:py-3"
+      className="shrink-0 px-4 py-3 bg-white md:px-6 md:py-3"
       style={{ borderTop: '1px solid #E5EAF5' }}
     >
       <div
-        className="flex items-center gap-2 px-3 py-2 md:max-w-2xl md:mx-auto"
+        className="flex items-center gap-2 px-[14px] py-2 md:max-w-2xl md:mx-auto"
         style={{ background: '#F5F7FA', borderRadius: 14, border: '1px solid #E5EAF5' }}
       >
         <MessageSquare className="w-4 h-4 text-slate-400 shrink-0" />
@@ -339,7 +339,7 @@ function SearchPageContent() {
         {tabsBar}
 
         {/* Conversation area */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-3">
+        <div className="flex-1 overflow-y-auto min-h-0 px-[14px] py-3 space-y-3">
           {conversationMessages}
         </div>
 

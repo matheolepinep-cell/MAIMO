@@ -159,7 +159,7 @@ export default function PortfolioPage() {
 
         {/* Tabs */}
         <div
-          className="flex shrink-0 px-3 py-2 bg-white gap-2"
+          className="flex shrink-0 px-4 py-3 bg-white gap-2"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}
         >
           {(['perso', 'global'] as const).map((tab) => (
@@ -177,7 +177,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-[10px]">
           {(loading || globalLoading) ? (
             [...Array(5)].map((_, i) => (
               <div key={i} className="h-[52px] bg-white rounded-2xl animate-pulse"
@@ -198,7 +198,7 @@ export default function PortfolioPage() {
               <button
                 key={acc.id}
                 onClick={() => router.push(`/app/accounts/${acc.id}`)}
-                className="w-full flex items-center gap-3 bg-white rounded-2xl px-3 py-3 text-left transition-all duration-150 hover:-translate-y-0.5"
+                className="w-full flex items-center gap-3 bg-white rounded-2xl px-[14px] py-[14px] text-left transition-all duration-150 hover:-translate-y-0.5"
                 style={{ border: '1px solid rgba(30,39,97,0.07)', boxShadow: '0 1px 3px rgba(30,39,97,0.04)' }}
               >
                 {/* Status dot */}
