@@ -4,9 +4,10 @@ import { useUser } from '@/contexts/UserContext'
 
 interface HeaderProps {
   title?: string
+  actions?: React.ReactNode
 }
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, actions }: HeaderProps) {
   const { profile } = useUser()
 
   return (
@@ -19,6 +20,7 @@ export function Header({ title }: HeaderProps) {
         style={!title ? { letterSpacing: '0.15em' } : {}}>
         {title || 'MAIMOO'}
       </span>
+      {actions}
       {profile && (
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"

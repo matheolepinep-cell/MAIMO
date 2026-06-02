@@ -2,28 +2,35 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search, LayoutDashboard, Briefcase, Users, Settings, User, Menu } from 'lucide-react'
+import { Search, LayoutDashboard, Briefcase, Users, Settings, User, Menu, MessageCircle, Bell } from 'lucide-react'
 import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
-
-const navItems = [
-  { href: '/app/search', icon: Search, label: 'Recherche' },
-  { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/app/portfolio', icon: Briefcase, label: 'Portefeuille' },
-  { href: '/app/team', icon: Users, label: 'Équipe' },
-]
+import { useUser } from '@/contexts/UserContext'
+import { useNotificationCount } from '@/contexts/NotificationContext'
 
 export function MobileSidebar() {
   const pathname = usePathname()
+  const { profile } = useUser()
   const { open, close, toggle } = useMobileSidebar()
+  const unreadCount = useNotificationCount()
 
   const isActive = (href: string) =>
     href === '/app/search'
       ? pathname.startsWith('/app/search') || pathname === '/app'
+      : href === '/app/portfolio'
+      ? pathname.startsWith('/app/portfolio') || pathname.startsWith('/app/accounts')
       : pathname.startsWith(href)
+
+  const navItems = [
+    { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/app/search', icon: Search, label: 'Recherche IA' },
+    { href: '/app/portfolio', icon: Briefcase, label: 'Portefeuille' },
+    { href: '/app/messages', icon: MessageCircle, label: 'Messages' },
+    { href: '/app/team', icon: Users, label: 'Équipe' },
+  ]
 
   return (
     <>
-      {/* Floating burger button — always visible on mobile when sidebar is closed */}
+      {/* Floating burger button */}
       {!open && (
         <button
           className="md:hidden fixed top-3 left-3 z-50 w-10 h-10 flex items-center justify-center rounded-xl"
@@ -35,7 +42,7 @@ export function MobileSidebar() {
         </button>
       )}
 
-      {/* Sidebar overlay — always rendered for smooth slide-in animation */}
+      {/* Sidebar overlay */}
       <div
         className="md:hidden fixed inset-0 z-50 transition-all duration-200"
         style={{
@@ -54,7 +61,7 @@ export function MobileSidebar() {
           onClick={(e) => e.stopPropagation()}
         >
           {/* Logo */}
-          <Link href="/app/search" className="flex items-center gap-3 px-4 mb-6 shrink-0" onClick={close}>
+          <Link href="/app/dashboard" className="flex items-center gap-3 px-4 mb-6 shrink-0" onClick={close}>
             <div
               className="flex items-center justify-center shrink-0 text-white font-bold text-base"
               style={{ background: '#4C6EF5', width: 36, height: 36, borderRadius: 10 }}
@@ -78,16 +85,8 @@ export function MobileSidebar() {
               }}
               onClick={close}
             >
-              <Icon
-                style={{ color: isActive(href) ? 'white' : '#8899BB', width: 22, height: 22 }}
-              />
-              <span
-                style={{
-                  color: isActive(href) ? 'white' : '#8899BB',
-                  fontSize: 15,
-                  fontWeight: 500,
-                }}
-              >
+              <Icon style={{ color: isActive(href) ? 'white' : '#8899BB', width: 22, height: 22 }} />
+              <span style={{ color: isActive(href) ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
                 {label}
               </span>
             </Link>
@@ -95,37 +94,52 @@ export function MobileSidebar() {
 
           <div className="flex-1" />
 
-          {/* Settings */}
+          {/* Notifications */}
           <Link
-            href="/app/settings"
+            href="/app/notifications"
             className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
-            style={{
-              padding: '12px 16px',
-              background: pathname.startsWith('/app/settings') ? '#1E3A6E' : 'transparent',
-            }}
+            style={{ padding: '12px 16px', background: pathname.startsWith('/app/notifications') ? '#1E3A6E' : 'transparent' }}
             onClick={close}
           >
-            <Settings
-              style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', width: 22, height: 22 }}
-            />
-            <span style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
-              Paramètres
+            <div className="relative shrink-0">
+              <Bell style={{ color: pathname.startsWith('/app/notifications') ? 'white' : '#8899BB', width: 22, height: 22 }} />
+              {unreadCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-bold text-white flex items-center justify-center"
+                  style={{ background: '#EF4444' }}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </div>
+            <span style={{ color: pathname.startsWith('/app/notifications') ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
+              Notifications
             </span>
           </Link>
+
+          {/* Settings (admin only) */}
+          {profile?.role === 'admin' && (
+            <Link
+              href="/app/settings"
+              className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
+              style={{ padding: '12px 16px', background: pathname.startsWith('/app/settings') ? '#1E3A6E' : 'transparent' }}
+              onClick={close}
+            >
+              <Settings style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', width: 22, height: 22 }} />
+              <span style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
+                Paramètres
+              </span>
+            </Link>
+          )}
 
           {/* Profile */}
           <Link
             href="/app/profile"
             className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
-            style={{
-              padding: '12px 16px',
-              background: pathname.startsWith('/app/profile') ? '#1E3A6E' : 'transparent',
-            }}
+            style={{ padding: '12px 16px', background: pathname.startsWith('/app/profile') ? '#1E3A6E' : 'transparent' }}
             onClick={close}
           >
-            <User
-              style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB', width: 22, height: 22 }}
-            />
+            <User style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB', width: 22, height: 22 }} />
             <span style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
               Profil
             </span>

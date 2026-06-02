@@ -3,26 +3,37 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown } from 'lucide-react'
+import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown, MessageCircle, Bell } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
+import { useNotificationCount } from '@/contexts/NotificationContext'
 
 function NavItem({
   href,
   icon: Icon,
   label,
   active,
+  badge,
   onClick,
 }: {
   href?: string
   icon: React.ElementType
   label: string
   active: boolean
+  badge?: number
   onClick?: () => void
 }) {
   const content = (
     <>
       <Icon className="w-[18px] h-[18px] shrink-0" style={{ color: active ? 'white' : '#8899BB' }} />
-      <span className="text-sm truncate" style={{ color: active ? 'white' : '#8899BB' }}>{label}</span>
+      <span className="text-sm truncate flex-1" style={{ color: active ? 'white' : '#8899BB' }}>{label}</span>
+      {badge != null && badge > 0 && (
+        <span
+          className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
+          style={{ background: '#EF4444' }}
+        >
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
     </>
   )
 
@@ -46,6 +57,7 @@ function NavItem({
 export function Sidebar() {
   const pathname = usePathname()
   const { profile } = useUser()
+  const unreadCount = useNotificationCount()
   const [portfolioOpen, setPortfolioOpen] = useState(
     pathname.startsWith('/app/portfolio') || pathname.startsWith('/app/accounts')
   )
@@ -79,16 +91,16 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex flex-col gap-0.5 flex-1">
         <NavItem
-          href="/app/search"
-          icon={Search}
-          label="Recherche"
-          active={pathname.startsWith('/app/search') || pathname === '/app'}
-        />
-        <NavItem
           href="/app/dashboard"
           icon={LayoutDashboard}
           label="Dashboard"
           active={pathname.startsWith('/app/dashboard')}
+        />
+        <NavItem
+          href="/app/search"
+          icon={Search}
+          label="Recherche IA"
+          active={pathname.startsWith('/app/search') || pathname === '/app'}
         />
 
         {/* Portefeuille with sub-items */}
@@ -113,9 +125,7 @@ export function Sidebar() {
               <Link
                 href="/app/portfolio"
                 className="flex items-center gap-2 px-3 py-2 mx-2 rounded-lg transition-all duration-150"
-                style={pathname.startsWith('/app/portfolio')
-                  ? { background: 'rgba(255,255,255,0.08)' }
-                  : {}}
+                style={pathname.startsWith('/app/portfolio') ? { background: 'rgba(255,255,255,0.08)' } : {}}
               >
                 <span className="text-xs" style={{ color: pathname.startsWith('/app/portfolio') ? 'white' : '#8899BB' }}>
                   Perso
@@ -124,11 +134,9 @@ export function Sidebar() {
               <Link
                 href="/app/accounts"
                 className="flex items-center gap-2 px-3 py-2 mx-2 rounded-lg transition-all duration-150"
-                style={pathname.startsWith('/app/accounts')
-                  ? { background: 'rgba(255,255,255,0.08)' }
-                  : {}}
+                style={pathname.startsWith('/app/accounts') ? { background: 'rgba(255,255,255,0.08)' } : {}}
               >
-                  <span className="text-xs" style={{ color: pathname.startsWith('/app/accounts') ? 'white' : '#8899BB' }}>
+                <span className="text-xs" style={{ color: pathname.startsWith('/app/accounts') ? 'white' : '#8899BB' }}>
                   Global
                 </span>
               </Link>
@@ -136,6 +144,12 @@ export function Sidebar() {
           )}
         </div>
 
+        <NavItem
+          href="/app/messages"
+          icon={MessageCircle}
+          label="Messages"
+          active={pathname.startsWith('/app/messages')}
+        />
         <NavItem
           href="/app/team"
           icon={Users}
@@ -146,6 +160,14 @@ export function Sidebar() {
 
       {/* Bottom section */}
       <div className="mt-auto pt-4 mx-2 flex flex-col gap-0.5" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <NavItem
+          href="/app/notifications"
+          icon={Bell}
+          label="Notifications"
+          active={pathname.startsWith('/app/notifications')}
+          badge={unreadCount}
+        />
+
         {profile?.role === 'admin' && (
           <NavItem
             href="/app/settings"
