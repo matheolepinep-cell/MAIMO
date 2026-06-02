@@ -286,6 +286,11 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note_id: note.id, content: note.content, account_id: id, company_id: profile?.company_id }),
       }).catch(console.error)
+      fetch('/api/notifications/note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: id, companyId: profile?.company_id, noteTitle: note.title, accountName: account?.name }),
+      }).catch(console.error)
       // Upload pièces jointes
       if (attachments.length > 0) {
         setUploadingAttachments(true)
@@ -406,6 +411,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           body: JSON.stringify({ file_url: filePath, file_type: fileType, account_id: id, company_id: profile.company_id }),
         }).catch(console.error)
       }
+      fetch('/api/notifications/document', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: id, companyId: profile.company_id, fileName: file.name, accountName: account?.name }),
+      }).catch(console.error)
     }
     e.target.value = ''
     setDocUploading(false)
@@ -1127,8 +1136,14 @@ function DocPreviewModal({ doc, url, onClose }: { doc: Document; url: string; on
     setTimeout(() => setShareStatus(null), 3000)
   }
 
-  const handleInternalShare = (member: { id: string; full_name: string }) => {
-    // notification + message créés en étape 5
+  const handleInternalShare = async (member: { id: string; full_name: string }) => {
+    try {
+      await fetch('/api/notifications/share-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientId: member.id, documentId: doc.id, documentName: doc.title ?? doc.file_name }),
+      })
+    } catch { /* best-effort */ }
     setShareStatus(`Document partagé avec ${member.full_name}`)
     setTimeout(() => { setShareStatus(null); setShareOpen(false) }, 2000)
   }
