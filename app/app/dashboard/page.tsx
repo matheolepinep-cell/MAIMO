@@ -293,97 +293,11 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-full overflow-x-hidden">
 
-      {/* ── MOBILE HEADER ── */}
-      <header className="md:hidden bg-white px-4 pl-14 py-3 flex items-center gap-3 sticky top-0 z-30"
-        style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
-        <span className="flex-1 font-extrabold text-[#1E2761] text-sm" style={{ letterSpacing: '0.15em' }}>MAIMOO</span>
-        {profile && (
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
-            style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
-            {profile.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
-          </div>
-        )}
-      </header>
-
-      {/* ── MOBILE BODY ── */}
-      <div className="md:hidden flex-1 px-[10px] py-5 max-w-2xl mx-auto w-full">
-        <div className="mb-5">
-          <h1 className="text-2xl font-semibold text-[#0F172A] tracking-tight">{greeting()} {firstName} 👋</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{time} · {formatDate()}</p>
-        </div>
-        <div className="mb-3">
-          {clientSearchBox}
-        </div>
-        <div className="mb-6">
-          <SearchBar large onSubmit={handleSearch} onVoiceResult={handleSearch} />
-        </div>
-        {recentAccounts.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Accès rapide</h2>
-            <div className="space-y-2">
-              {recentAccounts.map((acc) => (
-                <button key={acc.id} onClick={() => router.push(`/app/accounts/${acc.id}`)}
-                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-[12px] py-[10px] hover:-translate-y-0.5 transition-all duration-200"
-                  style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(76,110,245,0.1)' }}>
-                    <Building2 style={{ width: 18, height: 18 }} className="text-[#4C6EF5]" />
-                  </div>
-                  <span className="flex-1 text-[13px] font-medium text-[#0F172A] text-left truncate">{acc.name}</span>
-                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {mobileItems.length > 0 && (
-          <div>
-            <h2 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Récent</h2>
-            <div className="space-y-2">
-              {mobileItems.map((item) => (
-                <button key={`${item.kind}-${item.id}`} onClick={() => router.push(`/app/accounts/${item.account_id}`)}
-                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-[12px] py-[10px] hover:-translate-y-0.5 transition-all duration-200"
-                  style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
-                  {item.kind === 'note' ? (
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: item.source === 'vocal' ? 'rgba(239,68,68,0.1)' : 'rgba(76,110,245,0.1)' }}>
-                      {item.source === 'vocal' ? <Mic style={{ width: 18, height: 18 }} className="text-red-500" /> : <Type style={{ width: 18, height: 18 }} className="text-[#4C6EF5]" />}
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: 'rgba(139,92,246,0.1)' }}>
-                      <FileText style={{ width: 18, height: 18 }} className="text-purple-500" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-[13px] font-medium text-[#0F172A] truncate">
-                      {item.kind === 'note' ? (item.title ?? item.content.slice(0, 40)) : (item.title ?? item.file_name)}
-                    </p>
-                    <p className="text-[11px] text-slate-400">{item.account_name} · {timeAgo(item.created_at)}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {!profileLoading && recentAccounts.length === 0 && mobileItems.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ background: 'rgba(76,110,245,0.1)' }}>
-              <span className="text-2xl font-bold text-[#1E2761]">M</span>
-            </div>
-            <p className="text-[#0F172A] font-medium mb-1">Bienvenue sur MAIMOO</p>
-            <p className="text-sm text-slate-400">Posez votre première question ou créez votre première fiche.</p>
-          </div>
-        )}
-      </div>
-
-      {/* ── DESKTOP BODY ── */}
-      <div className="hidden md:flex flex-col min-h-full">
+      {/* ── BODY (mobile + desktop) ── */}
+      <div className="flex flex-col min-h-full">
 
         {/* Hero */}
-        <div className="relative px-4 md:px-10 pt-6 md:pt-10 pb-12 md:pb-16 overflow-hidden"
+        <div className="relative pl-14 pr-4 md:px-10 pt-6 md:pt-10 pb-12 md:pb-16 overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #0F1F5C 0%, #1E2761 40%, #2D3F8F 70%, #4C6EF5 100%)' }}>
           {/* Subtle grid pattern */}
           <div className="absolute inset-0 opacity-[0.04]" style={{
@@ -399,7 +313,7 @@ export default function DashboardPage() {
                 >
                   MAIMOO
                 </p>
-                <h1 className="text-3xl font-semibold text-white tracking-tight">
+                <h1 className="text-xl md:text-3xl font-semibold text-white tracking-tight">
                   {greeting()}, {firstName} 👋
                 </h1>
                 <p className="text-white/50 text-sm mt-1">{capitalize(formatDate())} · {time}</p>
@@ -418,7 +332,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 bg-[#F0F4FF] px-4 md:px-10 py-6 md:py-8 -mt-6">
+        <div className="flex-1 bg-[#F0F4FF] px-3 md:px-10 py-4 md:py-8 -mt-6">
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* Client search */}
@@ -427,11 +341,11 @@ export default function DashboardPage() {
             </div>
 
             {/* ROW 1 — Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
               {statCards.map(({ label, value, icon: Icon, iconColor, iconBg, delta }) => (
                 <div
                   key={label}
-                  className="bg-white rounded-2xl p-5 cursor-default transition-all duration-200 hover:-translate-y-0.5"
+                  className="bg-white rounded-2xl p-3 md:p-5 cursor-default transition-all duration-200 hover:-translate-y-0.5"
                   style={{
                     border: '1px solid rgba(30,39,97,0.08)',
                     boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
@@ -460,7 +374,7 @@ export default function DashboardPage() {
             </div>
 
             {/* ROW 2 — Activity + Portfolio/Team */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-5">
 
               {/* Activity feed — 3/5 */}
               <div className="col-span-1 lg:col-span-3 bg-white rounded-2xl overflow-hidden"
