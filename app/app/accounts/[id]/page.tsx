@@ -91,6 +91,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
   // Standalone document upload
   const [docUploading, setDocUploading] = useState(false)
+  const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null)
 
   // AI Search tab
   const [searchQuery, setSearchQuery] = useState('')
@@ -338,13 +339,28 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const handleOpenDocument = async (doc: Document) => {
+    if (doc.file_type === 'image') {
+      try {
+        const res = await fetch(`/api/documents/${doc.id}/url`)
+        const { url } = await res.json()
+        if (url) setLightboxUrl(url)
+      } catch { /* nothing */ }
+      return
+    }
+    // Open tab synchronously before await to avoid popup blocker
+    const newTab = window.open('', '_blank')
     try {
       const res = await fetch(`/api/documents/${doc.id}/url`)
       const { url } = await res.json()
-      if (!url) return
-      if (doc.file_type === 'image') setLightboxUrl(url)
-      else window.open(url, '_blank')
-    } catch { /* nothing */ }
+      if (url && newTab) newTab.location.href = url
+      else newTab?.close()
+    } catch { newTab?.close() }
+  }
+
+  const handleDeleteDocument = async (docId: string) => {
+    const supabase = createClient()
+    await supabase.from('documents').update({ is_deleted: true }).eq('id', docId)
+    setDocuments(prev => prev.filter(d => d.id !== docId))
   }
 
   const handleStandaloneDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -621,25 +637,41 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             ) : (
               <div className="space-y-1.5">
                 {documents.map((doc) => (
-                  <button
+                  <div
                     key={doc.id}
-                    onClick={() => handleOpenDocument(doc)}
-                    className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-all duration-150 text-left hover:bg-gray-50"
+                    className="flex items-center gap-1 rounded-xl transition-all duration-150 hover:bg-gray-50"
                     style={{ border: '1px solid rgba(30,39,97,0.07)' }}
                   >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ background: docTypeBg(doc.file_type) }}>
-                      {doc.file_type === 'image'
-                        ? <ImageIcon className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
-                        : <FileText className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
-                      <p className="text-[10px] text-[#94A3B8]">{fmtDay(doc.created_at)}</p>
-                    </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-[#C5D0F0] shrink-0" />
-                  </button>
+                    {/* Clickable open area */}
+                    <button
+                      onClick={() => handleOpenDocument(doc)}
+                      className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left min-w-0"
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: docTypeBg(doc.file_type) }}>
+                        {doc.file_type === 'image'
+                          ? <ImageIcon className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
+                          : <FileText className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
+                        <p className="text-[10px] text-[#94A3B8]">{fmtDay(doc.created_at)}</p>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-[#C5D0F0] shrink-0" />
+                    </button>
+                    {/* Delete */}
+                    {confirmDeleteDocId === doc.id ? (
+                      <div className="flex items-center gap-1 pr-2 shrink-0">
+                        <button onClick={() => { handleDeleteDocument(doc.id); setConfirmDeleteDocId(null) }} className="px-2 py-1 text-[10px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600">Sup.</button>
+                        <button onClick={() => setConfirmDeleteDocId(null)} className="px-2 py-1 text-[10px] font-medium text-[#64748B] bg-gray-100 rounded-lg hover:bg-gray-200">✕</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmDeleteDocId(doc.id)} className="p-1.5 mr-1 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150 shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

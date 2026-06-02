@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown, Building2 } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
 
 function NavItem({
@@ -128,8 +128,7 @@ export function Sidebar() {
                   ? { background: 'rgba(255,255,255,0.08)' }
                   : {}}
               >
-                <Building2 className="w-3 h-3 shrink-0" style={{ color: pathname.startsWith('/app/accounts') ? 'white' : '#8899BB' }} />
-                <span className="text-xs" style={{ color: pathname.startsWith('/app/accounts') ? 'white' : '#8899BB' }}>
+                  <span className="text-xs" style={{ color: pathname.startsWith('/app/accounts') ? 'white' : '#8899BB' }}>
                   Global
                 </span>
               </Link>
