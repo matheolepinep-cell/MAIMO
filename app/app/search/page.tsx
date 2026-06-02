@@ -179,14 +179,14 @@ function SearchPageContent() {
   // Shared input bar (mobile + desktop)
   const inputBarInner = (inputRef: React.RefObject<HTMLInputElement | null>) => (
     <div
-      className="flex items-center gap-3 transition-all duration-150"
+      className="flex items-center gap-2 transition-all duration-150"
       style={{
         background: '#F5F7FA',
-        borderRadius: 16,
+        borderRadius: 14,
         border: inputFocused ? '1.5px solid #4C6EF5' : '1.5px solid #E5EAF5',
         boxShadow: inputFocused ? '0 0 0 3px rgba(76,110,245,0.15)' : 'none',
-        padding: '0 18px',
-        minHeight: 56,
+        padding: '0 14px',
+        minHeight: 48,
       }}
     >
       <MessageSquare className="shrink-0 text-slate-400" style={{ width: 18, height: 18 }} />
@@ -194,7 +194,7 @@ function SearchPageContent() {
         ref={inputRef}
         type="text"
         className="flex-1 bg-transparent text-[#0F172A] placeholder-slate-400 focus:outline-none"
-        style={{ fontSize: 16 }}
+        style={{ fontSize: 14 }}
         placeholder="Poser une question..."
         value={input}
         onChange={(e) => setInput(e.target.value)}
@@ -210,21 +210,21 @@ function SearchPageContent() {
       <button
         onClick={isRecording ? stopVoice : startVoice}
         className="rounded-full flex items-center justify-center shrink-0 transition-all"
-        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 34, height: 34 }}
+        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 36, height: 36 }}
       >
         {isRecording
-          ? <MicOff className="text-white" style={{ width: 16, height: 16 }} />
-          : <Mic className="text-white" style={{ width: 16, height: 16 }} />
+          ? <MicOff className="text-white" style={{ width: 17, height: 17 }} />
+          : <Mic className="text-white" style={{ width: 17, height: 17 }} />
         }
       </button>
       <button
         onClick={handleSubmit}
         disabled={loading}
         className="rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
-        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 34, height: 34 }}
+        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 36, height: 36 }}
         aria-label="Envoyer"
       >
-        <ArrowUp className="text-white" style={{ width: 16, height: 16 }} />
+        <ArrowUp className="text-white" style={{ width: 17, height: 17 }} />
       </button>
     </div>
   )
@@ -353,7 +353,7 @@ function SearchPageContent() {
 
             {/* Input bar fixed at bottom — pb-20 clears Safari toolbar */}
             <div
-              className="shrink-0 bg-white px-4 pt-3"
+              className="shrink-0 bg-white px-[12px] pt-3"
               style={{ borderTop: '1px solid #E5EAF5', paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom, 0px) + 20px))' }}
             >
               {inputBarInner(mobileInputRef)}
@@ -361,12 +361,12 @@ function SearchPageContent() {
           </>
         ) : (
           /* Empty state — ChatGPT-style centered layout */
-          <div className="flex-1 flex flex-col items-center justify-center px-4 gap-8">
+          <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full">
             <div className="text-center space-y-2">
               <h2 className="font-extrabold text-[#0A1628]" style={{ fontSize: 36 }}>Maimoo</h2>
               <p className="text-slate-400" style={{ fontSize: 15 }}>Posez une question sur vos clients</p>
             </div>
-            <div className="w-full">
+            <div className="w-full px-[12px]">
               {inputBarInner(mobileInputRef)}
             </div>
           </div>
