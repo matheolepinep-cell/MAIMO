@@ -340,6 +340,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
   const handleOpenDocument = async (doc: Document) => {
     if (doc.file_type === 'image') {
+      // Lightbox: fetch signed URL asynchronously (no popup needed)
       try {
         const res = await fetch(`/api/documents/${doc.id}/url`)
         const { url } = await res.json()
@@ -347,14 +348,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       } catch { /* nothing */ }
       return
     }
-    // Open tab synchronously before await to avoid popup blocker
-    const newTab = window.open('', '_blank')
-    try {
-      const res = await fetch(`/api/documents/${doc.id}/url`)
-      const { url } = await res.json()
-      if (url && newTab) newTab.location.href = url
-      else newTab?.close()
-    } catch { newTab?.close() }
+    // Server-side redirect: window.open is synchronous → no popup blocker
+    window.open(`/api/documents/${doc.id}/open`, '_blank', 'noopener,noreferrer')
   }
 
   const handleDeleteDocument = async (docId: string) => {
