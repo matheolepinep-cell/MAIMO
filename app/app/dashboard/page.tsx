@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Search, X } from 'lucide-react'
+import { BurgerButton } from '@/components/layout/BurgerButton'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
@@ -294,17 +295,12 @@ export default function DashboardPage() {
     <div className="flex flex-col min-h-full overflow-x-hidden">
 
       {/* ── MOBILE HEADER ── */}
-      <header className="md:hidden bg-white px-5 py-3.5 flex items-center justify-between sticky top-0 z-30"
+      <header className="md:hidden bg-white px-4 py-3 flex items-center gap-3 sticky top-0 z-30"
         style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
-        <button onClick={() => router.push('/app/dashboard')} className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
-            <span className="text-white font-bold text-xs">M</span>
-          </div>
-          <span className="font-extrabold text-[#1E2761] text-sm" style={{ letterSpacing: '0.15em' }}>MAIMOO</span>
-        </button>
+        <BurgerButton />
+        <span className="flex-1 font-extrabold text-[#1E2761] text-sm" style={{ letterSpacing: '0.15em' }}>MAIMOO</span>
         {profile && (
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white"
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
             style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
             {profile.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
           </div>
