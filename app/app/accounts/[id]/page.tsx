@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState, use, useCallback } from 'react'
+import { useEffect, useState, use, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
-  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download, Share2, Bell, BellOff
+  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download, Share2, Bell, BellOff, AlertTriangle, Copy
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -15,6 +15,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Modal } from '@/components/ui/Modal'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import type { Account, Contact, Note, Document, SearchSource } from '@/types/database'
+import { detectConflicts, type ConflictResult } from '@/lib/conflicts'
 
 /* ─── helpers ─── */
 function docTypeColor(type: string) {
@@ -83,7 +84,11 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [recording, setRecording] = useState(false)
   const [savingNote, setSavingNote] = useState(false)
   const [noteError, setNoteError] = useState('')
-  const recognitionRef = { current: null as SpeechRecognition | null }
+  const [conflictChecking, setConflictChecking] = useState(false)
+  const [conflictResult, setConflictResult] = useState<ConflictResult | null>(null)
+  const [pendingNote, setPendingNote] = useState<{ content: string; source: 'text' | 'vocal' } | null>(null)
+  const forceSaveRef = useRef(false)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   // Attachments (pièces jointes dans les notes)
   const [attachments, setAttachments] = useState<AttachItem[]>([])
@@ -265,7 +270,24 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   /* ─── notes ─── */
   const saveNote = useCallback(async (content: string, source: 'text' | 'vocal') => {
     if (!content.trim() || !noteTitle.trim()) { setNoteError('Le titre est obligatoire.'); return }
-    setNoteError(''); setSavingNote(true)
+    setNoteError('')
+
+    // Conflict detection (skip if force-save flagged)
+    if (!forceSaveRef.current) {
+      setConflictChecking(true)
+      const result = await detectConflicts(id, content)
+      setConflictChecking(false)
+      if (result.hasConflict || result.hasDuplicate) {
+        setConflictResult(result)
+        setPendingNote({ content, source })
+        return
+      }
+    }
+    forceSaveRef.current = false
+    setConflictResult(null)
+    setPendingNote(null)
+
+    setSavingNote(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const { data: note, error } = await supabase.from('notes').insert({
@@ -809,9 +831,42 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                         placeholder="Contenu de la note..." rows={3}
                         className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" />
                       {noteError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{noteError}</p>}
-                      <Button type="submit" loading={savingNote} disabled={!noteText.trim() || !noteTitle.trim()} className="w-full" size="sm">
-                        <Send className="w-3.5 h-3.5 mr-1.5" />Enregistrer
-                      </Button>
+                      {conflictChecking && (
+                        <p className="text-xs text-[#64748B] flex items-center gap-1.5">
+                          <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          Analyse en cours…
+                        </p>
+                      )}
+                      {conflictResult ? (
+                        <div className="rounded-xl border px-4 py-3 space-y-2" style={{ background: '#FEF9C3', borderColor: '#EAB308' }}>
+                          <div className="flex items-start gap-2">
+                            {conflictResult.hasConflict
+                              ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />
+                              : <Copy className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />}
+                            <p className="text-xs text-[#713F12] leading-relaxed">
+                              {conflictResult.hasConflict && conflictResult.conflicts[0]
+                                ? <>Information contradictoire : <span className="font-medium">&ldquo;{conflictResult.conflicts[0].existingInfo}&rdquo;</span> → <span className="font-medium">&ldquo;{conflictResult.conflicts[0].newInfo}&rdquo;</span></>
+                                : "Cette information existe déjà dans une note précédente."}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="button"
+                              onClick={() => { if (pendingNote) { forceSaveRef.current = true; saveNote(pendingNote.content, pendingNote.source) } }}
+                              className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#EAB308' }}>
+                              Sauvegarder quand même
+                            </button>
+                            <button type="button"
+                              onClick={() => { setConflictResult(null); setPendingNote(null) }}
+                              className="flex-1 py-1.5 rounded-lg text-xs font-semibold border bg-white" style={{ color: '#713F12', borderColor: '#EAB308' }}>
+                              Annuler
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button type="submit" loading={savingNote || conflictChecking} disabled={!noteText.trim() || !noteTitle.trim()} className="w-full" size="sm">
+                          <Send className="w-3.5 h-3.5 mr-1.5" />Enregistrer
+                        </Button>
+                      )}
                     </form>
                   ) : (
                     <div className="space-y-2">

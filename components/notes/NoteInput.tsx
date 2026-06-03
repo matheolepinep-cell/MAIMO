@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { Mic, MicOff, Send, Type } from 'lucide-react'
+import { Mic, MicOff, Send, Type, AlertTriangle, Copy } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Button } from '@/components/ui/Button'
+import { detectConflicts, type ConflictResult } from '@/lib/conflicts'
 
 interface NoteInputProps {
   clientId: string
@@ -26,13 +27,21 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
   const [text, setText] = useState('')
   const [recording, setRecording] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [conflictResult, setConflictResult] = useState<ConflictResult | null>(null)
+  const [pendingContent, setPendingContent] = useState<string | null>(null)
+  const [pendingSource, setPendingSource] = useState<'text' | 'vocal' | null>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const forceSaveRef = useRef(false)
 
-  const saveNote = useCallback(async (content: string, source: 'text' | 'vocal') => {
+  const doSave = useCallback(async (content: string, source: 'text' | 'vocal') => {
     if (!content.trim()) return
     setSaveError('')
     setSaving(true)
+    setConflictResult(null)
+    setPendingContent(null)
+    setPendingSource(null)
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -72,10 +81,45 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
     setSaving(false)
   }, [profile, clientId, title, onNoteSaved])
 
+  const saveNote = useCallback(async (content: string, source: 'text' | 'vocal') => {
+    if (!content.trim()) return
+
+    if (forceSaveRef.current) {
+      forceSaveRef.current = false
+      await doSave(content, source)
+      return
+    }
+
+    setChecking(true)
+    const result = await detectConflicts(clientId, content)
+    setChecking(false)
+
+    if (result.hasConflict || result.hasDuplicate) {
+      setConflictResult(result)
+      setPendingContent(content)
+      setPendingSource(source)
+      return
+    }
+
+    await doSave(content, source)
+  }, [clientId, doSave])
+
+  const handleForceSave = () => {
+    if (!pendingContent || !pendingSource) return
+    forceSaveRef.current = true
+    saveNote(pendingContent, pendingSource)
+  }
+
+  const handleCancelConflict = () => {
+    setConflictResult(null)
+    setPendingContent(null)
+    setPendingSource(null)
+  }
+
   const startRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) {
-      alert('La reconnaissance vocale n\'est pas supportée par ce navigateur.')
+      alert("La reconnaissance vocale n'est pas supportée par ce navigateur.")
       return
     }
 
@@ -112,6 +156,42 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
     if (text.trim()) saveNote(text, 'text')
   }
 
+  const ConflictBanner = () => {
+    if (!conflictResult) return null
+    const first = conflictResult.conflicts[0]
+    const isContradiction = conflictResult.hasConflict
+    return (
+      <div className="rounded-xl border px-4 py-3 space-y-2" style={{ background: '#FEF9C3', borderColor: '#EAB308' }}>
+        <div className="flex items-start gap-2">
+          {isContradiction
+            ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />
+            : <Copy className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />}
+          <p className="text-xs text-[#713F12] leading-relaxed">
+            {isContradiction && first
+              ? <>Information contradictoire détectée : <span className="font-medium">"{first.existingInfo}"</span> → <span className="font-medium">"{first.newInfo}"</span></>
+              : "Cette information existe déjà dans une note précédente."}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleForceSave}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
+            style={{ background: '#EAB308' }}
+          >
+            Sauvegarder quand même
+          </button>
+          <button
+            onClick={handleCancelConflict}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold border bg-white"
+            style={{ color: '#713F12', borderColor: '#EAB308' }}
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
       <div className="flex gap-2 mb-3">
@@ -137,7 +217,6 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
         </button>
       </div>
 
-      {/* Optional title */}
       <input
         type="text"
         value={title}
@@ -158,10 +237,20 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
           {saveError && (
             <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{saveError}</p>
           )}
-          <Button type="submit" loading={saving} disabled={!text.trim()} className="w-full" size="sm">
-            <Send className="w-3.5 h-3.5 mr-1.5" />
-            Enregistrer
-          </Button>
+          {checking && (
+            <p className="text-xs text-[#64748B] flex items-center gap-1.5">
+              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              Analyse en cours…
+            </p>
+          )}
+          {conflictResult ? (
+            <ConflictBanner />
+          ) : (
+            <Button type="submit" loading={saving || checking} disabled={!text.trim()} className="w-full" size="sm">
+              <Send className="w-3.5 h-3.5 mr-1.5" />
+              Enregistrer
+            </Button>
+          )}
         </form>
       ) : (
         <div className="space-y-3">
@@ -178,7 +267,7 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 transition-all duration-150"
               >
                 <Mic className="w-5 h-5" />
-                Démarrer l'enregistrement
+                Démarrer l&apos;enregistrement
               </button>
             ) : (
               <button
@@ -193,8 +282,16 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
           {saveError && (
             <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{saveError}</p>
           )}
-          {text && !recording && (
-            <Button onClick={() => saveNote(text, 'vocal')} loading={saving} className="w-full" size="sm">
+          {checking && (
+            <p className="text-xs text-[#64748B] flex items-center gap-1.5">
+              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              Analyse en cours…
+            </p>
+          )}
+          {conflictResult ? (
+            <ConflictBanner />
+          ) : text && !recording && (
+            <Button onClick={() => saveNote(text, 'vocal')} loading={saving || checking} className="w-full" size="sm">
               <Send className="w-3.5 h-3.5 mr-1.5" />
               Sauvegarder la note
             </Button>
