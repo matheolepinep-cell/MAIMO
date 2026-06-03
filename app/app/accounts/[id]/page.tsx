@@ -326,15 +326,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           const fileType: 'pdf' | 'docx' | 'xlsx' | 'image' = isImage ? 'image'
             : file.type.includes('pdf') ? 'pdf'
             : file.type.includes('wordprocessing') ? 'docx' : 'xlsx'
-          await sb.from('documents').insert({
+          const { data: insertedDoc } = await sb.from('documents').insert({
             account_id: id, company_id: profile?.company_id, user_id: profile?.id,
             note_id: note.id, file_name: file.name, file_url: filePath, file_type: fileType,
             title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false,
-          })
-          if (!isImage) {
+          }).select().single()
+          if (!isImage && insertedDoc) {
             fetch('/api/index-document', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ file_url: filePath, file_type: fileType, account_id: id, company_id: profile?.company_id }),
+              body: JSON.stringify({ document_id: insertedDoc.id, file_url: filePath, file_type: fileType, account_id: id, company_id: profile?.company_id }),
             }).catch(console.error)
           }
         }
@@ -422,15 +422,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       const fileType: 'pdf' | 'docx' | 'xlsx' | 'image' = isImage ? 'image'
         : file.type.includes('pdf') ? 'pdf'
         : file.type.includes('wordprocessing') ? 'docx' : 'xlsx'
-      await sb.from('documents').insert({
+      const { data: standaloneDoc } = await sb.from('documents').insert({
         account_id: id, company_id: profile.company_id, user_id: profile.id,
         note_id: null, file_name: file.name, file_url: filePath,
         file_type: fileType, title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false,
-      })
-      if (!isImage) {
+      }).select().single()
+      if (!isImage && standaloneDoc) {
         fetch('/api/index-document', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file_url: filePath, file_type: fileType, account_id: id, company_id: profile.company_id }),
+          body: JSON.stringify({ document_id: standaloneDoc.id, file_url: filePath, file_type: fileType, account_id: id, company_id: profile.company_id }),
         }).catch(console.error)
       }
       fetch('/api/notifications/document', {

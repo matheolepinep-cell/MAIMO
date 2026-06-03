@@ -13,7 +13,6 @@ function generateInviteCode() {
 }
 
 type View = 'login' | 'register'
-type RegisterMode = 'admin' | 'commercial'
 
 interface AuthModalProps {
   open: boolean
@@ -24,7 +23,6 @@ interface AuthModalProps {
 export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalProps) {
   const router = useRouter()
   const [view, setView] = useState<View>(defaultView)
-  const [registerMode, setRegisterMode] = useState<RegisterMode>('admin')
 
   // Login
   const [loginEmail, setLoginEmail] = useState('')
@@ -37,7 +35,6 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
-  const [inviteCode, setInviteCode] = useState('')
   const [registerError, setRegisterError] = useState('')
   const [registerLoading, setRegisterLoading] = useState(false)
   const [createdCode, setCreatedCode] = useState('')
@@ -85,64 +82,34 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
     setRegisterLoading(true)
     const supabase = createClient()
 
-    if (registerMode === 'admin') {
-      const code = generateInviteCode()
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email, password,
-        options: { data: { full_name: fullName } },
-      })
-      if (signUpError || !authData.user) {
-        setRegisterError(signUpError?.message ?? 'Erreur lors de la création du compte.')
-        setRegisterLoading(false)
-        return
-      }
-      const { data: company, error: companyError } = await supabase
-        .from('companies').insert({ name: companyName.trim(), invite_code: code }).select().single()
-      if (companyError || !company) {
-        setRegisterError("Erreur lors de la création de l'espace.")
-        setRegisterLoading(false)
-        return
-      }
-      const { error: userError } = await supabase.from('users').insert({
-        id: authData.user.id, email, full_name: fullName.trim(),
-        role: 'admin', company_id: company.id, is_active: true,
-      })
-      if (userError) {
-        setRegisterError('Compte créé mais profil incomplet : ' + userError.message)
-        setRegisterLoading(false)
-        return
-      }
-      setCreatedCode(code)
+    const code = generateInviteCode()
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { full_name: fullName } },
+    })
+    if (signUpError || !authData.user) {
+      setRegisterError(signUpError?.message ?? 'Erreur lors de la création du compte.')
       setRegisterLoading(false)
-    } else {
-      const { data: companyData, error: codeError } = await supabase
-        .from('companies').select('id').eq('invite_code', inviteCode.trim().toUpperCase()).single()
-      if (codeError || !companyData) {
-        setRegisterError("Code d'invitation invalide.")
-        setRegisterLoading(false)
-        return
-      }
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email, password,
-        options: { data: { full_name: fullName } },
-      })
-      if (signUpError || !authData.user) {
-        setRegisterError(signUpError?.message ?? 'Erreur lors de la création du compte.')
-        setRegisterLoading(false)
-        return
-      }
-      const { error: userError } = await supabase.from('users').insert({
-        id: authData.user.id, email, full_name: fullName.trim(),
-        role: 'commercial', company_id: companyData.id, is_active: true,
-      })
-      if (userError) {
-        setRegisterError('Compte créé mais profil incomplet : ' + userError.message)
-        setRegisterLoading(false)
-        return
-      }
-      router.push('/app/dashboard')
-      router.refresh()
+      return
     }
+    const { data: company, error: companyError } = await supabase
+      .from('companies').insert({ name: companyName.trim(), invite_code: code }).select().single()
+    if (companyError || !company) {
+      setRegisterError("Erreur lors de la création de l'espace.")
+      setRegisterLoading(false)
+      return
+    }
+    const { error: userError } = await supabase.from('users').insert({
+      id: authData.user.id, email, full_name: fullName.trim(),
+      role: 'admin', company_id: company.id, is_active: true,
+    })
+    if (userError) {
+      setRegisterError('Compte créé mais profil incomplet : ' + userError.message)
+      setRegisterLoading(false)
+      return
+    }
+    setCreatedCode(code)
+    setRegisterLoading(false)
   }
 
   const copyCode = () => {
@@ -222,18 +189,12 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
                 Se connecter
               </Button>
             </form>
-            <div className="mt-5 grid grid-cols-2 gap-2">
+            <div className="mt-5">
               <button
-                onClick={() => { setView('register'); setRegisterMode('admin') }}
-                className="py-2.5 px-3 rounded-xl border border-gray-200 text-sm font-medium text-[#1E293B] hover:bg-gray-50 transition-all"
+                onClick={() => setView('register')}
+                className="w-full py-2.5 px-3 rounded-xl border border-gray-200 text-sm font-medium text-[#1E293B] hover:bg-gray-50 transition-all"
               >
                 Créer un espace
-              </button>
-              <button
-                onClick={() => { setView('register'); setRegisterMode('commercial') }}
-                className="py-2.5 px-3 rounded-xl border border-gray-200 text-sm font-medium text-[#1E293B] hover:bg-gray-50 transition-all"
-              >
-                Rejoindre
               </button>
             </div>
           </>
@@ -241,20 +202,6 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
         ) : (
           <>
             <h2 className="text-xl font-bold text-[#0F172A] mb-4">Créer un compte</h2>
-            <div className="flex rounded-xl bg-gray-100 p-1 mb-4">
-              <button
-                onClick={() => setRegisterMode('admin')}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${registerMode === 'admin' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'}`}
-              >
-                Créer un espace
-              </button>
-              <button
-                onClick={() => setRegisterMode('commercial')}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${registerMode === 'commercial' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'}`}
-              >
-                Rejoindre
-              </button>
-            </div>
             <form onSubmit={handleRegister} className="space-y-3">
               <Input id="r-name" label="Nom complet" placeholder="Jean Dupont"
                 value={fullName} onChange={(e) => setFullName(e.target.value)} required />
@@ -262,17 +209,11 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
                 value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
               <Input id="r-pass" type="password" label="Mot de passe" placeholder="••••••••"
                 value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-              {registerMode === 'admin' ? (
-                <Input id="r-company" label="Nom de votre espace" placeholder="Mon équipe"
-                  value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-              ) : (
-                <Input id="r-code" label="Code d'invitation" placeholder="ABC123"
-                  value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                  required maxLength={6} className="uppercase tracking-widest font-mono" />
-              )}
+              <Input id="r-company" label="Nom de votre espace" placeholder="Mon équipe"
+                value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
               {registerError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{registerError}</p>}
               <Button type="submit" loading={registerLoading} className="w-full" size="lg">
-                {registerMode === 'admin' ? 'Créer mon espace' : "Rejoindre l'espace"}
+                Créer mon espace
               </Button>
             </form>
             <p className="text-center text-sm text-[#64748B] mt-4">

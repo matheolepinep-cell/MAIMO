@@ -100,8 +100,7 @@ export default function TeamPage() {
   const handleDelete = async () => {
     if (!deleteId) return
     setDeleting(true)
-    const supabase = createClient()
-    await supabase.from('users').delete().eq('id', deleteId)
+    await fetch(`/api/admin/users/${deleteId}`, { method: 'DELETE' })
     setMembers((prev) => prev.filter((m) => m.id !== deleteId))
     setDeleteId(null)
     setDeleting(false)
