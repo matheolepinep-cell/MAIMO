@@ -8,14 +8,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { email, full_name, role, company_id } = await request.json()
+  const { email, full_name, role } = await request.json()
 
-  if (!email || !full_name || !role || !company_id) {
+  if (!email || !full_name || !role) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-  }
-
-  if (company_id !== user.company_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const supabase = createSupabaseAdmin(
@@ -23,14 +19,19 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Send invite email via Supabase Auth
   const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
-    data: { full_name, role, company_id },
+    data: { full_name, role, company_id: user.company_id },
+    redirectTo: 'https://www.maimoo.fr/invite',
   })
 
   if (inviteError) {
     console.error('Invite error:', inviteError)
-    return NextResponse.json({ error: inviteError.message }, { status: 400 })
+    const msg = inviteError.message ?? ''
+    const alreadyExists = msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already been registered')
+    return NextResponse.json(
+      { error: alreadyExists ? 'Cet email est déjà associé à un compte.' : msg },
+      { status: 400 }
+    )
   }
 
   if (!inviteData?.user) {
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     email,
     full_name,
     role,
-    company_id,
+    company_id: user.company_id,
     is_active: false,
   })
 

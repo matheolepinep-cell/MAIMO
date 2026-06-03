@@ -84,7 +84,7 @@ export default function TeamPage() {
     const res = await fetch('/api/admin/invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: inviteEmail.trim(), full_name: inviteName.trim(), role: inviteRole, company_id: profile?.company_id }),
+      body: JSON.stringify({ email: inviteEmail.trim(), full_name: inviteName.trim(), role: inviteRole }),
     })
     const json = await res.json()
     if (!res.ok) {

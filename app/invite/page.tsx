@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/Input'
 
 export default function InvitePage() {
   const router = useRouter()
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -15,39 +17,46 @@ export default function InvitePage() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // Supabase magic link sets the session automatically on page load
     const supabase = createClient()
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true)
-      else setError('Lien invalide ou expiré. Demandez une nouvelle invitation.')
+      if (session) {
+        const meta = session.user?.user_metadata
+        if (meta?.full_name) {
+          const parts = (meta.full_name as string).trim().split(' ')
+          setFirstName(parts[0] ?? '')
+          setLastName(parts.slice(1).join(' ') ?? '')
+        }
+        setReady(true)
+      } else {
+        setError('Lien invalide ou expiré. Demandez une nouvelle invitation.')
+      }
     })
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!firstName.trim()) { setError('Le prénom est requis.'); return }
     if (password !== confirm) { setError('Les mots de passe ne correspondent pas.'); return }
     setError('')
     setLoading(true)
 
     const supabase = createClient()
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim()
 
-    // Update password
-    const { error: pwError } = await supabase.auth.updateUser({ password })
+    const { error: pwError } = await supabase.auth.updateUser({ password, data: { full_name: fullName } })
     if (pwError) { setError(pwError.message); setLoading(false); return }
 
-    // Ensure user profile exists (created by admin/invite route with is_active=false)
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       const { data: profile } = await supabase.from('users').select('id').eq('id', user.id).single()
       if (profile) {
-        await supabase.from('users').update({ is_active: true }).eq('id', user.id)
+        await supabase.from('users').update({ full_name: fullName, is_active: true }).eq('id', user.id)
       } else {
-        // Fallback: create profile from metadata
         const meta = user.user_metadata
         await supabase.from('users').insert({
           id: user.id,
           email: user.email,
-          full_name: meta?.full_name ?? user.email,
+          full_name: fullName,
           role: meta?.role ?? 'commercial',
           company_id: meta?.company_id ?? null,
           is_active: true,
@@ -67,13 +76,19 @@ export default function InvitePage() {
             <span className="text-white font-bold text-xl">M</span>
           </div>
           <h1 className="text-2xl font-bold text-[#1E293B]">Bienvenue sur <span className="tracking-widest text-[#1E2761]">MAIMOO</span></h1>
-          <p className="text-[#64748B] text-sm mt-1">Définissez votre mot de passe</p>
+          <p className="text-[#64748B] text-sm mt-1">Créez votre accès</p>
         </div>
 
         {!ready ? (
           <p className="text-sm text-center text-[#64748B]">{error || 'Vérification du lien…'}</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Input id="firstName" label="Prénom" placeholder="Jean"
+                value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+              <Input id="lastName" label="Nom" placeholder="Dupont"
+                value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </div>
             <Input id="password" type="password" label="Mot de passe" placeholder="••••••••"
               value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
             <Input id="confirm" type="password" label="Confirmer le mot de passe" placeholder="••••••••"
