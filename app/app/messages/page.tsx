@@ -127,6 +127,33 @@ export default function MessagesPage() {
 
   useEffect(() => { fetchConversations() }, [fetchConversations])
 
+  /* ─── mark all messages as read on mount ─── */
+  useEffect(() => {
+    if (!profile?.id) return
+    const supabase = createClient()
+    const userId = profile.id
+    ;(async () => {
+      const { data: convs } = await supabase
+        .from('conversations')
+        .select('id')
+        .contains('participants', [userId])
+      for (const conv of convs ?? []) {
+        const { data: unread } = await supabase
+          .from('messages')
+          .select('id, read_by')
+          .eq('conversation_id', conv.id)
+          .neq('sender_id', userId)
+          .not('read_by', 'cs', `{${userId}}`)
+        for (const msg of unread ?? []) {
+          await supabase
+            .from('messages')
+            .update({ read_by: [...(msg.read_by ?? []), userId] })
+            .eq('id', msg.id)
+        }
+      }
+    })()
+  }, [profile?.id])
+
   /* ─── open conversation ─── */
   const openConversation = useCallback(async (conv: Conversation) => {
     setActiveConv(conv)
@@ -240,18 +267,6 @@ export default function MessagesPage() {
 
     setText('')
     fetchConversations()
-
-    fetch('/api/notifications/message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipientId: activeConv!.other_user.id,
-        senderName: profile.full_name,
-        content: text.trim(),
-        conversationId: convId,
-      }),
-    }).catch(() => {})
-
     setSending(false)
   }
 

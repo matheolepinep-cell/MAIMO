@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown, MessageCircle, Bell } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
 import { useNotificationCount } from '@/contexts/NotificationContext'
+import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 
 function NavItem({
   href,
@@ -13,6 +14,7 @@ function NavItem({
   label,
   active,
   badge,
+  dot,
   onClick,
 }: {
   href?: string
@@ -20,11 +22,17 @@ function NavItem({
   label: string
   active: boolean
   badge?: number
+  dot?: boolean
   onClick?: () => void
 }) {
   const content = (
     <>
-      <Icon className="w-[18px] h-[18px] shrink-0" style={{ color: active ? 'white' : '#8899BB' }} />
+      <div className="relative shrink-0">
+        <Icon className="w-[18px] h-[18px]" style={{ color: active ? 'white' : '#8899BB' }} />
+        {dot && (
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0A1628]" style={{ background: '#EF4444' }} />
+        )}
+      </div>
       <span className="text-sm truncate flex-1" style={{ color: active ? 'white' : '#8899BB' }}>{label}</span>
       {badge != null && badge > 0 && (
         <span
@@ -58,6 +66,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const { profile } = useUser()
   const unreadCount = useNotificationCount()
+  const hasUnreadMessages = useUnreadMessages()
   const [portfolioOpen, setPortfolioOpen] = useState(
     pathname.startsWith('/app/portfolio') || pathname.startsWith('/app/accounts')
   )
@@ -149,6 +158,7 @@ export function Sidebar() {
           icon={MessageCircle}
           label="Messages"
           active={pathname.startsWith('/app/messages')}
+          dot={hasUnreadMessages}
         />
         <NavItem
           href="/app/team"

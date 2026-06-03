@@ -6,12 +6,14 @@ import { Search, LayoutDashboard, Briefcase, Users, Settings, User, Menu, Messag
 import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
 import { useUser } from '@/contexts/UserContext'
 import { useNotificationCount } from '@/contexts/NotificationContext'
+import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 
 export function MobileSidebar() {
   const pathname = usePathname()
   const { profile } = useUser()
   const { open, close, toggle } = useMobileSidebar()
   const unreadCount = useNotificationCount()
+  const hasUnreadMessages = useUnreadMessages()
 
   const isActive = (href: string) =>
     href === '/app/search'
@@ -85,7 +87,12 @@ export function MobileSidebar() {
               }}
               onClick={close}
             >
-              <Icon style={{ color: isActive(href) ? 'white' : '#8899BB', width: 22, height: 22 }} />
+              <div className="relative shrink-0">
+                <Icon style={{ color: isActive(href) ? 'white' : '#8899BB', width: 22, height: 22 }} />
+                {href === '/app/messages' && hasUnreadMessages && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0A1628]" style={{ background: '#EF4444' }} />
+                )}
+              </div>
               <span style={{ color: isActive(href) ? 'white' : '#8899BB', fontSize: 15, fontWeight: 500 }}>
                 {label}
               </span>
