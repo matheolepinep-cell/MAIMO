@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
   const publicAssets = ['/manifest.json', '/icon-192.png', '/icon-512.png']
   if (publicAssets.includes(pathname)) {
     return NextResponse.next({ request })
@@ -30,10 +31,10 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user && pathname.startsWith('/app')) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
-  if (user && (pathname === '/login' || pathname === '/register')) {
+  if (user && pathname === '/register') {
     return NextResponse.redirect(new URL('/app/dashboard', request.url))
   }
 
@@ -41,5 +42,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/app/:path*', '/login', '/register'],
+  matcher: ['/app/:path*', '/register'],
 }
