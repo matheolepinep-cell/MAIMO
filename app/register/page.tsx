@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -15,123 +15,63 @@ function generateInviteCode() {
 
 function RegisterContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [mode, setMode] = useState<'admin' | 'commercial'>(() =>
-    searchParams.get('mode') === 'join' ? 'commercial' : 'admin'
-  )
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
-  const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  // Invite code modal state (admin only)
   const [createdCode, setCreatedCode] = useState('')
   const [codeCopied, setCodeCopied] = useState(false)
-
-  useEffect(() => {
-    const param = searchParams.get('mode')
-    if (param === 'join') setMode('commercial')
-    else if (param === 'create') setMode('admin')
-  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     const supabase = createClient()
+    const code = generateInviteCode()
 
-    if (mode === 'admin') {
-      const code = generateInviteCode()
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    })
 
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
-      })
-
-      if (signUpError || !authData.user) {
-        setError(signUpError?.message ?? 'Erreur lors de la création du compte.')
-        setLoading(false)
-        return
-      }
-
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .insert({ name: companyName.trim(), invite_code: code })
-        .select()
-        .single()
-
-      if (companyError || !company) {
-        setError('Erreur lors de la création de l\'espace.')
-        setLoading(false)
-        return
-      }
-
-      const { error: userError } = await supabase.from('users').insert({
-        id: authData.user.id,
-        email,
-        full_name: fullName.trim(),
-        role: 'admin',
-        company_id: company.id,
-        is_active: true,
-      })
-
-      if (userError) {
-        setError('Compte créé mais profil incomplet : ' + userError.message)
-        setLoading(false)
-        return
-      }
-
-      // Show invite code modal before redirecting
-      setCreatedCode(code)
+    if (signUpError || !authData.user) {
+      setError(signUpError?.message ?? 'Erreur lors de la création du compte.')
       setLoading(false)
-
-    } else {
-      const { data: companyData, error: codeError } = await supabase
-        .from('companies')
-        .select('id, name')
-        .eq('invite_code', inviteCode.trim().toUpperCase())
-        .single()
-
-      if (codeError || !companyData) {
-        setError('Code d\'invitation invalide.')
-        setLoading(false)
-        return
-      }
-
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
-      })
-
-      if (signUpError || !authData.user) {
-        setError(signUpError?.message ?? 'Erreur lors de la création du compte.')
-        setLoading(false)
-        return
-      }
-
-      const { error: userError } = await supabase.from('users').insert({
-        id: authData.user.id,
-        email,
-        full_name: fullName.trim(),
-        role: 'commercial',
-        company_id: companyData.id,
-        is_active: true,
-      })
-
-      if (userError) {
-        setError('Compte créé mais profil incomplet : ' + userError.message)
-        setLoading(false)
-        return
-      }
-
-      router.push('/app/dashboard')
-      router.refresh()
+      return
     }
+
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .insert({ name: companyName.trim(), invite_code: code })
+      .select()
+      .single()
+
+    if (companyError || !company) {
+      setError("Erreur lors de la création de l'espace.")
+      setLoading(false)
+      return
+    }
+
+    const { error: userError } = await supabase.from('users').insert({
+      id: authData.user.id,
+      email,
+      full_name: fullName.trim(),
+      role: 'admin',
+      company_id: company.id,
+      is_active: true,
+    })
+
+    if (userError) {
+      setError('Compte créé mais profil incomplet : ' + userError.message)
+      setLoading(false)
+      return
+    }
+
+    setCreatedCode(code)
+    setLoading(false)
   }
 
   const copyCode = () => {
@@ -140,7 +80,6 @@ function RegisterContent() {
     setTimeout(() => setCodeCopied(false), 2000)
   }
 
-  // Invite code modal after admin signup
   if (createdCode) {
     return (
       <div className="min-h-screen bg-[#1E2761] flex items-center justify-center p-4">
@@ -186,25 +125,7 @@ function RegisterContent() {
             <span className="text-white font-bold text-xl">M</span>
           </div>
           <h1 className="text-2xl font-bold tracking-widest text-[#1E2761]">MAIMOO</h1>
-        </div>
-
-        <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
-          <button
-            onClick={() => setMode('admin')}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
-              mode === 'admin' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'
-            }`}
-          >
-            Créer un espace
-          </button>
-          <button
-            onClick={() => setMode('commercial')}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
-              mode === 'commercial' ? 'bg-white text-[#1E293B] shadow-sm' : 'text-[#64748B]'
-            }`}
-          >
-            Rejoindre
-          </button>
+          <p className="text-[#64748B] text-sm mt-1">Créez votre espace</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -214,26 +135,19 @@ function RegisterContent() {
             value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           <Input id="password" type="password" label="Mot de passe" placeholder="••••••••"
             value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-
-          {mode === 'admin' ? (
-            <Input id="companyName" label="Nom de votre espace" placeholder="Mon espace"
-              value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-          ) : (
-            <Input id="inviteCode" label="Code d'invitation (6 caractères)" placeholder="ABC123"
-              value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-              required maxLength={6} className="uppercase tracking-widest font-mono" />
-          )}
+          <Input id="companyName" label="Nom de votre espace" placeholder="Mon espace"
+            value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
 
           {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
           <Button type="submit" loading={loading} className="w-full" size="lg">
-            {mode === 'admin' ? 'Créer mon espace' : 'Rejoindre l\'espace'}
+            Créer mon espace
           </Button>
         </form>
 
         <p className="text-center text-sm text-[#64748B] mt-6">
           Déjà un compte ?{' '}
-          <Link href="/login" className="text-[#3B82F6] font-medium hover:underline">Se connecter</Link>
+          <Link href="/" className="text-[#3B82F6] font-medium hover:underline">Se connecter</Link>
         </p>
       </div>
     </div>

@@ -69,7 +69,7 @@ export default function AuthConfirmPage() {
         </p>
 
         <Link
-          href="/login"
+          href="/"
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold text-[#1E2761] transition-all duration-200 hover:opacity-90 hover:shadow-lg"
           style={{ background: 'white' }}
         >

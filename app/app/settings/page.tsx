@@ -103,7 +103,7 @@ export default function SettingsPage() {
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/login')
+    router.push('/')
   }
 
   const isAdmin = profile?.role === 'admin'
