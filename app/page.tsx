@@ -1,19 +1,165 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight, Mic, FileText, Search, Zap, Shield, Users } from 'lucide-react'
 import { AuthModal } from '@/components/AuthModal'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 
 type ModalView = 'login' | 'register'
 
 export default function LandingPage() {
+  const router = useRouter()
   const [modalOpen, setModalOpen] = useState(false)
   const [modalView, setModalView] = useState<ModalView>('login')
+
+  // Invite flow
+  const [inviteMode, setInviteMode] = useState(false)
+  const [inviteReady, setInviteReady] = useState(false)
+  const [inviteFirstName, setInviteFirstName] = useState('')
+  const [inviteLastName, setInviteLastName] = useState('')
+  const [invitePassword, setInvitePassword] = useState('')
+  const [inviteConfirm, setInviteConfirm] = useState('')
+  const [inviteError, setInviteError] = useState('')
+  const [inviteLoading, setInviteLoading] = useState(false)
 
   const openLogin = () => { setModalView('login'); setModalOpen(true) }
   const openRegister = () => { setModalView('register'); setModalOpen(true) }
 
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (!hash.includes('access_token')) return
+
+    const params = new URLSearchParams(hash)
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    if (!accessToken) return
+
+    setInviteMode(true)
+    window.history.replaceState(null, '', window.location.pathname)
+
+    const supabase = createClient()
+    supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken ?? '',
+    }).then(({ error }) => {
+      if (error) {
+        setInviteError('Lien invalide ou expiré. Demandez une nouvelle invitation.')
+        return
+      }
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) {
+          setInviteError('Lien invalide ou expiré. Demandez une nouvelle invitation.')
+          return
+        }
+        const meta = user.user_metadata
+        const fullName = ((meta?.full_name as string | undefined) ?? '').trim()
+        const parts = fullName.split(' ')
+        setInviteFirstName(parts[0] ?? '')
+        setInviteLastName(parts.slice(1).join(' ') ?? '')
+        setInviteReady(true)
+      })
+    })
+  }, [])
+
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteFirstName.trim()) { setInviteError('Le prénom est requis.'); return }
+    if (invitePassword !== inviteConfirm) { setInviteError('Les mots de passe ne correspondent pas.'); return }
+    setInviteError('')
+    setInviteLoading(true)
+
+    const supabase = createClient()
+    const fullName = `${inviteFirstName.trim()} ${inviteLastName.trim()}`.trim()
+
+    const { error: pwError } = await supabase.auth.updateUser({
+      password: invitePassword,
+      data: { full_name: fullName },
+    })
+    if (pwError) { setInviteError(pwError.message); setInviteLoading(false); return }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase.from('users').select('id').eq('id', user.id).single()
+      if (profile) {
+        await supabase.from('users').update({ full_name: fullName, is_active: true }).eq('id', user.id)
+      } else {
+        const meta = user.user_metadata
+        await supabase.from('users').insert({
+          id: user.id,
+          email: user.email,
+          full_name: fullName,
+          role: meta?.role ?? 'commercial',
+          company_id: meta?.company_id ?? null,
+          is_active: true,
+        })
+      }
+    }
+
+    router.push('/app/dashboard')
+    router.refresh()
+  }
+
+  // ── Invite mode ──────────────────────────────────────────────────────────
+  if (inviteMode) {
+    return (
+      <div className="min-h-screen bg-[#F0F4FF]">
+        <nav className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-sm sticky top-0 z-40 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+              style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}>
+              M
+            </div>
+            <span className="font-bold text-[#1E2761] text-lg">Maimoo</span>
+          </div>
+        </nav>
+
+        <div className="flex items-center justify-center px-4 py-16">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7">
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-sm"
+                style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}>
+                M
+              </div>
+              <span className="font-bold text-[#1E2761] text-lg">Maimoo</span>
+            </div>
+
+            {!inviteReady ? (
+              <p className="text-sm text-center py-4 text-[#64748B]">
+                {inviteError || 'Vérification du lien…'}
+              </p>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold text-[#0F172A] mb-1">Bienvenue sur Maimoo</h2>
+                <p className="text-sm text-[#64748B] mb-5">Créez votre accès</p>
+                <form onSubmit={handleInviteSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input id="inv-first" label="Prénom" placeholder="Jean"
+                      value={inviteFirstName} onChange={(e) => setInviteFirstName(e.target.value)} required />
+                    <Input id="inv-last" label="Nom" placeholder="Dupont"
+                      value={inviteLastName} onChange={(e) => setInviteLastName(e.target.value)} />
+                  </div>
+                  <Input id="inv-pass" type="password" label="Mot de passe" placeholder="••••••••"
+                    value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} required minLength={8} />
+                  <Input id="inv-confirm" type="password" label="Confirmer le mot de passe" placeholder="••••••••"
+                    value={inviteConfirm} onChange={(e) => setInviteConfirm(e.target.value)} required />
+                  {inviteError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{inviteError}</p>}
+                  <Button type="submit" loading={inviteLoading} className="w-full" size="lg">
+                    Rejoindre l&apos;espace <ArrowRight className="w-4 h-4 ml-1 inline" />
+                  </Button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Normal landing page ──────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#F0F4FF] overflow-x-hidden">
       <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} defaultView={modalView} />

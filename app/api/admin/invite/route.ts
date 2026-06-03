@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
     data: { full_name, role, company_id: user.company_id },
-    redirectTo: 'https://www.maimoo.fr/invite',
+    redirectTo: 'https://www.maimoo.fr/',
   })
 
   if (inviteError) {
