@@ -6,6 +6,7 @@ import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Sear
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { getInitials } from '@/components/ui/CompanyCard'
 
@@ -54,6 +55,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor } = useAccentColor()
+  const { wsId } = useWorkspace()
 
   /* mobile state */
   const [recentAccounts, setRecentAccounts] = useState<{ id: string; name: string }[]>([])
@@ -90,17 +92,27 @@ export default function DashboardPage() {
     const supabase = createClient()
     const cid = profile.company_id
     const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+    const wf = wsId ? `workspace_id.eq.${wsId},workspace_id.is.null` : null
+
+    const accCountQ = supabase.from('accounts').select('id', { count: 'exact', head: true }).eq('company_id', cid)
+    const noteCountQ = supabase.from('notes').select('id', { count: 'exact', head: true }).eq('company_id', cid).eq('is_deleted', false)
+    const docCountQ = supabase.from('documents').select('id', { count: 'exact', head: true }).eq('company_id', cid).eq('is_deleted', false)
+    const noteWkQ = supabase.from('notes').select('id', { count: 'exact', head: true }).eq('company_id', cid).eq('is_deleted', false).gte('created_at', weekAgo)
+    const accWkQ = supabase.from('accounts').select('id', { count: 'exact', head: true }).eq('company_id', cid).gte('created_at', weekAgo)
+    const noteListQ = supabase.from('notes').select('id, title, content, account_id, source, created_at, user_id').eq('company_id', cid).eq('is_deleted', false).order('created_at', { ascending: false }).limit(8)
+    const docListQ = supabase.from('documents').select('id, title, file_name, file_type, account_id, created_at, user_id').eq('company_id', cid).eq('is_deleted', false).order('created_at', { ascending: false }).limit(4)
+    const pfQ = supabase.from('portfolio').select('id, account_id, accounts(id, name, status)').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(4)
 
     Promise.all([
-      supabase.from('accounts').select('id', { count: 'exact', head: true }).eq('company_id', cid),
-      supabase.from('notes').select('id', { count: 'exact', head: true }).eq('company_id', cid).eq('is_deleted', false),
-      supabase.from('documents').select('id', { count: 'exact', head: true }).eq('company_id', cid).eq('is_deleted', false),
+      wf ? accCountQ.or(wf) : accCountQ,
+      wf ? noteCountQ.or(wf) : noteCountQ,
+      wf ? docCountQ.or(wf) : docCountQ,
       supabase.from('users').select('id', { count: 'exact', head: true }).eq('company_id', cid),
-      supabase.from('notes').select('id', { count: 'exact', head: true }).eq('company_id', cid).eq('is_deleted', false).gte('created_at', weekAgo),
-      supabase.from('accounts').select('id', { count: 'exact', head: true }).eq('company_id', cid).gte('created_at', weekAgo),
-      supabase.from('notes').select('id, title, content, account_id, source, created_at, user_id').eq('company_id', cid).eq('is_deleted', false).order('created_at', { ascending: false }).limit(8),
-      supabase.from('documents').select('id, title, file_name, file_type, account_id, created_at, user_id').eq('company_id', cid).eq('is_deleted', false).order('created_at', { ascending: false }).limit(4),
-      supabase.from('portfolio').select('id, account_id, accounts(id, name, status)').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(4),
+      wf ? noteWkQ.or(wf) : noteWkQ,
+      wf ? accWkQ.or(wf) : accWkQ,
+      wf ? noteListQ.or(wf) : noteListQ,
+      wf ? docListQ.or(wf) : docListQ,
+      wf ? pfQ.or(wf) : pfQ,
       supabase.from('users').select('id, full_name, role').eq('company_id', cid).eq('is_active', true),
       supabase.from('portfolio').select('user_id').eq('company_id', cid),
     ]).then(async ([
@@ -174,25 +186,27 @@ export default function DashboardPage() {
 
       setDesktopLoading(false)
     })
-  }, [profileLoading, profile])
+  }, [profileLoading, profile, wsId])
 
   useEffect(() => {
     if (!clientQuery.trim() || !profile?.company_id) { setClientResults([]); setClientLoading(false); return }
     setClientLoading(true)
     const timer = setTimeout(async () => {
       const supabase = createClient()
-      const { data } = await supabase
+      let q = supabase
         .from('accounts')
         .select('id, name, city, status')
         .eq('company_id', profile.company_id)
         .ilike('name', `%${clientQuery.trim()}%`)
         .order('name')
         .limit(7)
+      if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+      const { data } = await q
       setClientResults(data ?? [])
       setClientLoading(false)
     }, 200)
     return () => clearTimeout(timer)
-  }, [clientQuery, profile])
+  }, [clientQuery, profile, wsId])
 
   const firstName = profile?.full_name?.split(' ')[0] ?? ''
   const handleSearch = (q: string) => router.push(`/app/search?q=${encodeURIComponent(q)}`)

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Header } from '@/components/layout/Header'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
@@ -99,6 +100,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
   const { id } = use(params)
   const router = useRouter()
   const { profile } = useUser()
+  const { wsId } = useWorkspace()
 
   // ── Initial load ──
   const [importRecord, setImportRecord] = useState<ImportRecord | null>(null)
@@ -211,6 +213,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
             import_id: id,
             selected_indices: selectedIdxs,
             company_id: companyId,
+            workspace_id: wsId ?? null,
             offset,
             limit: EXECUTE_BATCH,
           }),

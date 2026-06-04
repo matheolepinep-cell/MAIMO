@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { import_id, selected_indices, company_id, offset = 0, limit = 20 } = await request.json()
+  const { import_id, selected_indices, company_id, workspace_id, offset = 0, limit = 20 } = await request.json()
 
   if (!import_id || !selected_indices || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -122,6 +122,7 @@ export async function POST(request: Request) {
         content: noteContent,
         source: 'import',
         is_deleted: false,
+        workspace_id: workspace_id ?? null,
       }).select('id').single()
 
       notesCreated++
@@ -178,6 +179,7 @@ export async function POST(request: Request) {
         status: (row.status === 'client' ? 'client' : 'prospect') as 'client' | 'prospect',
         company_id,
         created_by: user.id,
+        workspace_id: workspace_id ?? null,
       })
       .select('id')
       .single()
@@ -191,6 +193,7 @@ export async function POST(request: Request) {
       account_id: acc.id,
       company_id,
       visibility: 'team',
+      workspace_id: workspace_id ?? null,
     }, { onConflict: 'user_id,account_id' })
 
     if (row.contact_name?.trim()) {
@@ -216,6 +219,7 @@ export async function POST(request: Request) {
       content: noteContent,
       source: 'import',
       is_deleted: false,
+      workspace_id: workspace_id ?? null,
     }).select('id').single()
 
     notesCreated++

@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { text, file_path, file_name, file_type, account_id, company_id } = await request.json()
+  const { text, file_path, file_name, file_type, account_id, company_id, workspace_id } = await request.json()
 
   if (!text || !file_path || !file_name || !account_id || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       file_type: resolvedFileType,
       title: file_name.replace(/\.[^.]+$/, ''),
       is_deleted: false,
+      workspace_id: workspace_id ?? null,
     })
     .select('id')
     .single()
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
     content: `Document importé le ${new Date().toLocaleDateString('fr-FR')} : ${file_name}`,
     source: 'import',
     is_deleted: false,
+    workspace_id: workspace_id ?? null,
   })
 
   // Chunk + embed for RAG

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, Loader2, Check, Building2, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Header } from '@/components/layout/Header'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
@@ -63,6 +64,7 @@ type AccountOption = { id: string; name: string }
 export default function ImportPage() {
   const router = useRouter()
   const { profile } = useUser()
+  const { wsId } = useWorkspace()
   const inputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -149,11 +151,9 @@ export default function ImportPage() {
     setDetecting(true)
 
     // Load accounts in parallel with detection
-    const { data: accs } = await supabase
-      .from('accounts')
-      .select('id, name')
-      .eq('company_id', profile.company_id)
-      .order('name')
+    let accQ = supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).order('name')
+    if (wsId) accQ = accQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+    const { data: accs } = await accQ
     setAccounts((accs ?? []) as AccountOption[])
 
     // Detect company
@@ -186,6 +186,7 @@ export default function ImportPage() {
         file_type: ext,
         account_id: accountId,
         company_id: profile.company_id,
+        workspace_id: wsId ?? null,
       }),
     })
     setAttaching(false)
