@@ -8,17 +8,21 @@ import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Input } from '@/components/ui/Input'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import type { Account } from '@/types/database'
 
 async function getAccessibleAccountIds(
   supabase: ReturnType<typeof createClient>,
   userId: string,
-  companyId: string
+  companyId: string,
+  wsId: string | null
 ): Promise<string[]> {
-  const { data: entries } = await supabase
+  let q = supabase
     .from('portfolio')
     .select('id, account_id, user_id, visibility')
     .eq('company_id', companyId)
+  if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+  const { data: entries } = await q
 
   const entryIds = (entries ?? []).map((p: { id: string }) => p.id)
 
@@ -40,6 +44,7 @@ async function getAccessibleAccountIds(
 export default function AccountsPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
+  const { wsId } = useWorkspace()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -53,10 +58,12 @@ export default function AccountsPage() {
 
     let accountIds: string[]
     if (profile.role === 'admin') {
-      const { data } = await supabase.from('accounts').select('id').eq('company_id', profile.company_id)
+      let q = supabase.from('accounts').select('id').eq('company_id', profile.company_id)
+      if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+      const { data } = await q
       accountIds = (data ?? []).map((a: { id: string }) => a.id)
     } else {
-      accountIds = await getAccessibleAccountIds(supabase, profile.id, profile.company_id)
+      accountIds = await getAccessibleAccountIds(supabase, profile.id, profile.company_id, wsId)
     }
 
     if (accountIds.length === 0) { setAccounts([]); setLoading(false); return }
@@ -73,7 +80,8 @@ export default function AccountsPage() {
 
   useEffect(() => {
     if (!profileLoading) fetchAccounts()
-  }, [profileLoading, profile])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileLoading, profile, wsId])
 
   const handleDelete = async (accountId: string) => {
     setDeletingId(accountId)

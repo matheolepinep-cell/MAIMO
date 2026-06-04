@@ -10,6 +10,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
@@ -59,6 +60,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor } = useAccentColor()
+  const { wsId } = useWorkspace()
 
   const [account, setAccount] = useState<Account | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -135,6 +137,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   /* ─── fetch ─── */
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
+    let notesQ = supabase.from('notes').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false })
+    if (wsId) notesQ = notesQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+    let docsQ = supabase.from('documents').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false })
+    if (wsId) docsQ = docsQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
     const [
       { data: acc },
       { data: ctcs },
@@ -143,8 +149,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     ] = await Promise.all([
       supabase.from('accounts').select('*').eq('id', id).single(),
       supabase.from('contacts').select('*').eq('account_id', id).order('is_main_contact', { ascending: false }),
-      supabase.from('notes').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false }),
-      supabase.from('documents').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false }),
+      notesQ,
+      docsQ,
     ])
     setAccount(acc ?? null)
     if (acc) {
@@ -196,7 +202,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         .maybeSingle()
       setIsMuted(!!mutedRow)
     }
-  }, [id, profile])
+  }, [id, profile, wsId])
 
   useEffect(() => { if (!profileLoading) fetchAll() }, [profileLoading, fetchAll])
 
@@ -309,6 +315,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       content: content.trim(),
       source,
       is_deleted: false,
+      workspace_id: wsId ?? null,
     }).select().single()
     if (error) { setNoteError(error.message) }
     else if (note) {
@@ -340,7 +347,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           const { data: insertedDoc } = await sb.from('documents').insert({
             account_id: id, company_id: profile?.company_id, user_id: profile?.id,
             note_id: note.id, file_name: file.name, file_url: filePath, file_type: fileType,
-            title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false,
+            title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false, workspace_id: wsId ?? null,
           }).select().single()
           if (!isImage && insertedDoc) {
             fetch('/api/index-document', {
@@ -355,7 +362,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       }
     }
     setSavingNote(false)
-  }, [noteTitle, id, profile, attachments, fetchAll])
+  }, [noteTitle, id, profile, wsId, attachments, fetchAll])
 
   const startRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -436,7 +443,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       const { data: standaloneDoc } = await sb.from('documents').insert({
         account_id: id, company_id: profile.company_id, user_id: profile.id,
         note_id: null, file_name: file.name, file_url: filePath,
-        file_type: fileType, title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false,
+        file_type: fileType, title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false, workspace_id: wsId ?? null,
       }).select().single()
       if (!isImage && standaloneDoc) {
         fetch('/api/index-document', {

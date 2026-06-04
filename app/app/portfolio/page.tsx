@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { CompanyCard, getInitials } from '@/components/ui/CompanyCard'
 import { useAccentColor } from '@/contexts/AccentColorContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 
 type PortfolioEntry = {
   id: string
@@ -29,6 +30,7 @@ export default function PortfolioPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor } = useAccentColor()
+  const { wsId } = useWorkspace()
   const [entries, setEntries] = useState<PortfolioEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('all')
@@ -50,14 +52,16 @@ export default function PortfolioPage() {
   const fetchEntries = useCallback(async () => {
     if (!profile) return
     const supabase = createClient()
-    const { data } = await supabase
+    let q = supabase
       .from('portfolio')
       .select('id, account_id, visibility, created_at, accounts(id, name, city, industry, status)')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
+    if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`) as typeof q
+    const { data } = await q
     setEntries((data as unknown as PortfolioEntry[]) ?? [])
     setLoading(false)
-  }, [profile])
+  }, [profile, wsId])
 
   useEffect(() => {
     if (!profileLoading) fetchEntries()
@@ -100,6 +104,7 @@ export default function PortfolioPage() {
 
     await supabase.from('portfolio').insert({
       user_id: profile.id, account_id: acc.id, company_id: profile.company_id, visibility: 'team',
+      workspace_id: wsId ?? null,
     })
 
     router.push(`/app/accounts/${acc.id}`)

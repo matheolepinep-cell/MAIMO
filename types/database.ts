@@ -7,6 +7,27 @@ export interface UserProfile {
   role: UserRole
   company_id: string
   is_active: boolean
+  is_super_admin?: boolean
+  created_at: string
+}
+
+export interface Workspace {
+  id: string
+  company_id: string
+  name: string
+  description: string | null
+  color: string
+  created_by: string | null
+  created_at: string
+  is_default: boolean
+  role?: 'admin' | 'member'
+}
+
+export interface WorkspaceMember {
+  id: string
+  workspace_id: string
+  user_id: string
+  role: 'admin' | 'member'
   created_at: string
 }
 
@@ -143,4 +164,7 @@ export interface SearchSource {
   author?: string
   file_name?: string
   url?: string
+  company_name?: string
+  account_id?: string
+  excerpt?: string
 }

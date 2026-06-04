@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { Briefcase, Globe, Building2, RotateCcw, Upload, MessageSquare, Mic, MicOff, ArrowUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import type { SearchSource } from '@/types/database'
 
@@ -22,10 +23,12 @@ type Message = { role: 'user' | 'assistant'; content: string; sources?: SearchSo
 async function getAccessibleAccountIds(
   supabase: ReturnType<typeof createClient>,
   userId: string,
-  companyId: string
+  companyId: string,
+  wsId: string | null
 ): Promise<string[]> {
-  const { data: entries } = await supabase
-    .from('portfolio').select('id, account_id, user_id, visibility').eq('company_id', companyId)
+  let q = supabase.from('portfolio').select('id, account_id, user_id, visibility').eq('company_id', companyId)
+  if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+  const { data: entries } = await q
   const entryIds = (entries ?? []).map((p: { id: string }) => p.id)
   const { data: myAccess } = entryIds.length > 0
     ? await supabase.from('portfolio_access').select('portfolio_id').in('portfolio_id', entryIds).eq('user_id', userId)
@@ -46,6 +49,7 @@ function SearchPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
+  const { wsId } = useWorkspace()
 
   const [activeTab, setActiveTab] = useState<SearchTab>('global')
   const [portfolioAccounts, setPortfolioAccounts] = useState<{ id: string; name: string }[]>([])
@@ -92,12 +96,13 @@ function SearchPageContent() {
       })
 
     if (profile.role === 'admin') {
-      supabase.from('accounts').select('id').eq('company_id', profile.company_id)
-        .then(({ data }) => setGlobalAccountIds((data ?? []).map((a: { id: string }) => a.id)))
+      let q = supabase.from('accounts').select('id').eq('company_id', profile.company_id)
+      if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+      q.then(({ data }) => setGlobalAccountIds((data ?? []).map((a: { id: string }) => a.id)))
     } else {
-      getAccessibleAccountIds(supabase, profile.id, profile.company_id).then(setGlobalAccountIds)
+      getAccessibleAccountIds(supabase, profile.id, profile.company_id, wsId).then(setGlobalAccountIds)
     }
-  }, [profileLoading, profile])
+  }, [profileLoading, profile, wsId])
 
   useEffect(() => {
     if (inConversation) {
@@ -117,6 +122,7 @@ function SearchPageContent() {
       const body: Record<string, unknown> = {
         query: q,
         company_id: profile.company_id,
+        workspace_id: wsId ?? undefined,
         status: statusFilter,
         city: city.trim() || undefined,
         history,
@@ -133,7 +139,7 @@ function SearchPageContent() {
       setConversation(prev => [...prev, { role: 'assistant', content: 'Une erreur est survenue. Veuillez réessayer.', sources: [] }])
     }
     setLoading(false)
-  }, [profile, conversation, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city])
+  }, [profile, wsId, conversation, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city])
 
   useEffect(() => {
     const q = searchParams.get('q')

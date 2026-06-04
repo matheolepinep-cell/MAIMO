@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { query, account_id, account_ids, status = 'all', city, company_id, history = [] } = await request.json()
+  const { query, account_id, account_ids, status = 'all', city, company_id, workspace_id, history = [] } = await request.json()
 
   if (!query || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -75,14 +75,14 @@ export async function POST(request: Request) {
   const noteIds = rawChunks.filter((c) => c.source_type === 'note').map((c) => c.source_id)
   const docIds = rawChunks.filter((c) => c.source_type === 'document').map((c) => c.source_id)
 
-  type NoteInfo = { title: string | null; created_at: string; author: string; account_id: string }
-  type DocInfo = { title: string | null; file_name: string; file_url: string; created_at: string; account_id: string }
+  type NoteInfo = { title: string | null; created_at: string; author: string; account_id: string; workspace_id: string | null }
+  type DocInfo = { title: string | null; file_name: string; file_url: string; created_at: string; account_id: string; workspace_id: string | null }
 
   let notesMap: Record<string, NoteInfo> = {}
   if (noteIds.length > 0) {
     const { data: notes } = await supabase
       .from('notes')
-      .select('id, title, created_at, user_id, account_id')
+      .select('id, title, created_at, user_id, account_id, workspace_id')
       .in('id', noteIds)
 
     if (notes && notes.length > 0) {
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         : { data: [] }
       const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u.full_name]))
       notesMap = Object.fromEntries(
-        notes.map((n) => [n.id, { title: n.title, created_at: n.created_at, author: userMap[n.user_id] ?? 'Inconnu', account_id: n.account_id }])
+        notes.map((n) => [n.id, { title: n.title, created_at: n.created_at, author: userMap[n.user_id] ?? 'Inconnu', account_id: n.account_id, workspace_id: n.workspace_id ?? null }])
       )
     }
   }
@@ -101,12 +101,22 @@ export async function POST(request: Request) {
   if (docIds.length > 0) {
     const { data: docs } = await supabase
       .from('documents')
-      .select('id, title, file_name, file_url, created_at, account_id')
+      .select('id, title, file_name, file_url, created_at, account_id, workspace_id')
       .in('id', docIds)
 
     if (docs) {
-      docsMap = Object.fromEntries(docs.map((d) => [d.id, d]))
+      docsMap = Object.fromEntries(docs.map((d) => [d.id, { ...d, workspace_id: d.workspace_id ?? null }]))
     }
+  }
+
+  // Post-filter: workspace
+  if (workspace_id) {
+    rawChunks = rawChunks.filter((chunk) => {
+      const ws = chunk.source_type === 'note'
+        ? notesMap[chunk.source_id]?.workspace_id
+        : docsMap[chunk.source_id]?.workspace_id
+      return ws === workspace_id || ws === null || ws === undefined
+    })
   }
 
   // Post-filter: account_ids whitelist + status + city

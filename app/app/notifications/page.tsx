@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Bell, FileText, MessageCircle, Share2, StickyNote } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Header } from '@/components/layout/Header'
 
 type Notification = {
@@ -57,18 +58,21 @@ function notifIcon(type: Notification['type']) {
 
 export default function NotificationsPage() {
   const { profile } = useUser()
+  const { wsId } = useWorkspace()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchAndMarkRead = async () => {
     if (!profile?.id) return
     const supabase = createClient()
-    const { data } = await supabase
+    let q = supabase
       .from('notifications')
       .select('*')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
       .limit(100)
+    if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+    const { data } = await q
     setNotifications((data as Notification[]) ?? [])
     setLoading(false)
 
@@ -83,7 +87,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     fetchAndMarkRead()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id])
+  }, [profile?.id, wsId])
 
   const handleMarkAllRead = async () => {
     if (!profile?.id) return

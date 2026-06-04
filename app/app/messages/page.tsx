@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { MessageCircle, Send, Paperclip, ArrowLeft, FileText, ImageIcon, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Header } from '@/components/layout/Header'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import type { UserProfile, Document } from '@/types/database'
@@ -53,6 +54,7 @@ function userColor(id: string) {
 
 export default function MessagesPage() {
   const { profile } = useUser()
+  const { wsId } = useWorkspace()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [activeConv, setActiveConv] = useState<Conversation | null>(null)
@@ -72,11 +74,13 @@ export default function MessagesPage() {
     const supabase = createClient()
 
     // Conversations where current user is a participant
-    const { data: convs } = await supabase
+    let convQ = supabase
       .from('conversations')
       .select('*')
       .contains('participants', [profile.id])
       .order('last_message_at', { ascending: false })
+    if (wsId) convQ = convQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+    const { data: convs } = await convQ
 
     // Team members
     const { data: team } = await supabase
@@ -123,7 +127,7 @@ export default function MessagesPage() {
 
     setConversations(enriched)
     setLoading(false)
-  }, [profile])
+  }, [profile, wsId])
 
   useEffect(() => { fetchConversations() }, [fetchConversations])
 
@@ -234,7 +238,7 @@ export default function MessagesPage() {
 
     const { data: conv } = await supabase
       .from('conversations')
-      .insert({ participants })
+      .insert({ participants, workspace_id: wsId ?? null })
       .select()
       .single()
 
