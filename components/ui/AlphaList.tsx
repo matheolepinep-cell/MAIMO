@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState, useEffect } from 'react'
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -23,6 +23,7 @@ function getLetter(name: string): string {
 export function AlphaList({ items, renderItem, emptyState }: AlphaListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const [activeSection, setActiveSection] = useState<string | null>(null)
 
   // Group items by letter
   const groups: Record<string, AlphaItem[]> = {}
@@ -32,6 +33,38 @@ export function AlphaList({ items, renderItem, emptyState }: AlphaListProps) {
     groups[letter].push(item)
   }
   const presentLetters = new Set(Object.keys(groups))
+
+  // Track active section via scroll
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    // Walk up DOM to find scrollable ancestor
+    let scrollEl: HTMLElement | null = container.parentElement
+    while (scrollEl) {
+      const { overflow, overflowY } = window.getComputedStyle(scrollEl)
+      if (['auto', 'scroll'].includes(overflow) || ['auto', 'scroll'].includes(overflowY)) break
+      scrollEl = scrollEl.parentElement
+    }
+
+    const computeActive = () => {
+      const refs = sectionRefs.current
+      const containerTop = scrollEl ? scrollEl.getBoundingClientRect().top : 0
+      let found: string | null = null
+      for (const letter of [...ALPHABET, '#']) {
+        const el = refs[letter]
+        if (!el) continue
+        const sectionTop = el.getBoundingClientRect().top - containerTop
+        if (sectionTop <= 64) found = letter
+      }
+      setActiveSection(found)
+    }
+
+    const target: EventTarget = scrollEl ?? window
+    computeActive()
+    target.addEventListener('scroll', computeActive, { passive: true })
+    return () => target.removeEventListener('scroll', computeActive)
+  }, [items])
 
   const scrollTo = useCallback((letter: string) => {
     const el = sectionRefs.current[letter]
@@ -51,7 +84,7 @@ export function AlphaList({ items, renderItem, emptyState }: AlphaListProps) {
           <div key={letter} ref={(el) => { sectionRefs.current[letter] = el }}>
             {/* Section header */}
             <div
-              className="sticky top-0 z-10 px-3 py-1 mb-2 text-xs font-bold"
+              className="sticky top-0 z-10 px-4 py-1 mb-2 text-xs font-bold"
               style={{ background: '#F0F4FF', color: '#1E2761', borderRadius: 6 }}
             >
               {letter}
@@ -66,17 +99,18 @@ export function AlphaList({ items, renderItem, emptyState }: AlphaListProps) {
       {/* Alpha index — desktop */}
       <div className="hidden md:flex flex-col items-center gap-0.5 sticky top-0 self-start pt-1 shrink-0">
         {ALPHABET.map((letter) => {
-          const active = presentLetters.has(letter)
+          const present = presentLetters.has(letter)
+          const isActive = activeSection === letter
           return (
             <button
               key={letter}
-              onClick={() => active && scrollTo(letter)}
-              disabled={!active}
+              onClick={() => present && scrollTo(letter)}
+              disabled={!present}
               className="w-5 text-center text-[11px] leading-[1.4] transition-colors"
               style={{
-                color: active ? '#8899BB' : '#D1D5DB',
-                fontWeight: active ? 500 : 400,
-                cursor: active ? 'pointer' : 'default',
+                color: isActive ? '#1E2761' : present ? '#8899BB' : '#CBD5E1',
+                fontWeight: isActive ? 500 : present ? 400 : 400,
+                cursor: present ? 'pointer' : 'default',
               }}
             >
               {letter}
@@ -85,21 +119,22 @@ export function AlphaList({ items, renderItem, emptyState }: AlphaListProps) {
         })}
       </div>
 
-      {/* Alpha index — mobile (right edge) */}
+      {/* Alpha index — mobile (right edge, fixed) */}
       <div className="md:hidden flex flex-col items-center gap-0 fixed right-0 top-1/2 -translate-y-1/2 z-20 py-1 px-0.5">
         {ALPHABET.map((letter) => {
-          const active = presentLetters.has(letter)
+          const present = presentLetters.has(letter)
+          const isActive = activeSection === letter
           return (
             <button
               key={letter}
-              onClick={() => active && scrollTo(letter)}
-              disabled={!active}
+              onClick={() => present && scrollTo(letter)}
+              disabled={!present}
               className="w-4 text-center leading-[1.3] transition-colors"
               style={{
                 fontSize: 10,
-                color: active ? '#1E2761' : '#D1D5DB',
-                fontWeight: active ? 700 : 400,
-                cursor: active ? 'pointer' : 'default',
+                color: isActive ? '#1E2761' : present ? '#8899BB' : '#CBD5E1',
+                fontWeight: isActive ? 500 : 400,
+                cursor: present ? 'pointer' : 'default',
               }}
             >
               {letter}

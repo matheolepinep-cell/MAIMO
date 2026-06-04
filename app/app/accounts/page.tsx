@@ -238,45 +238,57 @@ export default function AccountsPage() {
           </select>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-[10px] py-3 space-y-[8px]">
+        <div className="flex-1 overflow-y-auto px-[10px] py-3">
           {loading ? (
-            [...Array(5)].map((_, i) => (
-              <div key={i} className="h-[52px] bg-white rounded-2xl animate-pulse"
-                style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
-            ))
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-16">
-              <Briefcase className="w-8 h-8 text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">Aucune entreprise.</p>
+            <div className="space-y-[8px]">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-[52px] bg-white rounded-2xl animate-pulse"
+                  style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
+              ))}
             </div>
-          ) : filtered.map((acc) => (
-            <button
-              key={acc.id}
-              onClick={() => router.push(`/app/accounts/${acc.id}`)}
-              className="w-full flex items-center gap-3 bg-white rounded-2xl px-[12px] py-[10px] text-left transition-all duration-150 hover:-translate-y-0.5"
-              style={{ border: '1px solid rgba(30,39,97,0.07)', boxShadow: '0 1px 3px rgba(30,39,97,0.04)' }}
-            >
-              <div
-                className="rounded-full shrink-0"
-                style={{ width: 7, height: 7, background: acc.status === 'client' ? '#22C55E' : '#F59E0B' }}
-              />
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                style={{ background: accentColor }}
-              >
-                {getInitials(acc.name)}
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-[13px] font-bold text-[#0A1628] truncate">{acc.name}</p>
-                {(acc.city || acc.industry || acc.owner_name) && (
-                  <p className="text-[11px] text-[#8899BB] truncate">
-                    {[acc.city, acc.industry, acc.owner_name ? `par ${acc.owner_name}` : null].filter(Boolean).join(' · ')}
-                  </p>
-                )}
-              </div>
-              <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#C5D0F0' }} />
-            </button>
-          ))}
+          ) : (
+            <AlphaList
+              items={filtered.map((acc) => ({ id: acc.id, name: acc.name }))}
+              emptyState={
+                <div className="text-center py-16">
+                  <Briefcase className="w-8 h-8 text-slate-200 mx-auto mb-3" />
+                  <p className="text-sm text-slate-400">Aucune entreprise.</p>
+                </div>
+              }
+              renderItem={(item) => {
+                const acc = filtered.find((a) => a.id === item.id)
+                if (!acc) return null
+                return (
+                  <button
+                    key={acc.id}
+                    onClick={() => router.push(`/app/accounts/${acc.id}`)}
+                    className="w-full flex items-center gap-3 bg-white rounded-2xl px-[12px] py-[10px] text-left transition-all duration-150 hover:-translate-y-0.5"
+                    style={{ border: '1px solid rgba(30,39,97,0.07)', boxShadow: '0 1px 3px rgba(30,39,97,0.04)' }}
+                  >
+                    <div
+                      className="rounded-full shrink-0"
+                      style={{ width: 7, height: 7, background: acc.status === 'client' ? '#22C55E' : '#F59E0B' }}
+                    />
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                      style={{ background: accentColor }}
+                    >
+                      {getInitials(acc.name)}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-[13px] font-bold text-[#0A1628] truncate">{acc.name}</p>
+                      {(acc.city || acc.industry || acc.owner_name) && (
+                        <p className="text-[11px] text-[#8899BB] truncate">
+                          {[acc.city, acc.industry, acc.owner_name ? `par ${acc.owner_name}` : null].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                    <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#C5D0F0' }} />
+                  </button>
+                )
+              }}
+            />
+          )}
         </div>
       </div>
 
