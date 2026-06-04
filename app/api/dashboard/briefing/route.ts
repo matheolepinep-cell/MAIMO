@@ -5,7 +5,7 @@ import { getAuthenticatedUser } from '@/lib/auth-server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const ACTION_KEYWORDS = ['rappel', 'relancer', 'rdv', 'réunion', 'réunion', 'envoyer', 'appeler', 'suivre', 'contacter', 'relance']
+const ACTION_KEYWORDS = ['rappel', 'relancer', 'rdv', 'réunion', 'envoyer', 'appeler', 'suivre', 'contacter', 'relance']
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
@@ -48,6 +48,9 @@ export async function POST(request: Request) {
       const daysSince = Math.floor((today.getTime() - new Date(a.created_at).getTime()) / (1000 * 3600 * 24))
       return { name: a.name, days: daysSince }
     })
+
+  const totalAccounts = (allAccounts ?? []).length
+  const staleCount = staleAccounts.length
 
   // 2. Recent notes with action keywords
   let actionNotesQ = supabase.from('notes')
@@ -98,35 +101,41 @@ export async function POST(request: Request) {
 
   // Build prompt data
   const dataLines: string[] = []
-
-  if (staleAccounts.length > 0) {
-    dataLines.push(`Entreprises sans contact récent : ${staleAccounts.map((a) => `${a.name} (${a.days}j)`).join(', ')}`)
-  }
   if (actionItems.length > 0) {
-    dataLines.push(`Notes avec actions à faire : ${actionItems.map((i) => `${i.account} — "${i.excerpt}" (${i.date})`).join(' | ')}`)
+    dataLines.push(`Rappels/RDV détectés : ${actionItems.map((i) => `${i.account} — "${i.excerpt}" (${i.date})`).join(' | ')}`)
+  }
+  if (staleAccounts.length > 0) {
+    dataLines.push(`Clients sans contact récent : ${staleAccounts.map((a) => `${a.name} (${a.days}j)`).join(', ')}`)
   }
   if (teamActivity.length > 0) {
     dataLines.push(`Activité équipe aujourd'hui : ${teamActivity.map((t) => `${t.name} (${t.count} note${t.count > 1 ? 's' : ''})`).join(', ')}`)
   }
-
   if (dataLines.length === 0) {
-    return NextResponse.json({ items: [] })
+    dataLines.push(`Portefeuille : ${totalAccounts} entreprise${totalAccounts > 1 ? 's' : ''} au total`)
   }
 
-  const prompt = `Tu es l'assistant commercial de ${first_name || 'l\'utilisateur'}. Génère un briefing du matin ultra-concis en 2 à 3 points maximum. Chaque point = 1 ligne, 10 mots max. Pas d'introduction, pas de conclusion. Commence directement par les points. Format : une phrase courte et actionnable par ligne. Exemples de style : 'Bénéteau sans contact depuis 45 jours' / 'RDV Alpine à confirmer — note du 2 juin' / '3 documents non classés en attente'. Données disponibles :\n${dataLines.join('\n')}`
+  const prompt = `Tu es l'assistant commercial de ${first_name || 'l\'utilisateur'}. Donne exactement 3 informations urgentes et actionnables parmi les données disponibles. Priorise dans cet ordre : 1) les rappels et RDV détectés dans les notes récentes, 2) les clients sans contact depuis longtemps, 3) les documents non classés. Si une catégorie manque de données, génère quand même un item pertinent à partir des données disponibles. Chaque item = 1 phrase, 8 mots maximum, directe et sans verbe d'introduction. Réponds uniquement en JSON : { "items": [string, string, string] }. Pas de markdown, pas d'intro.\n\nDonnées disponibles :\n${dataLines.join('\n')}`
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 150,
+    max_tokens: 200,
     messages: [{ role: 'user', content: prompt }],
   })
 
-  const raw = message.content[0].type === 'text' ? message.content[0].text : ''
-  const items = raw
-    .split('\n')
-    .map((l) => l.replace(/^[-•·*\d.]+\s*/, '').trim())
-    .filter((l) => l.length > 0)
-    .slice(0, 3)
+  const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
 
-  return NextResponse.json({ items })
+  let items: string[] = []
+  try {
+    const parsed = JSON.parse(raw)
+    items = Array.isArray(parsed.items) ? parsed.items.map(String).slice(0, 3) : []
+  } catch {
+    // Fallback: parse line by line if Claude didn't respect JSON
+    items = raw
+      .split('\n')
+      .map((l) => l.replace(/^[-•·*\d.]+\s*/, '').trim())
+      .filter((l) => l.length > 0)
+      .slice(0, 3)
+  }
+
+  return NextResponse.json({ items, stale_count: staleCount, total_accounts: totalAccounts })
 }

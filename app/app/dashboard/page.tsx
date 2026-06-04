@@ -91,14 +91,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (profileLoading || !profile) return
-    const cacheKey = `maimoo_briefing_${profile.id}_${new Date().toISOString().slice(0, 10)}`
-    const cached = localStorage.getItem(cacheKey)
-    if (cached) {
-      try {
-        const { items, ts } = JSON.parse(cached)
-        if (Date.now() - ts < 30 * 60 * 1000) { setBriefingItems(items); return }
-      } catch { /* stale cache */ }
-    }
     fetch('/api/dashboard/briefing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -109,12 +101,19 @@ export default function DashboardPage() {
       }),
     })
       .then((r) => r.json())
-      .then(({ items }) => {
-        const result = Array.isArray(items) ? items : []
-        setBriefingItems(result)
-        localStorage.setItem(cacheKey, JSON.stringify({ items: result, ts: Date.now() }))
+      .then(({ items, stale_count, total_accounts }) => {
+        let result: string[] = Array.isArray(items) ? items.slice(0, 3) : []
+        // Pad to 3 with generic stats if API returned fewer
+        if (result.length < 3 && stale_count != null) {
+          result = [...result, `${stale_count} client${stale_count > 1 ? 's' : ''} sans activité ce mois`]
+        }
+        if (result.length < 3 && total_accounts != null) {
+          result = [...result, `${total_accounts} entreprise${total_accounts > 1 ? 's' : ''} dans le portefeuille`]
+        }
+        while (result.length < 3) result.push('Aucune activité récente détectée')
+        setBriefingItems(result.slice(0, 3))
       })
-      .catch(() => setBriefingItems([]))
+      .catch(() => setBriefingItems(['—', '—', '—']))
   }, [profileLoading, profile, wsId])
 
   useEffect(() => {
@@ -339,7 +338,7 @@ export default function DashboardPage() {
       <div className="flex flex-col min-h-full">
 
         {/* Hero */}
-        <div className="relative pl-14 pr-4 md:px-10 pt-6 md:pt-10 pb-12 md:pb-16 overflow-hidden"
+        <div className="relative pl-14 pr-4 md:px-10 pt-5 md:pt-5 pb-8 md:pb-10 overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #0F1F5C 0%, #1E2761 40%, #2D3F8F 70%, #4C6EF5 100%)' }}>
           {/* Subtle grid pattern */}
           <div className="absolute inset-0 opacity-[0.04]" style={{
@@ -347,7 +346,7 @@ export default function DashboardPage() {
             backgroundSize: '32px 32px',
           }} />
           <div className="max-w-7xl mx-auto relative">
-            <div className="flex items-end justify-between mb-6">
+            <div className="flex items-end justify-between">
               <div>
                 <p
                   className="font-extrabold text-white/60 text-xs mb-2 uppercase"
