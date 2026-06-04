@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Search, LayoutDashboard, Briefcase, Users, Settings, User, Menu, MessageCircle, Bell } from 'lucide-react'
@@ -7,6 +8,7 @@ import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
 import { useUser } from '@/contexts/UserContext'
 import { useNotificationCount } from '@/contexts/NotificationContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
+import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
 
 export function MobileSidebar() {
   const pathname = usePathname()
@@ -14,6 +16,7 @@ export function MobileSidebar() {
   const { open, close, toggle } = useMobileSidebar()
   const unreadCount = useNotificationCount()
   const hasUnreadMessages = useUnreadMessages()
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false)
 
   const isActive = (href: string) =>
     href === '/app/search'
@@ -63,7 +66,7 @@ export function MobileSidebar() {
           onClick={(e) => e.stopPropagation()}
         >
           {/* Logo */}
-          <Link href="/app/dashboard" className="flex items-center gap-3 px-4 mb-6 shrink-0" onClick={close}>
+          <Link href="/app/dashboard" className="flex items-center gap-3 px-4 mb-4 shrink-0" onClick={close}>
             <div
               className="flex items-center justify-center shrink-0 text-white font-bold text-base"
               style={{ background: '#4C6EF5', width: 36, height: 36, borderRadius: 10 }}
@@ -74,6 +77,9 @@ export function MobileSidebar() {
               MAIMOO
             </span>
           </Link>
+
+          <WorkspaceSelector onCreateClick={() => setShowCreateWorkspace(true)} />
+          {showCreateWorkspace && <div style={{ display: 'none' }} />}
 
           {/* Nav items */}
           {navItems.map(({ href, icon: Icon, label }) => (

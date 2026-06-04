@@ -7,6 +7,7 @@ import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown,
 import { useUser } from '@/contexts/UserContext'
 import { useNotificationCount } from '@/contexts/NotificationContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
+import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
 
 function NavItem({
   href,
@@ -70,6 +71,7 @@ export function Sidebar() {
   const [portfolioOpen, setPortfolioOpen] = useState(
     pathname.startsWith('/app/portfolio') || pathname.startsWith('/app/accounts')
   )
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false)
 
   const initials = profile?.full_name
     ?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() ?? '?'
@@ -82,7 +84,7 @@ export function Sidebar() {
       style={{ background: '#0A1628' }}
     >
       {/* Logo */}
-      <Link href="/app/dashboard" className="flex items-center gap-2.5 px-5 mb-8 group">
+      <Link href="/app/dashboard" className="flex items-center gap-2.5 px-5 mb-4 group">
         <div
           className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
           style={{ background: '#4C6EF5' }}
@@ -96,6 +98,12 @@ export function Sidebar() {
           MAIMOO
         </span>
       </Link>
+
+      <WorkspaceSelector onCreateClick={() => setShowCreateWorkspace(true)} />
+      {/* showCreateWorkspace modal wired in ÉTAPE 4 */}
+      {showCreateWorkspace && (
+        <div style={{ display: 'none' }} />
+      )}
 
       {/* Nav */}
       <nav className="flex flex-col gap-0.5 flex-1">
