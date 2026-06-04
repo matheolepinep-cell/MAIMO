@@ -308,7 +308,7 @@ export default function DashboardPage() {
       <div className="flex flex-col min-h-full">
 
         {/* Hero */}
-        <div className="relative pl-14 pr-4 md:px-10 pt-5 md:pt-5 pb-8 md:pb-10 overflow-hidden"
+        <div className="relative pl-16 pr-4 md:px-10 pt-5 md:pt-5 pb-8 md:pb-10 overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #0F1F5C 0%, #1E2761 40%, #2D3F8F 70%, #4C6EF5 100%)' }}>
           {/* Subtle grid pattern */}
           <div className="absolute inset-0 opacity-[0.04]" style={{
@@ -340,7 +340,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 bg-[#F0F4FF] px-3 md:px-10 py-4 md:py-8 -mt-6">
+        <div className="flex-1 bg-[#F0F4FF] px-3 md:px-10 pt-11 pb-4 md:py-8 -mt-6">
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* Actions rapides */}
