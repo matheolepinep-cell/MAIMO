@@ -3,9 +3,10 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
+import type { UserProfile } from '@/types/database'
 
 export async function POST(request: Request) {
-  const user = await getAuthenticatedUser()
+  const user = (await getAuthenticatedUser()) as UserProfile | null
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -21,23 +22,39 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // Fetch metadata for chunk enrichment (parallel)
+  const [{ data: account }, { data: note }] = await Promise.all([
+    supabase.from('accounts').select('name').eq('id', account_id).single(),
+    supabase.from('notes').select('created_at').eq('id', note_id).single(),
+  ])
+  const accountName = account?.name ?? 'Inconnu'
+  const authorName = user.full_name ?? 'Inconnu'
+  const noteDate = note?.created_at
+    ? new Date(note.created_at).toLocaleDateString('fr-FR')
+    : new Date().toLocaleDateString('fr-FR')
+
   await supabase.from('chunks').delete().eq('source_id', note_id).eq('source_type', 'note')
 
-  const chunks = chunkText(content)
-  if (chunks.length === 0) {
+  const rawChunks = chunkText(content)
+  if (rawChunks.length === 0) {
     return NextResponse.json({ success: true, chunks: 0 })
   }
 
+  // Prefix each chunk with metadata for richer semantic embeddings
+  const enrichedChunks = rawChunks.map(
+    (chunk) => `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note]\n\n${chunk}`
+  )
+
   let embeddings: number[][]
   try {
-    embeddings = await embedBatch(chunks)
+    embeddings = await embedBatch(enrichedChunks)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Embedding failed'
     console.error('Embedding error:', message)
     return NextResponse.json({ error: message }, { status: 502 })
   }
 
-  const rows = chunks.map((chunk, i) => ({
+  const rows = enrichedChunks.map((chunk, i) => ({
     company_id: company_id ?? null,
     account_id,
     source_type: 'note' as const,
@@ -45,6 +62,8 @@ export async function POST(request: Request) {
     content: chunk,
     embedding: embeddings[i],
     workspace_id: workspace_id ?? null,
+    company_name: accountName,
+    author_name: authorName,
   }))
 
   const { error } = await supabase.from('chunks').insert(rows)

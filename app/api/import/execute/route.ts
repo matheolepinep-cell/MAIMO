@@ -3,6 +3,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
+import type { UserProfile } from '@/types/database'
 
 type MaimoField = 'company_name' | 'city' | 'industry' | 'status' | 'contact_name' | 'contact_role' | 'contact_phone' | 'contact_email' | 'revenue' | 'notes'
 type PreviewRow = Record<MaimoField, string> & { note_generated: string; _raw: Record<string, unknown> }
@@ -15,13 +16,16 @@ function normalize(name: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function indexNote(supabase: any, noteId: string, content: string, accountId: string, companyId: string, workspaceId: string | null) {
+async function indexNote(supabase: any, noteId: string, content: string, accountId: string, companyId: string, workspaceId: string | null, accountName: string, authorName: string, noteDate: string) {
   try {
-    const chunks = chunkText(content)
-    if (chunks.length === 0) return
-    const embeddings = await embedBatch(chunks)
+    const rawChunks = chunkText(content)
+    if (rawChunks.length === 0) return
+    const enrichedChunks = rawChunks.map(
+      (chunk: string) => `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note]\n\n${chunk}`
+    )
+    const embeddings = await embedBatch(enrichedChunks)
     await supabase.from('chunks').insert(
-      chunks.map((chunk: string, i: number) => ({
+      enrichedChunks.map((chunk: string, i: number) => ({
         company_id: companyId,
         account_id: accountId,
         source_type: 'note',
@@ -29,6 +33,8 @@ async function indexNote(supabase: any, noteId: string, content: string, account
         content: chunk,
         embedding: embeddings[i],
         workspace_id: workspaceId,
+        company_name: accountName,
+        author_name: authorName,
       }))
     )
   } catch (err) {
@@ -91,6 +97,7 @@ export async function POST(request: Request) {
   let notesCreated = 0
 
   const noteDate = new Date().toLocaleDateString('fr-FR')
+  const authorName = (user as UserProfile).full_name ?? 'Import'
 
   for (const idx of batchIndices) {
     const row = allRows[idx]
@@ -127,7 +134,7 @@ export async function POST(request: Request) {
       }).select('id').single()
 
       notesCreated++
-      if (note?.id) await indexNote(supabase, note.id, noteContent, existingId, company_id, workspace_id ?? null)
+      if (note?.id) await indexNote(supabase, note.id, noteContent, existingId, company_id, workspace_id ?? null, companyName, authorName, noteDate)
 
       await supabase.from('portfolio').upsert({
         company_id,
@@ -224,7 +231,7 @@ export async function POST(request: Request) {
     }).select('id').single()
 
     notesCreated++
-    if (note?.id) await indexNote(supabase, note.id, noteContent, acc.id, company_id, workspace_id ?? null)
+    if (note?.id) await indexNote(supabase, note.id, noteContent, acc.id, company_id, workspace_id ?? null, companyName, authorName, noteDate)
 
     created++
   }

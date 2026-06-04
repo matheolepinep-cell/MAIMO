@@ -71,13 +71,22 @@ export async function POST(request: Request) {
     workspace_id: workspace_id ?? null,
   })
 
+  // Fetch account name for chunk enrichment
+  const { data: accountRow } = await supabase.from('accounts').select('name').eq('id', account_id).single()
+  const accountName = accountRow?.name ?? 'Inconnu'
+  const displayName = file_name.replace(/\.[^.]+$/, '')
+  const importDate = new Date().toLocaleDateString('fr-FR')
+
   // Chunk + embed for RAG
   try {
     const chunks = chunkText(text)
     if (chunks.length > 0) {
-      const embeddings = await embedBatch(chunks)
+      const enrichedChunks = chunks.map(
+        (chunk) => `[Entreprise: ${accountName} | Fichier: ${displayName} | Date: ${importDate} | Type: Document]\n\n${chunk}`
+      )
+      const embeddings = await embedBatch(enrichedChunks)
       await supabase.from('chunks').insert(
-        chunks.map((chunk, i) => ({
+        enrichedChunks.map((chunk, i) => ({
           company_id,
           account_id,
           source_type: 'document' as const,
@@ -85,6 +94,7 @@ export async function POST(request: Request) {
           content: chunk,
           embedding: embeddings[i],
           workspace_id: workspace_id ?? null,
+          company_name: accountName,
         }))
       )
     }

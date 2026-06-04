@@ -84,12 +84,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, chunks: 0 })
     }
 
+    // Fetch metadata for chunk enrichment (parallel with existing flow)
+    const [{ data: accountRow }, { data: docRow }] = await Promise.all([
+      supabase.from('accounts').select('name').eq('id', account_id).single(),
+      supabase.from('documents').select('title, file_name, created_at').eq('id', document_id).single(),
+    ])
+    const accountName = accountRow?.name ?? 'Inconnu'
+    const fileName = docRow?.title ?? docRow?.file_name ?? file_url.split('/').pop() ?? 'Document'
+    const importDate = docRow?.created_at
+      ? new Date(docRow.created_at).toLocaleDateString('fr-FR')
+      : new Date().toLocaleDateString('fr-FR')
+
+    // Prefix each chunk with metadata for richer semantic embeddings
+    const enrichedChunks = chunks.map(
+      (chunk) => `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document]\n\n${chunk}`
+    )
+
     // Remove old chunks
     await supabase.from('chunks').delete().eq('source_id', document_id).eq('source_type', 'document')
 
-    const embeddings = await embedBatch(chunks)
+    const embeddings = await embedBatch(enrichedChunks)
 
-    const rows = chunks.map((chunk, i) => ({
+    const rows = enrichedChunks.map((chunk, i) => ({
       company_id,
       account_id,
       source_type: 'document' as const,
@@ -97,6 +113,7 @@ export async function POST(request: Request) {
       content: chunk,
       embedding: embeddings[i],
       workspace_id: workspace_id ?? null,
+      company_name: accountName,
     }))
 
     await supabase.from('chunks').insert(rows)
