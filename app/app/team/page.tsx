@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Users, UserPlus, Mail, Shield, Trash2, Crown, Briefcase, Building2, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -23,6 +24,7 @@ type PublicEntry = {
 export default function TeamPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
+  const { userWorkspaces } = useWorkspace()
   const [members, setMembers] = useState<UserProfile[]>([])
   const [portfolioCounts, setPortfolioCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
@@ -30,6 +32,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
   const [inviteRole, setInviteRole] = useState<'commercial' | 'admin'>('commercial')
+  const [inviteWorkspaces, setInviteWorkspaces] = useState<{ wsId: string; role: 'admin' | 'member' }[]>([])
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
@@ -75,6 +78,17 @@ export default function TeamPage() {
     setPortfolioLoading(false)
   }
 
+  const toggleInviteWorkspace = (wsId: string) => {
+    setInviteWorkspaces((prev) => {
+      if (prev.find((w) => w.wsId === wsId)) return prev.filter((w) => w.wsId !== wsId)
+      return [...prev, { wsId, role: 'member' }]
+    })
+  }
+
+  const setInviteWsRole = (wsId: string, role: 'admin' | 'member') => {
+    setInviteWorkspaces((prev) => prev.map((w) => w.wsId === wsId ? { ...w, role } : w))
+  }
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     setInviteError('')
@@ -84,14 +98,19 @@ export default function TeamPage() {
     const res = await fetch('/api/admin/invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: inviteEmail.trim(), full_name: inviteName.trim(), role: inviteRole }),
+      body: JSON.stringify({
+        email: inviteEmail.trim(),
+        full_name: inviteName.trim(),
+        role: inviteRole,
+        workspaces: inviteWorkspaces,
+      }),
     })
     const json = await res.json()
     if (!res.ok) {
       setInviteError(json.error ?? 'Erreur lors de l\'invitation.')
     } else {
       setInviteSuccess(`Invitation envoyée à ${inviteEmail.trim()} !`)
-      setInviteEmail(''); setInviteName(''); setInviteRole('commercial')
+      setInviteEmail(''); setInviteName(''); setInviteRole('commercial'); setInviteWorkspaces([])
       fetchMembers()
     }
     setInviting(false)
@@ -265,6 +284,38 @@ export default function TeamPage() {
                 </button>
               </div>
             </div>
+            {userWorkspaces.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-[#1E293B] mb-2">Espaces (optionnel)</label>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {userWorkspaces.map((ws) => {
+                    const sel = inviteWorkspaces.find((w) => w.wsId === ws.id)
+                    return (
+                      <div
+                        key={ws.id}
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer"
+                        onClick={() => toggleInviteWorkspace(ws.id)}
+                      >
+                        <input type="checkbox" checked={!!sel} onChange={() => {}} className="w-4 h-4 accent-blue-500 shrink-0 cursor-pointer" />
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: `#${ws.color}` }} />
+                        <span className="flex-1 text-sm truncate">{ws.name}</span>
+                        {sel && (
+                          <select
+                            value={sel.role}
+                            onChange={(e) => { e.stopPropagation(); setInviteWsRole(ws.id, e.target.value as 'admin' | 'member') }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none bg-white shrink-0"
+                          >
+                            <option value="member">Membre</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             {inviteError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{inviteError}</p>}
             <div className="flex gap-2 pt-2">
               <Button variant="secondary" type="button" onClick={() => setModalOpen(false)} className="flex-1">Annuler</Button>

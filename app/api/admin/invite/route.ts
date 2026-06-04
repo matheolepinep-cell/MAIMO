@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { email, full_name, role } = await request.json()
+  const { email, full_name, role, workspaces } = await request.json()
 
   if (!email || !full_name || !role) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   )
 
   const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
-    data: { full_name, role, company_id: user.company_id },
+    data: { full_name, role, company_id: user.company_id, workspaces: workspaces ?? [] },
     redirectTo: 'https://www.maimoo.fr/',
   })
 

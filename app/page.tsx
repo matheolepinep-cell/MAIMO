@@ -83,11 +83,11 @@ export default function LandingPage() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
+      const meta = user.user_metadata
       const { data: profile } = await supabase.from('users').select('id').eq('id', user.id).single()
       if (profile) {
         await supabase.from('users').update({ full_name: fullName, is_active: true }).eq('id', user.id)
       } else {
-        const meta = user.user_metadata
         await supabase.from('users').insert({
           id: user.id,
           email: user.email,
@@ -96,6 +96,15 @@ export default function LandingPage() {
           company_id: meta?.company_id ?? null,
           is_active: true,
         })
+      }
+
+      // Create workspace memberships from invite metadata
+      const wsInvites = (meta?.workspaces as { wsId: string; role: 'admin' | 'member' }[] | undefined) ?? []
+      if (wsInvites.length > 0) {
+        await supabase.from('workspace_members').upsert(
+          wsInvites.map((w) => ({ workspace_id: w.wsId, user_id: user.id, role: w.role })),
+          { onConflict: 'workspace_id,user_id' }
+        )
       }
     }
 
