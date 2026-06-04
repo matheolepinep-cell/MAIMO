@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { CompanyCard, getInitials } from '@/components/ui/CompanyCard'
+import { AlphaList } from '@/components/ui/AlphaList'
 import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import type { Account } from '@/types/database'
@@ -371,50 +372,58 @@ export default function AccountsPage() {
               <div key={i} className="h-20 bg-white rounded-2xl animate-pulse"
                 style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
             ))}</div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
-                style={{ background: 'rgba(76,110,245,0.08)' }}>
-                <Briefcase className="w-6 h-6 text-[#4C6EF5]" />
-              </div>
-              <p className="text-slate-500 text-sm mb-4">
-                {search || filter !== 'all' ? 'Aucune entreprise trouvée.' : 'Aucune entreprise accessible.'}
-              </p>
-              {!search && filter === 'all' && (
-                <Button onClick={() => setCreateOpen(true)} variant="secondary" size="sm">
-                  + Créer une entreprise
-                </Button>
-              )}
-            </div>
           ) : (
-            <div className="space-y-2.5">
-              {filtered.map((account) => {
+            <AlphaList
+              items={filtered.map((a) => ({ id: a.id, name: a.name }))}
+              emptyState={
+                <div className="text-center py-16">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                    style={{ background: 'rgba(76,110,245,0.08)' }}>
+                    <Briefcase className="w-6 h-6 text-[#4C6EF5]" />
+                  </div>
+                  <p className="text-slate-500 text-sm mb-4">
+                    {search || filter !== 'all' ? 'Aucune entreprise trouvée.' : 'Aucune entreprise accessible.'}
+                  </p>
+                  {!search && filter === 'all' && (
+                    <Button onClick={() => setCreateOpen(true)} variant="secondary" size="sm">
+                      + Créer une entreprise
+                    </Button>
+                  )}
+                </div>
+              }
+              renderItem={(item) => {
+                const account = filtered.find((a) => a.id === item.id)
+                if (!account) return null
                 const isConfirming = confirmDeleteId === account.id
                 const isDeleting = deletingId === account.id
 
-                return isConfirming ? (
-                  <div
-                    key={account.id}
-                    className="bg-white rounded-2xl p-4 flex items-center gap-3"
-                    style={{ border: '1px solid rgba(239,68,68,0.3)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}
-                  >
-                    <p className="text-sm text-red-500 font-medium flex-1">Supprimer définitivement ?</p>
-                    <button
-                      onClick={() => handleDelete(account.id)}
-                      disabled={isDeleting}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-all disabled:opacity-60"
+                if (isConfirming) {
+                  return (
+                    <div
+                      key={account.id}
+                      className="bg-white rounded-2xl p-4 flex items-center gap-3"
+                      style={{ border: '1px solid rgba(239,68,68,0.3)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}
                     >
-                      {isDeleting && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                      Oui, supprimer
-                    </button>
-                    <button
-                      onClick={() => setConfirmDeleteId(null)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[#64748B] bg-gray-100 hover:bg-gray-200 transition-all"
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                ) : (
+                      <p className="text-sm text-red-500 font-medium flex-1">Supprimer définitivement ?</p>
+                      <button
+                        onClick={() => handleDelete(account.id)}
+                        disabled={isDeleting}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-all disabled:opacity-60"
+                      >
+                        {isDeleting && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                        Oui, supprimer
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold text-[#64748B] bg-gray-100 hover:bg-gray-200 transition-all"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )
+                }
+
+                return (
                   <CompanyCard
                     key={account.id}
                     name={account.name}
@@ -434,8 +443,8 @@ export default function AccountsPage() {
                     }
                   />
                 )
-              })}
-            </div>
+              }}
+            />
           )}
         </div>
       </div>

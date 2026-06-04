@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { CompanyCard, getInitials } from '@/components/ui/CompanyCard'
+import { AlphaList } from '@/components/ui/AlphaList'
 import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 
@@ -344,26 +345,29 @@ export default function PortfolioPage() {
             <div key={i} className="h-20 bg-white rounded-2xl animate-pulse"
               style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
           ))}</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
-              style={{ background: 'rgba(76,110,245,0.08)' }}>
-              <Briefcase className="w-6 h-6 text-[#4C6EF5]" />
-            </div>
-            <p className="text-slate-500 text-sm mb-4">
-              {filter !== 'all' ? 'Aucune entreprise dans ce filtre.' : 'Votre portefeuille est vide.'}
-            </p>
-            {filter === 'all' && (
-              <Button onClick={() => setCreateOpen(true)} variant="secondary" size="sm">
-                + Créer une entreprise
-              </Button>
-            )}
-          </div>
         ) : (
-          <div className="space-y-2.5">
-            {filtered.map((entry) => {
-              const acc = entry.accounts
-              if (!acc) return null
+          <AlphaList
+            items={filtered.map((e) => ({ id: e.id, name: e.accounts?.name ?? '' }))}
+            emptyState={
+              <div className="text-center py-16">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                  style={{ background: 'rgba(76,110,245,0.08)' }}>
+                  <Briefcase className="w-6 h-6 text-[#4C6EF5]" />
+                </div>
+                <p className="text-slate-500 text-sm mb-4">
+                  {filter !== 'all' ? 'Aucune entreprise dans ce filtre.' : 'Votre portefeuille est vide.'}
+                </p>
+                {filter === 'all' && (
+                  <Button onClick={() => setCreateOpen(true)} variant="secondary" size="sm">
+                    + Créer une entreprise
+                  </Button>
+                )}
+              </div>
+            }
+            renderItem={(item) => {
+              const entry = filtered.find((e) => e.id === item.id)
+              const acc = entry?.accounts
+              if (!entry || !acc) return null
               return (
                 <CompanyCard
                   key={entry.id}
@@ -374,20 +378,18 @@ export default function PortfolioPage() {
                   visibility={entry.visibility}
                   onClick={() => router.push(`/app/accounts/${entry.account_id}`)}
                   rightSlot={
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleRemove(entry.id) }}
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all duration-200"
-                        title="Retirer du portefeuille"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRemove(entry.id) }}
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all duration-200"
+                      title="Retirer du portefeuille"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   }
                 />
               )
-            })}
-          </div>
+            }}
+          />
         )}
       </div>
 
