@@ -77,6 +77,7 @@ export async function GET(request: Request) {
   let errors = 0
   let total = 0
   let done = false
+  let firstError: string | null = null
 
   if (phase === 'notes') {
     const { data: notes, count } = await supabase
@@ -117,10 +118,12 @@ export async function GET(request: Request) {
         }))
 
         const { error } = await supabase.from('chunks').insert(rows)
-        if (error) { errors++; console.error(`Note ${note.id}:`, error.message) }
+        if (error) { errors++; if (!firstError) firstError = `Note ${note.id}: ${error.message}`; console.error(`Note ${note.id}:`, error.message) }
         else reindexed += rows.length
       } catch (err) {
         errors++
+        const msg = err instanceof Error ? err.message : String(err)
+        if (!firstError) firstError = `Note ${note.id} catch: ${msg}`
         console.error(`Note ${note.id} failed:`, err)
       }
     }
@@ -190,5 +193,6 @@ export async function GET(request: Request) {
     errors,
     done,
     next_offset: done ? null : offset + limit,
+    first_error: firstError,
   })
 }
