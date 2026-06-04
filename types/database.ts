@@ -34,7 +34,6 @@ export interface WorkspaceMember {
 export interface Company {
   id: string
   name: string
-  invite_code: string | null
   created_at: string
 }
 

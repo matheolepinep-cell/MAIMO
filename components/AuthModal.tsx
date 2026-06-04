@@ -2,15 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Copy, Check } from 'lucide-react'
+import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-
-function generateInviteCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
 
 type View = 'login' | 'register'
 
@@ -37,15 +32,12 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
   const [companyName, setCompanyName] = useState('')
   const [registerError, setRegisterError] = useState('')
   const [registerLoading, setRegisterLoading] = useState(false)
-  const [createdCode, setCreatedCode] = useState('')
-  const [codeCopied, setCodeCopied] = useState(false)
 
   useEffect(() => {
     if (open) {
       setView(defaultView)
       setLoginError('')
       setRegisterError('')
-      setCreatedCode('')
     }
   }, [open, defaultView])
 
@@ -82,7 +74,6 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
     setRegisterLoading(true)
     const supabase = createClient()
 
-    const code = generateInviteCode()
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email, password,
       options: { data: { full_name: fullName } },
@@ -93,7 +84,7 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
       return
     }
     const { data: company, error: companyError } = await supabase
-      .from('companies').insert({ name: companyName.trim(), invite_code: code }).select().single()
+      .from('companies').insert({ name: companyName.trim() }).select().single()
     if (companyError || !company) {
       setRegisterError("Erreur lors de la création de l'espace.")
       setRegisterLoading(false)
@@ -108,14 +99,8 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
       setRegisterLoading(false)
       return
     }
-    setCreatedCode(code)
-    setRegisterLoading(false)
-  }
-
-  const copyCode = () => {
-    navigator.clipboard.writeText(createdCode)
-    setCodeCopied(true)
-    setTimeout(() => setCodeCopied(false), 2000)
+    router.push('/app/dashboard')
+    router.refresh()
   }
 
   if (!open) return null
@@ -148,35 +133,7 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
           <span className="font-bold text-[#1E2761] text-lg">Maimoo</span>
         </div>
 
-        {/* Invite code reveal */}
-        {createdCode ? (
-          <div className="text-center">
-            <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Check className="w-7 h-7 text-green-600" />
-            </div>
-            <h2 className="text-xl font-bold text-[#1E293B] mb-2">Votre espace est créé !</h2>
-            <p className="text-sm text-[#64748B] mb-5">
-              Partagez ce code à vos collaborateurs pour qu&apos;ils rejoignent votre espace.
-            </p>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-6 py-4 mb-3">
-              <p className="text-xs text-[#94A3B8] mb-1">Code d&apos;invitation</p>
-              <p className="text-3xl font-bold tracking-[0.3em] font-mono text-[#1E2761]">{createdCode}</p>
-            </div>
-            <button
-              onClick={copyCode}
-              className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border font-medium text-sm mb-3 transition-all duration-150 ${
-                codeCopied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-[#1E293B] hover:border-gray-300'
-              }`}
-            >
-              {codeCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {codeCopied ? 'Copié !' : 'Copier le code'}
-            </button>
-            <Button onClick={() => { router.push('/app/dashboard'); router.refresh() }} className="w-full" size="lg">
-              Accéder à l&apos;application
-            </Button>
-          </div>
-
-        ) : view === 'login' ? (
+        {view === 'login' ? (
           <>
             <h2 className="text-xl font-bold text-[#0F172A] mb-5">Se connecter</h2>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -198,7 +155,6 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
               </button>
             </div>
           </>
-
         ) : (
           <>
             <h2 className="text-xl font-bold text-[#0F172A] mb-4">Créer un compte</h2>

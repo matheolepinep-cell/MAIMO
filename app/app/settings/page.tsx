@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Copy, Check, Building2, Key, User, LogOut, RefreshCw, Palette, Layers, Settings2 } from 'lucide-react'
+import { Building2, User, LogOut, Palette, Layers, Settings2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
@@ -15,18 +15,12 @@ import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModa
 import { ManageWorkspaceModal } from '@/components/workspace/ManageWorkspaceModal'
 import type { Company, Workspace } from '@/types/database'
 
-function generateInviteCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
-
 export default function SettingsPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor, setAccentColor } = useAccentColor()
   const { userWorkspaces, isSuperAdmin } = useWorkspace()
   const [company, setCompany] = useState<Company | null>(null)
-  const [copied, setCopied] = useState(false)
   const [showCreateWs, setShowCreateWs] = useState(false)
   const [managingWs, setManagingWs] = useState<Workspace | null>(null)
 
@@ -39,7 +33,6 @@ export default function SettingsPage() {
   const [companyName, setCompanyName] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
   const [companyMsg, setCompanyMsg] = useState('')
-  const [regenerating, setRegenerating] = useState(false)
 
   useEffect(() => {
     if (profileLoading || !profile) return
@@ -54,13 +47,6 @@ export default function SettingsPage() {
         if (data) { setCompany(data); setCompanyName(data.name) }
       })
   }, [profileLoading, profile])
-
-  const copyCode = () => {
-    if (!company?.invite_code) return
-    navigator.clipboard.writeText(company.invite_code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,22 +76,6 @@ export default function SettingsPage() {
     setSavingCompany(false)
   }
 
-  const handleRegenerateCode = async () => {
-    if (!company || profile?.role !== 'admin') return
-    if (!confirm('Régénérer le code invalidera l\'ancien. Les collaborateurs devront utiliser le nouveau code. Continuer ?')) return
-    setRegenerating(true)
-    const newCode = generateInviteCode()
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('companies')
-      .update({ invite_code: newCode })
-      .eq('id', company.id)
-      .select()
-      .single()
-    if (!error && data) setCompany(data)
-    setRegenerating(false)
-  }
-
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -119,45 +89,6 @@ export default function SettingsPage() {
       <Header title="Paramètres" />
       <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Paramètres</h1>
-
-        {/* Invite code — admin only */}
-        {isAdmin && company?.invite_code && (
-          <Card>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-[#1E2761]/10 flex items-center justify-center">
-                <Key className="w-4 h-4 text-[#1E2761]" />
-              </div>
-              <div>
-                <p className="font-semibold text-[#1E293B] text-sm">Code d'invitation</p>
-                <p className="text-xs text-[#64748B]">Partagez ce code à vos collaborateurs</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-center">
-                <span className="text-2xl font-bold tracking-[0.3em] font-mono text-[#1E2761]">
-                  {company.invite_code}
-                </span>
-              </div>
-              <button
-                onClick={copyCode}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl border font-medium text-sm transition-all duration-150 ${
-                  copied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-[#1E293B] hover:border-gray-300 hover:shadow-sm'
-                }`}
-              >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copié !' : 'Copier'}
-              </button>
-            </div>
-            <button
-              onClick={handleRegenerateCode}
-              disabled={regenerating}
-              className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#1E293B] transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${regenerating ? 'animate-spin' : ''}`} />
-              Régénérer le code
-            </button>
-          </Card>
-        )}
 
         {/* Company name — admin only */}
         {isAdmin && company && (
