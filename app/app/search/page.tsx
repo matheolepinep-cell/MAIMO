@@ -45,6 +45,41 @@ function fmt(d?: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(d))
 }
 
+function parseAIContent(content: string): React.ReactNode {
+  const lines = content.split('\n')
+  const items: string[] = []
+  let current = ''
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('- ') || trimmed.startsWith('– ')) {
+      if (current) items.push(current.trim())
+      current = trimmed.slice(2)
+    } else if (trimmed && current) {
+      current += ' ' + trimmed
+    } else if (!trimmed && current) {
+      items.push(current.trim())
+      current = ''
+    }
+  }
+  if (current) items.push(current.trim())
+
+  if (items.length <= 1) {
+    return <p style={{ lineHeight: 1.6, margin: 0 }}>{content}</p>
+  }
+
+  return (
+    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+      {items.map((item, i) => (
+        <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: i < items.length - 1 ? 8 : 0 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4C6EF5', flexShrink: 0, marginTop: 5 }} />
+          <span style={{ lineHeight: 1.6 }}>{item}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function SearchPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -277,9 +312,9 @@ function SearchPageContent() {
         )
         return (
           <div key={i} className="flex flex-col gap-1 items-start">
-            <div className="max-w-[90%] px-4 py-3 leading-relaxed"
-              style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', fontSize: 13, color: '#2D3A5A' }}>
-              {msg.content}
+            <div className="px-4 py-3"
+              style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', fontSize: 13, color: '#2D3A5A', maxWidth: 680, lineHeight: 1.6 }}>
+              {parseAIContent(msg.content)}
             </div>
             {msg.sources && msg.sources.length > 0 && (
               <p className="text-[10px] text-[#8899BB] px-1">
