@@ -68,9 +68,6 @@ export default function DashboardPage() {
   const [showClientDrop, setShowClientDrop] = useState(false)
   const clientSearchRef = useRef<HTMLDivElement>(null)
 
-  /* briefing */
-  const [briefingItems, setBriefingItems] = useState<string[] | null>(null)
-
   /* desktop state */
   const [stats, setStats] = useState<Stats>({ accounts: 0, notes: 0, docs: 0, team: 0, notesWeek: 0, accountsWeek: 0 })
   const [activity, setActivity] = useState<ActivityItem[]>([])
@@ -88,33 +85,6 @@ export default function DashboardPage() {
       setRecentAccounts(JSON.parse(localStorage.getItem('maimo_recent_accounts') ?? '[]').slice(0, 3))
     } catch { /* empty */ }
   }, [])
-
-  useEffect(() => {
-    if (profileLoading || !profile) return
-    fetch('/api/dashboard/briefing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        company_id: profile.company_id,
-        workspace_id: wsId,
-        first_name: profile.full_name?.split(' ')[0] ?? '',
-      }),
-    })
-      .then((r) => r.json())
-      .then(({ items, stale_count, total_accounts }) => {
-        let result: string[] = Array.isArray(items) ? items.slice(0, 3) : []
-        // Pad to 3 with generic stats if API returned fewer
-        if (result.length < 3 && stale_count != null) {
-          result = [...result, `${stale_count} client${stale_count > 1 ? 's' : ''} sans activité ce mois`]
-        }
-        if (result.length < 3 && total_accounts != null) {
-          result = [...result, `${total_accounts} entreprise${total_accounts > 1 ? 's' : ''} dans le portefeuille`]
-        }
-        while (result.length < 3) result.push('Aucune activité récente détectée')
-        setBriefingItems(result.slice(0, 3))
-      })
-      .catch(() => setBriefingItems(['—', '—', '—']))
-  }, [profileLoading, profile, wsId])
 
   useEffect(() => {
     if (profileLoading || !profile) return
@@ -358,20 +328,6 @@ export default function DashboardPage() {
                   {greeting()}, {firstName} 👋
                 </h1>
                 <p className="text-white/50 text-sm mt-1">{capitalize(formatDate())} · {time}</p>
-                {/* Briefing IA */}
-                <div className="mt-3 space-y-1.5">
-                  {briefingItems === null ? (
-                    <>
-                      <div className="h-3.5 rounded-full animate-pulse" style={{ width: 120, background: 'rgba(255,255,255,0.15)' }} />
-                      <div className="h-3.5 rounded-full animate-pulse" style={{ width: 180, background: 'rgba(255,255,255,0.15)' }} />
-                    </>
-                  ) : briefingItems.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: '#4C6EF5' }} />
-                      <p className="text-[13px]" style={{ color: 'rgba(255,255,255,0.65)' }}>{item}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: 'rgba(255,255,255,0.12)' }}>
