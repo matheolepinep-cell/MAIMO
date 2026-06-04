@@ -123,17 +123,18 @@ export async function POST(request: Request) {
   })
 
   const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+  const clean = raw.replace(/```json|```/g, '').trim()
 
   let items: string[] = []
   try {
-    const parsed = JSON.parse(raw)
+    const parsed = JSON.parse(clean)
     items = Array.isArray(parsed.items) ? parsed.items.map(String).slice(0, 3) : []
   } catch {
     // Fallback: parse line by line if Claude didn't respect JSON
-    items = raw
+    items = clean
       .split('\n')
-      .map((l) => l.replace(/^[-•·*\d.]+\s*/, '').trim())
-      .filter((l) => l.length > 0)
+      .map((l) => l.replace(/^[-•·*\d."{}[\]]+\s*/, '').trim())
+      .filter((l) => l.length > 4 && !l.startsWith('"items"') && !l.startsWith('{') && !l.startsWith('}'))
       .slice(0, 3)
   }
 
