@@ -3,7 +3,6 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
 
-// ── Text extraction helpers (mirrors index-document) ──
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveFileUrl(fileUrl: string, supabase: any): Promise<string> {
   if (fileUrl.startsWith('http')) return fileUrl
@@ -35,53 +34,62 @@ async function extractText(fileUrl: string, fileType: string): Promise<string> {
   throw new Error(`Unsupported type: ${fileType}`)
 }
 
+// Paginated reindex — call repeatedly until done:true
+// ?offset=0&limit=15&phase=notes  (default)
+// ?offset=0&limit=5&phase=docs    (documents, slower due to file download)
+// First call with offset=0 deletes all chunks before starting.
 export async function GET(request: Request) {
   const adminKey = request.headers.get('x-admin-key')
   if (!adminKey || adminKey !== process.env.ADMIN_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const url = new URL(request.url)
+  const offset = parseInt(url.searchParams.get('offset') ?? '0', 10)
+  const limit = parseInt(url.searchParams.get('limit') ?? '15', 10)
+  const phase = url.searchParams.get('phase') ?? 'notes'
+
   const supabase = createSupabaseAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  console.log('[reindex-all] Starting full reindex...')
-
-  // ── 1. Delete all existing chunks ──
-  const { error: delErr } = await supabase.from('chunks').delete().not('id', 'is', null)
-  if (delErr) {
-    console.error('[reindex-all] Failed to delete chunks:', delErr)
-    return NextResponse.json({ error: 'Failed to delete chunks: ' + delErr.message }, { status: 500 })
+  // On first call: delete all existing chunks
+  if (offset === 0 && phase === 'notes') {
+    console.log('[reindex-all] Deleting all chunks...')
+    const { error: delErr } = await supabase.from('chunks').delete().not('id', 'is', null)
+    if (delErr) {
+      console.error('[reindex-all] Delete failed:', delErr.message)
+      return NextResponse.json({ error: 'Delete failed: ' + delErr.message }, { status: 500 })
+    }
+    console.log('[reindex-all] Chunks deleted.')
   }
-  console.log('[reindex-all] All chunks deleted.')
 
-  // ── 2. Load all data in parallel ──
-  const [
-    { data: allNotes },
-    { data: allDocs },
-    { data: allAccounts },
-    { data: allUsers },
-  ] = await Promise.all([
-    supabase.from('notes').select('id, content, account_id, company_id, workspace_id, created_at, user_id').eq('is_deleted', false).not('content', 'is', null),
-    supabase.from('documents').select('id, title, file_name, file_url, file_type, account_id, company_id, workspace_id, created_at').eq('is_deleted', false).not('file_url', 'is', null),
+  // Load metadata maps
+  const [{ data: allAccounts }, { data: allUsers }] = await Promise.all([
     supabase.from('accounts').select('id, name'),
     supabase.from('users').select('id, full_name'),
   ])
-
   const accountMap = Object.fromEntries((allAccounts ?? []).map((a) => [a.id, a.name]))
   const userMap = Object.fromEntries((allUsers ?? []).map((u) => [u.id, u.full_name]))
 
   let reindexed = 0
   let errors = 0
+  let total = 0
+  let done = false
 
-  // ── 3. Reindex notes ──
-  const notes = (allNotes ?? []).filter((n) => n.content?.trim())
-  console.log(`[reindex-all] Reindexing ${notes.length} notes...`)
+  if (phase === 'notes') {
+    const { data: notes, count } = await supabase
+      .from('notes')
+      .select('id, content, account_id, company_id, workspace_id, created_at, user_id', { count: 'exact' })
+      .eq('is_deleted', false)
+      .not('content', 'is', null)
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1)
 
-  const NOTE_BATCH = 10
-  for (let i = 0; i < notes.length; i += NOTE_BATCH) {
-    const batch = notes.slice(i, i + NOTE_BATCH)
+    total = count ?? 0
+    const batch = (notes ?? []).filter((n) => n.content?.trim())
+
     for (const note of batch) {
       try {
         const accountName = accountMap[note.account_id] ?? 'Inconnu'
@@ -109,63 +117,78 @@ export async function GET(request: Request) {
         }))
 
         const { error } = await supabase.from('chunks').insert(rows)
-        if (error) { console.error(`[reindex-all] Note ${note.id} insert error:`, error.message); errors++ }
+        if (error) { errors++; console.error(`Note ${note.id}:`, error.message) }
         else reindexed += rows.length
       } catch (err) {
-        console.error(`[reindex-all] Note ${note.id} failed:`, err)
         errors++
+        console.error(`Note ${note.id} failed:`, err)
       }
     }
-    console.log(`[reindex-all] Notes progress: ${Math.min(i + NOTE_BATCH, notes.length)}/${notes.length}`)
-  }
 
-  // ── 4. Reindex documents ──
-  const docs = (allDocs ?? []).filter((d) => ['pdf', 'docx', 'xlsx'].includes(d.file_type))
-  console.log(`[reindex-all] Reindexing ${docs.length} documents...`)
+    done = offset + batch.length >= total
+    console.log(`[reindex-all] notes batch offset=${offset} processed=${batch.length}/${total} chunks=${reindexed} errors=${errors}`)
 
-  for (const doc of docs) {
-    try {
-      const accountName = accountMap[doc.account_id] ?? 'Inconnu'
-      const fileName = doc.title ?? doc.file_name ?? 'Document'
-      const importDate = new Date(doc.created_at).toLocaleDateString('fr-FR')
+  } else if (phase === 'docs') {
+    const { data: docs, count } = await supabase
+      .from('documents')
+      .select('id, title, file_name, file_url, file_type, account_id, company_id, workspace_id, created_at', { count: 'exact' })
+      .eq('is_deleted', false)
+      .not('file_url', 'is', null)
+      .in('file_type', ['pdf', 'docx', 'xlsx'])
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1)
 
-      const resolvedUrl = await resolveFileUrl(doc.file_url, supabase)
-      const text = await extractText(resolvedUrl, doc.file_type)
-      const rawChunks = chunkText(text)
-      if (rawChunks.length === 0) continue
+    total = count ?? 0
+    const batch = docs ?? []
 
-      const enrichedChunks = rawChunks.map(
-        (chunk) => `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document]\n\n${chunk}`
-      )
-      const embeddings = await embedBatch(enrichedChunks)
+    for (const doc of batch) {
+      try {
+        const accountName = accountMap[doc.account_id] ?? 'Inconnu'
+        const fileName = doc.title ?? doc.file_name ?? 'Document'
+        const importDate = new Date(doc.created_at).toLocaleDateString('fr-FR')
 
-      const rows = enrichedChunks.map((chunk, j) => ({
-        company_id: doc.company_id ?? null,
-        account_id: doc.account_id,
-        source_type: 'document' as const,
-        source_id: doc.id,
-        content: chunk,
-        embedding: embeddings[j],
-        workspace_id: doc.workspace_id ?? null,
-        company_name: accountName,
-      }))
+        const resolvedUrl = await resolveFileUrl(doc.file_url, supabase)
+        const text = await extractText(resolvedUrl, doc.file_type)
+        const rawChunks = chunkText(text)
+        if (rawChunks.length === 0) continue
 
-      const { error } = await supabase.from('chunks').insert(rows)
-      if (error) { console.error(`[reindex-all] Doc ${doc.id} insert error:`, error.message); errors++ }
-      else reindexed += rows.length
-    } catch (err) {
-      console.error(`[reindex-all] Doc ${doc.id} failed:`, err)
-      errors++
+        const enrichedChunks = rawChunks.map(
+          (chunk) => `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document]\n\n${chunk}`
+        )
+        const embeddings = await embedBatch(enrichedChunks)
+
+        const rows = enrichedChunks.map((chunk, j) => ({
+          company_id: doc.company_id ?? null,
+          account_id: doc.account_id,
+          source_type: 'document' as const,
+          source_id: doc.id,
+          content: chunk,
+          embedding: embeddings[j],
+          workspace_id: doc.workspace_id ?? null,
+          company_name: accountName,
+        }))
+
+        const { error } = await supabase.from('chunks').insert(rows)
+        if (error) { errors++; console.error(`Doc ${doc.id}:`, error.message) }
+        else reindexed += rows.length
+      } catch (err) {
+        errors++
+        console.error(`Doc ${doc.id} failed:`, err)
+      }
     }
-  }
 
-  console.log(`[reindex-all] Done. Reindexed: ${reindexed} chunks, Errors: ${errors}`)
+    done = offset + batch.length >= total
+    console.log(`[reindex-all] docs batch offset=${offset} processed=${batch.length}/${total} chunks=${reindexed} errors=${errors}`)
+  }
 
   return NextResponse.json({
-    success: true,
+    phase,
+    offset,
+    limit,
+    total,
     reindexed,
     errors,
-    notes_processed: notes.length,
-    docs_processed: docs.length,
+    done,
+    next_offset: done ? null : offset + limit,
   })
 }
