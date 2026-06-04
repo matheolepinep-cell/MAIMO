@@ -14,10 +14,15 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import * as dotenv from 'dotenv'
-import * as path from 'path'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
+// Load .env.local manually (no dotenv dependency needed)
+const envPath = resolve(process.cwd(), '.env.local')
+for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+  const match = line.match(/^([^#=]+)=(.*)$/)
+  if (match) process.env[match[1].trim()] = match[2].trim().replace(/^["']|["']$/g, '')
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,10 +82,10 @@ async function migrate() {
       console.log(`   ✓ Created default workspace: ${wsId}`)
     }
 
-    // 3. Assign unassigned data to this workspace
-    const tables: string[] = ['accounts', 'notes', 'documents', 'conversations', 'notifications', 'portfolio']
+    // 3. Assign unassigned data to this workspace (tables with company_id)
+    const tablesWithCompany: string[] = ['accounts', 'notes', 'documents', 'portfolio']
 
-    for (const table of tables) {
+    for (const table of tablesWithCompany) {
       const { error, count } = await supabase
         .from(table)
         .update({ workspace_id: wsId })
@@ -93,6 +98,32 @@ async function migrate() {
       } else {
         console.log(`   ✓ Updated ${table}: ${count ?? 0} row(s) assigned`)
       }
+    }
+
+    // notifications: filter by user_id (no company_id column)
+    const { data: companyUsers } = await supabase
+      .from('users').select('id').eq('company_id', company.id)
+    const userIds = (companyUsers ?? []).map((u: { id: string }) => u.id)
+
+    if (userIds.length > 0) {
+      const { error: notifErr, count: notifCount } = await supabase
+        .from('notifications')
+        .update({ workspace_id: wsId })
+        .in('user_id', userIds)
+        .is('workspace_id', null)
+        .select('id', { count: 'exact', head: true })
+      if (notifErr) console.error(`   ✗ Failed to update notifications:`, notifErr.message)
+      else console.log(`   ✓ Updated notifications: ${notifCount ?? 0} row(s) assigned`)
+
+      // conversations: filter by participants array overlap
+      const { error: convErr, count: convCount } = await supabase
+        .from('conversations')
+        .update({ workspace_id: wsId })
+        .overlaps('participants', userIds)
+        .is('workspace_id', null)
+        .select('id', { count: 'exact', head: true })
+      if (convErr) console.error(`   ✗ Failed to update conversations:`, convErr.message)
+      else console.log(`   ✓ Updated conversations: ${convCount ?? 0} row(s) assigned`)
     }
 
     // 4. Add all active users as workspace members
