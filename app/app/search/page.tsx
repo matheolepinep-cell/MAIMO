@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, RotateCcw, Upload, MessageSquare, Mic, MicOff, ArrowUp } from 'lucide-react'
+import { Briefcase, Globe, Building2, RotateCcw, Upload, Sparkles, Mic, MicOff, ArrowUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -82,7 +82,6 @@ function SearchPageContent() {
   useEffect(() => {
     if (profileLoading || !profile) return
     const supabase = createClient()
-
     supabase
       .from('portfolio')
       .select('account_id, accounts(id, name)')
@@ -94,7 +93,6 @@ function SearchPageContent() {
           .map((e) => e.accounts).filter(Boolean) as { id: string; name: string }[]
         setPortfolioAccounts(accs)
       })
-
     if (profile.role === 'admin') {
       let q = supabase.from('accounts').select('id').eq('company_id', profile.company_id)
       if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
@@ -113,19 +111,14 @@ function SearchPageContent() {
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim() || !profile) return
     setLoading(true)
-
     const history = conversation.map(m => ({ role: m.role, content: m.content }))
     setConversation(prev => [...prev, { role: 'user', content: q }])
     setInput('')
-
     try {
       const body: Record<string, unknown> = {
-        query: q,
-        company_id: profile.company_id,
-        workspace_id: wsId ?? undefined,
-        status: statusFilter,
-        city: city.trim() || undefined,
-        history,
+        query: q, company_id: profile.company_id,
+        workspace_id: wsId ?? undefined, status: statusFilter,
+        city: city.trim() || undefined, history,
       }
       if (activeTab === 'portfolio') {
         body[selectedAccountId ? 'account_id' : 'account_ids'] = selectedAccountId || portfolioAccounts.map((a) => a.id)
@@ -150,55 +143,35 @@ function SearchPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, profileLoading, profile, portfolioAccounts])
 
-  const handleReset = () => {
-    setConversation([])
-    setInput('')
-    setQuery('')
-  }
-
-  const handleSubmit = () => {
-    const q = input.trim()
-    if (!q || loading) return
-    setQuery(q)
-    doSearch(q)
-  }
+  const handleReset = () => { setConversation([]); setInput(''); setQuery('') }
+  const handleSubmit = () => { const q = input.trim(); if (!q || loading) return; setQuery(q); doSearch(q) }
 
   const startVoice = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) return
     const r = new SR()
     r.lang = 'fr-FR'; r.continuous = false; r.interimResults = false
-    r.onresult = (e: SpeechRecognitionEvent) => {
-      const t = e.results[0][0].transcript
-      setInput(t)
-      setIsRecording(false)
-    }
+    r.onresult = (e: SpeechRecognitionEvent) => { setInput(e.results[0][0].transcript); setIsRecording(false) }
     r.onerror = () => setIsRecording(false)
     r.onend = () => setIsRecording(false)
     recognitionRef.current = r
-    r.start()
-    setIsRecording(true)
+    r.start(); setIsRecording(true)
   }, [])
-
   const stopVoice = () => { recognitionRef.current?.stop(); setIsRecording(false) }
 
-  // Shared input bar (mobile + desktop)
-  const inputBarInner = (inputRef: React.RefObject<HTMLInputElement | null>) => (
+  // Input bar — small (bottom, in conversation)
+  const inputBarSmall = (inputRef: React.RefObject<HTMLInputElement | null>) => (
     <div
       className="flex items-center gap-2 transition-all duration-150"
       style={{
-        background: '#F5F7FA',
-        borderRadius: 14,
+        background: '#F5F7FA', borderRadius: 14,
         border: inputFocused ? '1.5px solid #4C6EF5' : '1.5px solid #E5EAF5',
         boxShadow: inputFocused ? '0 0 0 3px rgba(76,110,245,0.15)' : 'none',
-        padding: '0 14px',
-        minHeight: 48,
+        padding: '0 14px', minHeight: 48,
       }}
     >
-      <MessageSquare className="shrink-0 text-slate-400" style={{ width: 18, height: 18 }} />
       <input
-        ref={inputRef}
-        type="text"
+        ref={inputRef} type="text"
         className="flex-1 bg-transparent text-[#0F172A] placeholder-slate-400 focus:outline-none"
         style={{ fontSize: 14 }}
         placeholder="Poser une question..."
@@ -206,99 +179,106 @@ function SearchPageContent() {
         onChange={(e) => setInput(e.target.value)}
         onFocus={() => setInputFocused(true)}
         onBlur={() => setInputFocused(false)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            handleSubmit()
-          }
-        }}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
       />
-      <button
-        onClick={isRecording ? stopVoice : startVoice}
+      <button onClick={isRecording ? stopVoice : startVoice}
         className="rounded-full flex items-center justify-center shrink-0 transition-all"
-        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 36, height: 36 }}
-      >
-        {isRecording
-          ? <MicOff className="text-white" style={{ width: 17, height: 17 }} />
-          : <Mic className="text-white" style={{ width: 17, height: 17 }} />
-        }
+        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 34, height: 34 }}>
+        {isRecording ? <MicOff className="text-white" style={{ width: 16, height: 16 }} /> : <Mic className="text-white" style={{ width: 16, height: 16 }} />}
       </button>
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
+      <button onClick={handleSubmit} disabled={loading}
         className="rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
-        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 36, height: 36 }}
-        aria-label="Envoyer"
-      >
+        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 34, height: 34 }}>
+        <ArrowUp className="text-white" style={{ width: 16, height: 16 }} />
+      </button>
+    </div>
+  )
+
+  // Input bar — large (empty state, centered)
+  const inputBarLarge = (inputRef: React.RefObject<HTMLInputElement | null>) => (
+    <div
+      className="flex items-center gap-3 transition-all duration-150"
+      style={{
+        background: 'white', borderRadius: 16,
+        border: '1.5px solid #4C6EF5',
+        boxShadow: '0 0 0 4px rgba(76,110,245,0.08)',
+        padding: '0 16px', height: 56,
+      }}
+    >
+      <input
+        ref={inputRef} type="text"
+        className="flex-1 bg-transparent text-[#0F172A] placeholder-slate-400 focus:outline-none"
+        style={{ fontSize: 15 }}
+        placeholder="Posez votre question..."
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
+      />
+      <button onClick={isRecording ? stopVoice : startVoice}
+        className="rounded-full flex items-center justify-center shrink-0 transition-all"
+        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 36, height: 36 }}>
+        {isRecording ? <MicOff className="text-white" style={{ width: 17, height: 17 }} /> : <Mic className="text-white" style={{ width: 17, height: 17 }} />}
+      </button>
+      <button onClick={handleSubmit} disabled={loading}
+        className="rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
+        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 36, height: 36 }}>
         <ArrowUp className="text-white" style={{ width: 17, height: 17 }} />
       </button>
     </div>
   )
 
-  const tabsBar = (
-    <div
-      className="flex shrink-0 px-4 py-2 bg-white gap-2 md:px-0 md:bg-transparent"
-      style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}
-    >
-      {(['portfolio', 'global'] as const).map((tab) => (
+  // Suggestions
+  const firstAccount = portfolioAccounts[0]?.name
+  const suggestions = [
+    firstAccount ? `Dernier contact avec ${firstAccount} ?` : 'Quand ai-je contacté ce client pour la dernière fois ?',
+    'Quels clients n\'ont pas été contactés ce mois ?',
+    'Résume les notes de la semaine',
+  ]
+
+  // Desktop tabs — underline style
+  const desktopTabs = (
+    <div className="flex gap-6" style={{ borderBottom: '1px solid rgba(30,39,97,0.10)' }}>
+      {([
+        { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
+        { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
+      ]).map(({ value, label, icon: Icon }) => (
         <button
-          key={tab}
-          onClick={() => setActiveTab(tab)}
-          className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-all"
-          style={activeTab === tab
-            ? { background: '#1E2761', color: 'white' }
-            : { background: '#F0F4FF', color: '#8899BB' }}
+          key={value}
+          onClick={() => setActiveTab(value)}
+          className="flex items-center gap-1.5 pb-2.5 text-sm transition-all duration-200 border-b-2 -mb-px"
+          style={activeTab === value
+            ? { borderBottomColor: '#4C6EF5', color: '#1E2761', fontWeight: 500 }
+            : { borderBottomColor: 'transparent', color: '#94A3B8', fontWeight: 400 }}
         >
-          {tab === 'portfolio' ? 'Perso' : 'Global'}
+          <Icon className="w-3.5 h-3.5" />{label}
         </button>
       ))}
-      {activeTab === 'portfolio' && portfolioAccounts.length > 0 && (
-        <select
-          value={selectedAccountId}
-          onChange={(e) => setSelectedAccountId(e.target.value)}
-          className="ml-auto text-xs rounded-full px-2 py-1 focus:outline-none"
-          style={{ background: '#F0F4FF', color: '#8899BB', border: 'none' }}
-        >
-          <option value="">Toutes</option>
-          {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-      )}
     </div>
   )
 
   const conversationMessages = (
     <>
       {inConversation && (
-        <div className="flex justify-center">
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-[#1E2761] transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" />
-            Nouvelle recherche
+        <div className="flex justify-center mb-1">
+          <button onClick={handleReset}
+            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-[#1E2761] transition-colors">
+            <RotateCcw className="w-3 h-3" />Nouvelle recherche
           </button>
         </div>
       )}
-
       {conversation.map((msg, i) => {
-        if (msg.role === 'user') {
-          return (
-            <div key={i} className="flex justify-end">
-              <div
-                className="max-w-[85%] px-4 py-2.5 leading-relaxed"
-                style={{ background: '#4C6EF5', borderRadius: '12px 12px 4px 12px', fontSize: 13, color: 'white' }}
-              >
-                {msg.content}
-              </div>
+        if (msg.role === 'user') return (
+          <div key={i} className="flex justify-end">
+            <div className="max-w-[85%] px-4 py-2.5 leading-relaxed"
+              style={{ background: '#4C6EF5', borderRadius: '12px 12px 4px 12px', fontSize: 13, color: 'white' }}>
+              {msg.content}
             </div>
-          )
-        }
+          </div>
+        )
         return (
           <div key={i} className="flex flex-col gap-1 items-start">
-            <div
-              className="max-w-[90%] px-4 py-3 leading-relaxed"
-              style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', fontSize: 13, color: '#2D3A5A' }}
-            >
+            <div className="max-w-[90%] px-4 py-3 leading-relaxed"
+              style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', fontSize: 13, color: '#2D3A5A' }}>
               {msg.content}
             </div>
             {msg.sources && msg.sources.length > 0 && (
@@ -309,186 +289,185 @@ function SearchPageContent() {
           </div>
         )
       })}
-
       {loading && (
         <div className="flex flex-col gap-1 items-start">
-          <div
-            className="px-4 py-3 space-y-2"
-            style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', minWidth: 120 }}
-          >
+          <div className="px-4 py-3 space-y-2"
+            style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', minWidth: 120 }}>
             <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-32" />
             <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-48" />
             <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-40" />
           </div>
         </div>
       )}
-
       <div ref={bottomRef} />
     </>
   )
 
   return (
     <>
-      {/* ── MOBILE LAYOUT ── */}
+      {/* ── MOBILE ── */}
       <div className="md:hidden flex flex-col" style={{ height: '100dvh' }}>
-
-        {/* Header */}
-        <div
-          className="flex items-center gap-3 px-4 pl-14 py-3 bg-white shrink-0"
-          style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
-        >
+        <div className="flex items-center gap-3 px-4 pl-14 py-3 bg-white shrink-0"
+          style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
           <span className="flex-1 text-[16px] font-bold text-[#0A1628]">Recherche IA</span>
-          <button
-            onClick={() => router.push('/app/import')}
-            className="flex items-center justify-center transition-opacity hover:opacity-70"
-            style={{ background: '#F0F4FF', borderRadius: 8, width: 28, height: 28 }}
-            title="Importer un fichier"
-          >
+          <button onClick={() => router.push('/app/import')}
+            className="flex items-center justify-center"
+            style={{ background: '#F0F4FF', borderRadius: 8, width: 28, height: 28 }}>
             <Upload className="text-[#4C6EF5]" style={{ width: 14, height: 14 }} />
           </button>
         </div>
 
-        {tabsBar}
+        {/* Mobile tabs — lightweight */}
+        <div className="flex shrink-0 items-center px-4 py-2 bg-white gap-6"
+          style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
+          {(['portfolio', 'global'] as const).map((tab) => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className="text-[13px] pb-1.5 transition-all border-b-2"
+              style={activeTab === tab
+                ? { borderBottomColor: '#4C6EF5', color: '#1E2761', fontWeight: 500 }
+                : { borderBottomColor: 'transparent', color: '#94A3B8', fontWeight: 400 }}>
+              {tab === 'portfolio' ? 'Mon portefeuille' : 'Portefeuille global'}
+            </button>
+          ))}
+        </div>
 
         {inConversation ? (
           <>
-            {/* Conversation area */}
             <div className="flex-1 overflow-y-auto min-h-0 px-[14px] py-4 space-y-3">
               {conversationMessages}
             </div>
-
-            {/* Input bar fixed at bottom — pb-20 clears Safari toolbar */}
-            <div
-              className="shrink-0 bg-white px-[12px] pt-3"
-              style={{ borderTop: '1px solid #E5EAF5', paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom, 0px) + 20px))' }}
-            >
-              {inputBarInner(mobileInputRef)}
+            <div className="shrink-0 bg-white px-[12px] pt-3"
+              style={{ borderTop: '1px solid #E5EAF5', paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom, 0px) + 20px))' }}>
+              {inputBarSmall(mobileInputRef)}
             </div>
           </>
         ) : (
-          /* Empty state — ChatGPT-style centered layout */
-          <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full">
+          <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 w-full">
             <div className="text-center">
-              <p style={{ fontSize: 18, fontWeight: 600, color: '#0A1628' }}>La mémoire de votre équipe commerciale</p>
-              <p style={{ fontSize: 13, color: '#8899BB', marginTop: 6 }}>Posez une question sur n'importe quel client</p>
+              <Sparkles className="mx-auto mb-3" style={{ width: 32, height: 32, color: '#4C6EF5' }} />
+              <p style={{ fontSize: 20, fontWeight: 500, color: '#0A1628' }}>Que voulez-vous savoir ?</p>
+              <p style={{ fontSize: 13, color: '#8899BB', marginTop: 8, maxWidth: 320, lineHeight: 1.5 }}>
+                Posez une question sur n'importe quel client, note ou document de votre équipe.
+              </p>
             </div>
-            <div className="w-full px-[12px]">
-              {inputBarInner(mobileInputRef)}
+            <div className="flex flex-wrap justify-center gap-2">
+              {suggestions.map((s) => (
+                <button key={s} onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
+                  className="transition-opacity hover:opacity-80"
+                  style={{
+                    background: '#F0F4FF', border: '0.5px solid #C5D0F0',
+                    borderRadius: 20, padding: '8px 16px', fontSize: 13, color: '#64748B',
+                  }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="w-full">
+              {inputBarLarge(mobileInputRef)}
             </div>
           </div>
         )}
       </div>
 
-      {/* ── DESKTOP LAYOUT ── */}
+      {/* ── DESKTOP ── */}
       <div className="hidden md:flex flex-col flex-1 overflow-hidden">
 
-        {/* Top bar */}
+        {/* Top bar — always visible */}
         <div className="shrink-0 px-8 pt-6 pb-4 bg-[#F0F4FF]" style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
           <Breadcrumb items={[
             { label: 'MAIMOO', href: '/app/dashboard' },
             { label: 'Recherche IA' },
           ]} />
-
           <div className="flex items-center justify-between mt-3 mb-4">
             <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Recherche IA</h1>
             {inConversation && (
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#1E2761] transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Nouvelle recherche
+              <button onClick={handleReset}
+                className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#1E2761] transition-colors">
+                <RotateCcw className="w-3.5 h-3.5" />Nouvelle recherche
               </button>
             )}
           </div>
 
-          {/* Tabs */}
-          <div className="flex mb-3" style={{ borderBottom: '1px solid rgba(30,39,97,0.10)' }}>
-            {([
-              { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
-              { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
-            ]).map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => setActiveTab(value)}
-                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-px"
-                style={activeTab === value ? {
-                  borderBottomColor: '#4C6EF5',
-                  color: '#1E2761',
-                } : {
-                  borderBottomColor: 'transparent',
-                  color: '#94A3B8',
-                }}
-              >
-                <Icon className="w-3.5 h-3.5" />{label}
-              </button>
-            ))}
-          </div>
+          {desktopTabs}
 
           {activeTab === 'portfolio' && (
-            <div className="relative mb-3">
+            <div className="relative mt-3">
               <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              <select
-                value={selectedAccountId}
-                onChange={(e) => setSelectedAccountId(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none transition-all duration-200"
-                style={{
-                  background: 'rgba(240,244,255,0.8)',
-                  border: '1px solid rgba(30,39,97,0.12)',
-                }}
-              >
+              <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none"
+                style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }}>
                 <option value="">Toutes mes entreprises</option>
                 {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
           )}
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mt-3">
             {(['all', 'client', 'prospect'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
+              <button key={f} onClick={() => setStatusFilter(f)}
                 className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
-                style={statusFilter === f ? {
-                  background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
-                  color: 'white',
-                } : {
-                  background: 'white',
-                  color: '#64748B',
-                  border: '1px solid rgba(30,39,97,0.12)',
-                }}
-              >
+                style={statusFilter === f
+                  ? { background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)', color: 'white' }
+                  : { background: 'white', color: '#64748B', border: '1px solid rgba(30,39,97,0.12)' }}>
                 {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
               </button>
             ))}
-            <input
-              type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
-              className="px-3 py-1.5 rounded-xl text-xs text-slate-600 placeholder-slate-400 focus:outline-none transition-all duration-200 w-24"
-              style={{
-                background: 'rgba(240,244,255,0.8)',
-                border: '1px solid rgba(30,39,97,0.12)',
-              }}
-            />
+            <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
+              className="px-3 py-1.5 rounded-xl text-xs text-slate-600 placeholder-slate-400 focus:outline-none w-24"
+              style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }} />
           </div>
         </div>
 
-        {/* Conversation area */}
-        <div className="flex-1 overflow-y-auto px-8 py-4">
-          <div className="max-w-2xl mx-auto space-y-3">
-            {conversationMessages}
-          </div>
-        </div>
+        {/* Content area */}
+        {inConversation ? (
+          <>
+            <div className="flex-1 overflow-y-auto px-8 py-4">
+              <div className="max-w-2xl mx-auto space-y-3">
+                {conversationMessages}
+              </div>
+            </div>
+            <div className="shrink-0 px-8 py-4 bg-white" style={{ borderTop: '1px solid #E5EAF5' }}>
+              <div className="max-w-2xl mx-auto">
+                {inputBarSmall(desktopInputRef)}
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Empty state — centered */
+          <div className="flex-1 flex flex-col items-center justify-center px-8 py-12 gap-8">
+            <div className="text-center">
+              <Sparkles style={{ width: 32, height: 32, color: '#4C6EF5', margin: '0 auto' }} />
+              <h2 style={{ fontSize: 24, fontWeight: 500, color: '#0F172A', marginTop: 12 }}>
+                Que voulez-vous savoir ?
+              </h2>
+              <p style={{ fontSize: 14, color: '#64748B', marginTop: 8, maxWidth: 400, lineHeight: 1.6 }}>
+                Posez une question sur n'importe quel client, note ou document de votre équipe.
+              </p>
+            </div>
 
-        {/* Permanent input bar */}
-        <div
-          className="shrink-0 px-8 py-4 bg-white"
-          style={{ borderTop: '1px solid #E5EAF5' }}
-        >
-          <div className="max-w-2xl mx-auto">
-            {inputBarInner(desktopInputRef)}
+            {/* Suggestions */}
+            <div className="flex flex-wrap justify-center gap-2">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
+                  className="transition-opacity hover:opacity-80"
+                  style={{
+                    background: '#F0F4FF', border: '0.5px solid #C5D0F0',
+                    borderRadius: 20, padding: '8px 16px', fontSize: 13, color: '#64748B',
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            {/* Large input bar */}
+            <div style={{ width: '100%', maxWidth: 680 }}>
+              {inputBarLarge(desktopInputRef)}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   )
