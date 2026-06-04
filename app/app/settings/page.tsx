@@ -1,16 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Copy, Check, Building2, Key, User, LogOut, RefreshCw, Palette } from 'lucide-react'
+import { Copy, Check, Building2, Key, User, LogOut, RefreshCw, Palette, Layers, Settings2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import type { Company } from '@/types/database'
+import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModal'
+import { ManageWorkspaceModal } from '@/components/workspace/ManageWorkspaceModal'
+import type { Company, Workspace } from '@/types/database'
 
 function generateInviteCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -21,8 +24,11 @@ export default function SettingsPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor, setAccentColor } = useAccentColor()
+  const { userWorkspaces, isSuperAdmin } = useWorkspace()
   const [company, setCompany] = useState<Company | null>(null)
   const [copied, setCopied] = useState(false)
+  const [showCreateWs, setShowCreateWs] = useState(false)
+  const [managingWs, setManagingWs] = useState<Workspace | null>(null)
 
   // Profile
   const [fullName, setFullName] = useState('')
@@ -187,6 +193,72 @@ export default function SettingsPage() {
             </div>
             <p className="text-[#1E293B] font-medium">{company.name}</p>
           </Card>
+        )}
+
+        {/* Espaces — admin only */}
+        {isAdmin && (
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                  <Layers className="w-4 h-4 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-[#1E293B] text-sm">Espaces</p>
+                  <p className="text-xs text-[#64748B]">{userWorkspaces.length} / 5 espace{userWorkspaces.length > 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              {userWorkspaces.length < 5 && (
+                <button
+                  onClick={() => setShowCreateWs(true)}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+                >
+                  + Créer
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              {userWorkspaces.map((ws) => (
+                <div
+                  key={ws.id}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                  style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}
+                >
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: `#${ws.color}` }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#1E293B] truncate">{ws.name}</p>
+                    {ws.description && <p className="text-xs text-[#94A3B8] truncate">{ws.description}</p>}
+                  </div>
+                  {ws.is_default && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium shrink-0">
+                      Principal
+                    </span>
+                  )}
+                  {(ws.role === 'admin' || isSuperAdmin) && (
+                    <button
+                      onClick={() => setManagingWs(ws)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all shrink-0"
+                      title="Gérer"
+                    >
+                      <Settings2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {showCreateWs && (
+          <CreateWorkspaceModal open={showCreateWs} onClose={() => setShowCreateWs(false)} />
+        )}
+        {managingWs && (
+          <ManageWorkspaceModal
+            workspace={managingWs}
+            onClose={() => setManagingWs(null)}
+            onDeleted={() => setManagingWs(null)}
+          />
         )}
 
         {/* Profile */}

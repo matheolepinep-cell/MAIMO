@@ -8,6 +8,7 @@ import { useUser } from '@/contexts/UserContext'
 import { useNotificationCount } from '@/contexts/NotificationContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
+import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModal'
 
 function NavItem({
   href,
@@ -100,10 +101,7 @@ export function Sidebar() {
       </Link>
 
       <WorkspaceSelector onCreateClick={() => setShowCreateWorkspace(true)} />
-      {/* showCreateWorkspace modal wired in ÉTAPE 4 */}
-      {showCreateWorkspace && (
-        <div style={{ display: 'none' }} />
-      )}
+      <CreateWorkspaceModal open={showCreateWorkspace} onClose={() => setShowCreateWorkspace(false)} />
 
       {/* Nav */}
       <nav className="flex flex-col gap-0.5 flex-1">

@@ -9,6 +9,7 @@ import { useUser } from '@/contexts/UserContext'
 import { useNotificationCount } from '@/contexts/NotificationContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
+import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModal'
 
 export function MobileSidebar() {
   const pathname = usePathname()
@@ -79,7 +80,6 @@ export function MobileSidebar() {
           </Link>
 
           <WorkspaceSelector onCreateClick={() => setShowCreateWorkspace(true)} />
-          {showCreateWorkspace && <div style={{ display: 'none' }} />}
 
           {/* Nav items */}
           {navItems.map(({ href, icon: Icon, label }) => (
@@ -159,6 +159,7 @@ export function MobileSidebar() {
           </Link>
         </aside>
       </div>
+      <CreateWorkspaceModal open={showCreateWorkspace} onClose={() => setShowCreateWorkspace(false)} />
     </>
   )
 }
