@@ -14,12 +14,13 @@ interface CompanyCardProps {
   industry?: string | null
   status: 'client' | 'prospect'
   visibility?: 'team' | 'private' | 'custom'
+  subtitle?: string | null
   onClick?: () => void
   className?: string
   rightSlot?: React.ReactNode
 }
 
-export function CompanyCard({ name, city, industry, status, visibility, onClick, className, rightSlot }: CompanyCardProps) {
+export function CompanyCard({ name, city, industry, status, visibility, subtitle, onClick, className, rightSlot }: CompanyCardProps) {
   const { accentColor } = useAccentColor()
 
   const VisIcon = visibility === 'private' ? Lock : visibility === 'custom' ? Users : Globe
@@ -79,6 +80,7 @@ export function CompanyCard({ name, city, industry, status, visibility, onClick,
             </>
           )}
         </div>
+        {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
       </div>
 
       {/* Right slot or arrow */}
