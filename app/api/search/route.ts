@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { query, account_id, account_ids, status = 'all', city, company_id, workspace_id, history = [] } = await request.json()
+  const { query, account_id, account_ids, status = 'all', city, company_id, workspace_id: clientWorkspaceId, history = [] } = await request.json()
 
   if (!query || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -34,6 +34,27 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  // Validate workspace_id server-side — never trust client
+  let workspace_id: string | null = null
+  if (clientWorkspaceId) {
+    const { data: membership } = await supabase
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', user.id)
+      .eq('workspace_id', clientWorkspaceId)
+      .maybeSingle()
+    if (membership) {
+      workspace_id = clientWorkspaceId
+    } else {
+      const { data: userRow } = await supabase
+        .from('users').select('is_super_admin').eq('id', user.id).single()
+      if ((userRow as { is_super_admin?: boolean } | null)?.is_super_admin) {
+        workspace_id = clientWorkspaceId
+      }
+      // else: silently ignore invalid workspace_id — search full company scope
+    }
+  }
 
   const queryEmbedding = await embed(query)
 

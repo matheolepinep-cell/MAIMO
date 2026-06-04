@@ -72,16 +72,17 @@ export default function PortfolioPage() {
     if (mobileTab !== 'global' || !profile) return
     setGlobalLoading(true)
     const supabase = createClient()
-    supabase
+    let q = supabase
       .from('accounts')
       .select('id, name, city, industry, status')
       .eq('company_id', profile.company_id)
       .order('name')
-      .then(({ data }) => {
-        setGlobalAccounts((data ?? []) as GlobalAccount[])
-        setGlobalLoading(false)
-      })
-  }, [mobileTab, profile])
+    if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`) as typeof q
+    q.then(({ data }) => {
+      setGlobalAccounts((data ?? []) as GlobalAccount[])
+      setGlobalLoading(false)
+    })
+  }, [mobileTab, profile, wsId])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,6 +99,7 @@ export default function PortfolioPage() {
         status: newStatus,
         company_id: profile.company_id,
         created_by: profile.id,
+        workspace_id: wsId ?? null,
       })
       .select().single()
 

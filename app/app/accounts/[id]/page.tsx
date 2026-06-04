@@ -330,7 +330,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       fetch('/api/index-note', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note_id: note.id, content: note.content, account_id: id, company_id: profile?.company_id }),
+        body: JSON.stringify({ note_id: note.id, content: note.content, account_id: id, company_id: profile?.company_id, workspace_id: wsId }),
       }).catch(console.error)
       fetch('/api/notifications/note', {
         method: 'POST',
@@ -358,7 +358,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           if (!isImage && insertedDoc) {
             fetch('/api/index-document', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ document_id: insertedDoc.id, file_url: filePath, file_type: fileType, account_id: id, company_id: profile?.company_id }),
+              body: JSON.stringify({ document_id: insertedDoc.id, file_url: filePath, file_type: fileType, account_id: id, company_id: profile?.company_id, workspace_id: wsId }),
             }).catch(console.error)
           }
         }
@@ -454,7 +454,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       if (!isImage && standaloneDoc) {
         fetch('/api/index-document', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ document_id: standaloneDoc.id, file_url: filePath, file_type: fileType, account_id: id, company_id: profile.company_id }),
+          body: JSON.stringify({ document_id: standaloneDoc.id, file_url: filePath, file_type: fileType, account_id: id, company_id: profile.company_id, workspace_id: wsId }),
         }).catch(console.error)
       }
       fetch('/api/notifications/document', {

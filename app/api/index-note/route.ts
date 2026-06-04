@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { note_id, content, account_id, company_id } = await request.json()
+  const { note_id, content, account_id, company_id, workspace_id } = await request.json()
 
   if (!note_id || !content || !account_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     source_id: note_id,
     content: chunk,
     embedding: embeddings[i],
+    workspace_id: workspace_id ?? null,
   }))
 
   const { error } = await supabase.from('chunks').insert(rows)

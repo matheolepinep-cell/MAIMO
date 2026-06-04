@@ -137,10 +137,12 @@ export default function MessagesPage() {
     const supabase = createClient()
     const userId = profile.id
     ;(async () => {
-      const { data: convs } = await supabase
+      let convQ = supabase
         .from('conversations')
         .select('id')
         .contains('participants', [userId])
+      if (wsId) convQ = convQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+      const { data: convs } = await convQ
       for (const conv of convs ?? []) {
         const { data: unread } = await supabase
           .from('messages')
@@ -156,7 +158,7 @@ export default function MessagesPage() {
         }
       }
     })()
-  }, [profile?.id])
+  }, [profile?.id, wsId])
 
   /* ─── open conversation ─── */
   const openConversation = useCallback(async (conv: Conversation) => {
@@ -279,13 +281,15 @@ export default function MessagesPage() {
     if (!profile) return
     setDocsLoading(true)
     const supabase = createClient()
-    const { data } = await supabase
+    let q = supabase
       .from('documents')
       .select('*')
       .eq('company_id', profile.company_id)
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
       .limit(50)
+    if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`) as typeof q
+    const { data } = await q
     setCompanyDocs((data as Document[]) ?? [])
     setDocsLoading(false)
   }

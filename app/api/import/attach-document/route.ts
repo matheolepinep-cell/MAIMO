@@ -84,6 +84,7 @@ export async function POST(request: Request) {
           source_id: doc.id,
           content: chunk,
           embedding: embeddings[i],
+          workspace_id: workspace_id ?? null,
         }))
       )
     }

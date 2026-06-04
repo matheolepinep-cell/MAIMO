@@ -15,7 +15,7 @@ function normalize(name: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function indexNote(supabase: any, noteId: string, content: string, accountId: string, companyId: string) {
+async function indexNote(supabase: any, noteId: string, content: string, accountId: string, companyId: string, workspaceId: string | null) {
   try {
     const chunks = chunkText(content)
     if (chunks.length === 0) return
@@ -28,6 +28,7 @@ async function indexNote(supabase: any, noteId: string, content: string, account
         source_id: noteId,
         content: chunk,
         embedding: embeddings[i],
+        workspace_id: workspaceId,
       }))
     )
   } catch (err) {
@@ -126,7 +127,7 @@ export async function POST(request: Request) {
       }).select('id').single()
 
       notesCreated++
-      if (note?.id) await indexNote(supabase, note.id, noteContent, existingId, company_id)
+      if (note?.id) await indexNote(supabase, note.id, noteContent, existingId, company_id, workspace_id ?? null)
 
       await supabase.from('portfolio').upsert({
         company_id,
@@ -223,7 +224,7 @@ export async function POST(request: Request) {
     }).select('id').single()
 
     notesCreated++
-    if (note?.id) await indexNote(supabase, note.id, noteContent, acc.id, company_id)
+    if (note?.id) await indexNote(supabase, note.id, noteContent, acc.id, company_id, workspace_id ?? null)
 
     created++
   }
