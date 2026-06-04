@@ -32,6 +32,7 @@ export default function PortfolioPage() {
   const [entries, setEntries] = useState<PortfolioEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('all')
+  const [portfolioSort, setPortfolioSort] = useState<'az' | 'za' | 'recent' | 'oldest'>('az')
 
   // Mobile tab: 'perso' | 'global'
   const [mobileTab, setMobileTab] = useState<'perso' | 'global'>('perso')
@@ -118,6 +119,12 @@ export default function PortfolioPage() {
     if (filter === 'team') return e.visibility === 'team'
     if (filter === 'private') return e.visibility === 'private'
     return true
+  }).sort((a, b) => {
+    if (portfolioSort === 'az') return (a.accounts?.name ?? '').localeCompare(b.accounts?.name ?? '')
+    if (portfolioSort === 'za') return (b.accounts?.name ?? '').localeCompare(a.accounts?.name ?? '')
+    if (portfolioSort === 'recent') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    if (portfolioSort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    return 0
   })
 
   const clientCount = entries.filter((e) => e.accounts?.status === 'client').length
@@ -131,11 +138,21 @@ export default function PortfolioPage() {
     { value: 'private', label: 'Privés' },
   ]
 
-  const mobilePersoAccounts = entries
+  const mobilePersoAccounts = [...entries]
+    .sort((a, b) => {
+      if (portfolioSort === 'az') return (a.accounts?.name ?? '').localeCompare(b.accounts?.name ?? '')
+      if (portfolioSort === 'za') return (b.accounts?.name ?? '').localeCompare(a.accounts?.name ?? '')
+      if (portfolioSort === 'recent') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      if (portfolioSort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      return 0
+    })
     .map((e) => e.accounts)
     .filter(Boolean) as { id: string; name: string; city: string | null; industry: string | null; status: 'client' | 'prospect' }[]
 
-  const mobileDisplayAccounts = mobileTab === 'perso' ? mobilePersoAccounts : globalAccounts
+  const mobileDisplayAccounts = mobileTab === 'perso' ? mobilePersoAccounts : [...globalAccounts].sort((a, b) => {
+    if (portfolioSort === 'za') return b.name.localeCompare(a.name)
+    return a.name.localeCompare(b.name)
+  })
 
   return (
     <div className="flex flex-col min-h-full overflow-x-hidden">
@@ -157,9 +174,9 @@ export default function PortfolioPage() {
           </button>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs + sort */}
         <div
-          className="flex shrink-0 px-4 py-3 bg-white gap-2"
+          className="flex shrink-0 items-center px-4 py-3 bg-white gap-2"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}
         >
           {(['perso', 'global'] as const).map((tab) => (
@@ -174,6 +191,16 @@ export default function PortfolioPage() {
               {tab === 'perso' ? 'Perso' : 'Global'}
             </button>
           ))}
+          <select
+            value={portfolioSort}
+            onChange={(e) => setPortfolioSort(e.target.value as 'az' | 'za' | 'recent' | 'oldest')}
+            className="ml-auto text-[11px] text-[#8899BB] bg-transparent border-none focus:outline-none cursor-pointer"
+          >
+            <option value="az">A → Z</option>
+            <option value="za">Z → A</option>
+            <option value="recent">Récent</option>
+            <option value="oldest">Ancien</option>
+          </select>
         </div>
 
         {/* List */}
@@ -244,6 +271,16 @@ export default function PortfolioPage() {
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Mon portefeuille</h1>
             <div className="flex items-center gap-2 md:ml-4">
+              <select
+                value={portfolioSort}
+                onChange={(e) => setPortfolioSort(e.target.value as 'az' | 'za' | 'recent' | 'oldest')}
+                className="text-[11px] text-[#8899BB] bg-transparent border-none focus:outline-none cursor-pointer"
+              >
+                <option value="az">A → Z</option>
+                <option value="za">Z → A</option>
+                <option value="recent">Date (récent)</option>
+                <option value="oldest">Date (ancien)</option>
+              </select>
               <Button onClick={() => router.push('/app/import')} size="sm" variant="ghost">
                 <Upload className="w-3.5 h-3.5 mr-1.5" />
                 Importer

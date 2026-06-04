@@ -45,7 +45,7 @@ export default function TeamPage() {
     if (!profile?.company_id) return
     const supabase = createClient()
     const [{ data: membersData }, { data: portfolioData }] = await Promise.all([
-      supabase.from('users').select('*').eq('company_id', profile.company_id).order('created_at', { ascending: true }),
+      supabase.from('users').select('*').eq('company_id', profile.company_id).order('full_name', { ascending: true }),
       supabase.from('portfolio').select('user_id').eq('company_id', profile.company_id).eq('is_private', false),
     ])
     setMembers(membersData ?? [])
