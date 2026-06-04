@@ -197,7 +197,7 @@ export default function AccountsPage() {
       {/* ── MOBILE ── */}
       <div className="md:hidden flex flex-col flex-1">
         <div
-          className="flex items-center justify-between px-4 pl-14 py-3 bg-white shrink-0"
+          className="flex items-center justify-between px-4 pl-16 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
         >
           <span className="text-[16px] font-bold text-[#0A1628]">Portefeuille global</span>

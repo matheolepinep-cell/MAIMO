@@ -342,7 +342,7 @@ function SearchPageContent() {
     <>
       {/* ── MOBILE ── */}
       <div className="md:hidden flex flex-col" style={{ height: '100dvh' }}>
-        <div className="flex items-center gap-3 px-4 pl-14 py-3 bg-white shrink-0"
+        <div className="flex items-center gap-3 px-4 pl-16 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
           <span className="flex-1 text-[16px] font-bold text-[#0A1628]">Recherche IA</span>
           <button onClick={() => router.push('/app/import')}

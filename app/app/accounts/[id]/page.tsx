@@ -574,7 +574,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Header */}
-      <div className="bg-white px-4 pl-14 md:pl-4 py-3 flex items-center gap-3 sticky top-0 z-30"
+      <div className="bg-white px-4 pl-16 md:pl-4 py-3 flex items-center gap-3 sticky top-0 z-30"
         style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
         <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-[#F0F4FF] transition-all duration-200 shrink-0">
           <ArrowLeft className="w-5 h-5" />
@@ -643,7 +643,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Account Info */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-[#1E293B]">Informations</h2>
               {editing ? (
                 <div className="flex gap-2">
@@ -651,7 +651,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   <Button size="sm" loading={saving} onClick={saveEdit}><Save className="w-4 h-4 mr-1" />Sauvegarder</Button>
                 </div>
               ) : (
-                <Button variant="secondary" size="sm" onClick={startEdit} className="w-full md:w-auto"><Edit2 className="w-4 h-4 mr-1" />Modifier</Button>
+                <Button variant="secondary" size="sm" onClick={startEdit} className="shrink-0"><Edit2 className="w-4 h-4 mr-1" />Modifier</Button>
               )}
             </div>
 
@@ -777,30 +777,30 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Search bar */}
-            <div className="relative mb-2">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#94A3B8] pointer-events-none" />
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
               <input
                 type="text"
                 value={docSearch}
                 onChange={(e) => { setDocSearch(e.target.value); setDocPage(1) }}
                 placeholder="Rechercher un document..."
-                className="w-full pl-7 pr-7 py-1.5 rounded-lg text-xs text-[#1E293B] placeholder-[#94A3B8] focus:outline-none"
-                style={{ background: '#F5F7FA', border: '1px solid #E5EAF5', borderRadius: 8 }}
+                className="w-full pl-8 pr-8 py-2.5 rounded-xl text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none"
+                style={{ background: '#F5F7FA', border: '1px solid #E5EAF5', borderRadius: 10 }}
               />
               {docSearch && (
-                <button onClick={() => { setDocSearch(''); setDocPage(1) }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]">
-                  <X className="w-3 h-3" />
+                <button onClick={() => { setDocSearch(''); setDocPage(1) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]">
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
             {/* Type filter pills */}
-            <div className="flex gap-1.5 flex-wrap mb-3">
+            <div className="flex gap-2 flex-wrap mb-3">
               {(['all', 'pdf', 'docx', 'xlsx', 'image'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => { setDocTypeFilter(t); setDocPage(1) }}
-                  className="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all duration-150"
+                  className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-150"
                   style={docTypeFilter === t
                     ? { background: '#1E2761', color: 'white' }
                     : { background: '#F0F4FF', color: '#8899BB' }
