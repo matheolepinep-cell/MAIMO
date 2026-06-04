@@ -249,6 +249,40 @@ export async function POST(request: Request) {
     }
   }).join('\n\n---\n\n')
 
+  // ── RECENT FULL NOTES for high-confidence company or explicit account ──
+  const targetAccountId = account_id ?? (detectedCompany?.confidence === 'high' ? detectedCompany.account.id : null)
+  let recentNotesSection = ''
+
+  if (targetAccountId) {
+    let notesQ = supabase
+      .from('notes')
+      .select('title, content, created_at, user_id')
+      .eq('account_id', targetAccountId)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    if (workspace_id) notesQ = notesQ.or(`workspace_id.eq.${workspace_id},workspace_id.is.null`)
+    const { data: recentNotes } = await notesQ
+
+    if (recentNotes && recentNotes.length > 0) {
+      const noteUserIds = [...new Set(recentNotes.map((n) => n.user_id).filter(Boolean))]
+      const { data: noteUsers } = noteUserIds.length > 0
+        ? await supabase.from('users').select('id, full_name').in('id', noteUserIds)
+        : { data: [] }
+      const noteUserMap = Object.fromEntries((noteUsers ?? []).map((u) => [u.id, u.full_name]))
+
+      const companyName = detectedCompany?.account.name
+        ?? (account_id ? (notesMap[Object.keys(notesMap)[0]]?.account_id ?? 'l\'entreprise') : 'l\'entreprise')
+
+      recentNotesSection = `\n\nNotes complètes récentes de ${companyName} :\n\n` +
+        recentNotes.map((n) => {
+          const d = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(n.created_at))
+          const author = noteUserMap[n.user_id] ?? 'Inconnu'
+          return `--- Note du ${d} par ${author} ---\n${n.title ? `Titre : ${n.title}\n` : ''}${n.content}`
+        }).join('\n\n')
+    }
+  }
+
   // ── TEMPORAL CONTEXT ──
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -288,7 +322,7 @@ Contexte client détecté : ${companyContext}`
     system: systemPrompt,
     messages: [
       ...historySlice,
-      { role: 'user' as const, content: `Sources disponibles :\n\n${contextParts}\n\n---\n\nQuestion : ${query}` },
+      { role: 'user' as const, content: `Sources disponibles :\n\n${contextParts}${recentNotesSection}\n\n---\n\nQuestion : ${query}` },
     ],
   })
 
