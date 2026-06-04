@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Search, X } from 'lucide-react'
+import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
@@ -348,6 +348,36 @@ export default function DashboardPage() {
         {/* Body */}
         <div className="flex-1 bg-[#F0F4FF] px-3 md:px-10 py-4 md:py-8 -mt-6">
           <div className="max-w-7xl mx-auto space-y-6">
+
+            {/* Actions rapides */}
+            <div>
+              <p className="text-[11px] font-medium mb-2" style={{ color: '#8899BB' }}>Actions rapides</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => router.push('/app/search')}
+                  className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
+                  style={{ background: '#0A1628', borderRadius: 12, padding: 14 }}
+                >
+                  <Sparkles className="w-5 h-5 text-white" />
+                  <div>
+                    <p className="text-[13px] font-medium text-white leading-snug">Recherche IA</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>Posez une question sur vos clients</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => router.push('/app/import')}
+                  className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
+                  style={{ background: '#EEF2FF', borderRadius: 12, padding: 14, border: '0.5px solid #C5D0F0' }}
+                >
+                  <CloudUpload className="w-5 h-5" style={{ color: '#4C6EF5' }} />
+                  <div>
+                    <p className="text-[13px] font-medium leading-snug" style={{ color: '#1E2761' }}>Importer</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: '#8899BB' }}>PDF, Word, Excel, image — classé auto</p>
+                  </div>
+                </button>
+              </div>
+              <div className="mt-4" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)', marginBottom: 0 }} />
+            </div>
 
             {/* Client search */}
             <div className="max-w-lg">
