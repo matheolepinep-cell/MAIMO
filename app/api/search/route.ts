@@ -249,16 +249,46 @@ export async function POST(request: Request) {
     }
   }).join('\n\n---\n\n')
 
+  // ── TEMPORAL CONTEXT ──
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.toLocaleString('fr-FR', { month: 'long' })
+  const lastYear = currentYear - 1
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+  const dateActuelle = capitalize(now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
+  const userName = user.full_name ?? 'l\'équipe'
+  const companyContext = detectedCompany
+    ? `Entreprise ciblée : ${detectedCompany.account.name} (confiance : ${detectedCompany.confidence})`
+    : account_id ? 'Contexte : fiche entreprise spécifique' : 'Recherche globale sur tout le portefeuille'
+
   type HistMsg = { role: 'user' | 'assistant'; content: string }
   const historySlice = (history as HistMsg[]).slice(-8)
+
+  const systemPrompt = `Tu es l'assistant commercial de ${userName}. Aujourd'hui nous sommes le ${dateActuelle}.
+
+RÈGLES DE RAISONNEMENT — OBLIGATOIRES :
+
+1. Raisonnement temporel : "l'année dernière" = ${lastYear}, "cette année" = ${currentYear}, "ce mois" = ${currentMonth} ${currentYear}, "récemment" = les 30 derniers jours. Fais toujours la conversion avant de répondre.
+
+2. Tolérance aux fautes : si un nom dans une note ressemble à un nom d'entreprise ou de personne mentionné dans la question (ex: "Ferrettire" ≈ "Ferretti", "Benneteau" ≈ "Bénéteau"), considère que c'est la même entité. Ne rejette jamais une information à cause d'une faute d'orthographe dans une note.
+
+3. Inférence logique : une note datée du 23/06/${lastYear} parle bien de l'année ${lastYear}, qui est l'année dernière si nous sommes en ${currentYear}. Si quelqu'un demande "l'année dernière", cette note est pertinente.
+
+4. Contexte entreprise : chaque chunk est préfixé par [Entreprise: X]. Même si le nom de l'entreprise n'est pas dans le corps du texte, ce chunk appartient à cette entreprise.
+
+5. Ne jamais halluciner : si l'information n'est pas dans les sources, dis "Je n'ai pas cette information dans les notes disponibles." N'invente jamais de chiffres, dates ou faits.
+
+6. Format de réponse : réponse directe sans introduction. Si plusieurs éléments : liste avec un tiret par élément, ligne vide entre chaque élément. Pas de markdown, pas d'astérisques, pas d'emojis. Maximum 2 phrases par élément.
+
+Contexte client détecté : ${companyContext}`
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: `Tu es l'assistant commercial de l'équipe. Réponds uniquement à partir des extraits fournis. Si l'information n'est pas dans les extraits, dis-le clairement. Cite toujours ta source (note du JJ/MM/AAAA par Prénom, ou document "Titre"). Réponds de façon structurée et aérée. Si la réponse contient plusieurs informations distinctes, utilise une liste avec un tiret par élément, une ligne vide entre chaque élément si l'élément fait plus d'une ligne. Maximum 2 phrases par élément. Pas d'introduction, pas de conclusion. Pas d'astérisques, pas de gras, pas de markdown. Commence directement par l'information. Si la réponse tient en une phrase : une seule phrase, pas de liste.`,
+    system: systemPrompt,
     messages: [
       ...historySlice,
-      { role: 'user' as const, content: `Extraits disponibles :\n\n${contextParts}\n\n---\n\nQuestion : ${query}` },
+      { role: 'user' as const, content: `Sources disponibles :\n\n${contextParts}\n\n---\n\nQuestion : ${query}` },
     ],
   })
 
