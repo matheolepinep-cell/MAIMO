@@ -169,9 +169,9 @@ export default function TeamPage() {
                       {member.role === 'admin' && <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="flex items-center gap-1 text-xs text-[#64748B]">
+                      <a href={`mailto:${member.email}`} className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#4C6EF5] transition-colors">
                         <Mail className="w-3 h-3" />{member.email}
-                      </span>
+                      </a>
                       {pubCount > 0 && (
                         <span className="flex items-center gap-1 text-xs text-[#64748B]">
                           <Briefcase className="w-3 h-3" />{pubCount} client{pubCount !== 1 ? 's' : ''}
