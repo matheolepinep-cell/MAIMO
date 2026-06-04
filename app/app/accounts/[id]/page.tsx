@@ -4,7 +4,7 @@ import { useEffect, useState, use, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
-  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download, Share2, Bell, BellOff, AlertTriangle, Copy,
+  FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download, Share2, Bell, BellOff, AlertTriangle, Copy, Phone, Mail,
   ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -126,6 +126,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [docPage, setDocPage] = useState(1)
   const [docTypeFilter, setDocTypeFilter] = useState<'all' | 'pdf' | 'docx' | 'xlsx' | 'image'>('all')
   const [initialShareOpen, setInitialShareOpen] = useState(false)
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
 
   // Access section
   const [portfolioEntry, setPortfolioEntry] = useState<{ id: string; visibility: 'team' | 'private' | 'custom' } | null>(null)
@@ -259,6 +260,11 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     const supabase = createClient()
     await supabase.from('contacts').delete().eq('id', contactId)
     setContacts((prev) => prev.filter((c) => c.id !== contactId))
+  }
+
+  const handleUpdateContact = (updated: Contact) => {
+    setContacts((prev) => prev.map((c) => c.id === updated.id ? updated : c))
+    setSelectedContact(updated)
   }
 
   /* ─── access ─── */
@@ -658,7 +664,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 ) : (account[key] ? (
                   <div key={key}>
                     <p className="text-xs text-[#94A3B8] mb-0.5">{label}</p>
-                    <p className="text-sm text-[#1E293B]">{account[key] as string}</p>
+                    {key === 'email'
+                      ? <a href={`mailto:${account[key] as string}`} className="text-sm text-[#4C6EF5] hover:underline">{account[key] as string}</a>
+                      : key === 'phone'
+                      ? <a href={`tel:${(account[key] as string).replace(/\s/g, '')}`} className="text-sm text-[#1E293B] hover:text-[#4C6EF5] transition-colors">{account[key] as string}</a>
+                      : key === 'website'
+                      ? <a href={(account[key] as string).startsWith('http') ? account[key] as string : `https://${account[key] as string}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-[#4C6EF5] hover:underline">{account[key] as string}<ExternalLink className="w-3 h-3 shrink-0 ml-0.5" /></a>
+                      : <p className="text-sm text-[#1E293B]">{account[key] as string}</p>
+                    }
                   </div>
                 ) : null)
               ))}
@@ -707,11 +720,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             ) : (
               <div className="space-y-2">
                 {sortedContacts.map((c) => (
-                  <div key={c.id} className="bg-white rounded-xl border border-gray-100 p-3">
+                  <div key={c.id}
+                    className="bg-white rounded-xl border border-gray-100 p-3 cursor-pointer hover:border-[#C5D0F0] hover:bg-[#F8FAFF] transition-all duration-150"
+                    onClick={() => setSelectedContact(c)}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-[#1E2761]/10 rounded-lg flex items-center justify-center shrink-0">
-                          <User className="w-4 h-4 text-[#1E2761]" />
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(76,110,245,0.1)' }}>
+                          <span className="text-xs font-bold" style={{ color: '#4C6EF5' }}>{getInitials(`${c.first_name} ${c.last_name}`)}</span>
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
@@ -722,12 +738,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                               </span>
                             )}
                           </div>
-                          {c.phone && <p className="text-xs text-[#64748B]">{c.phone}</p>}
-                          {c.email && <p className="text-xs text-[#3B82F6]">{c.email}</p>}
+                          {c.phone && <a href={`tel:${c.phone.replace(/\s/g, '')}`} onClick={(e) => e.stopPropagation()} className="text-xs text-[#64748B] hover:text-[#4C6EF5] transition-colors block">{c.phone}</a>}
+                          {c.email && <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} className="text-xs text-[#3B82F6] hover:underline block">{c.email}</a>}
                           {c.role && <p className="text-xs text-slate-500 italic mt-0.5">{c.role}</p>}
                         </div>
                       </div>
-                      <button onClick={() => handleDeleteContact(c.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150">
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteContact(c.id) }} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -1190,6 +1206,17 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
+      {/* Contact panel */}
+      {selectedContact && (
+        <ContactPanel
+          contact={selectedContact}
+          notes={notes}
+          onClose={() => setSelectedContact(null)}
+          onUpdate={handleUpdateContact}
+          onDelete={(cid) => { handleDeleteContact(cid); setSelectedContact(null) }}
+        />
+      )}
+
       {/* Contact modal */}
       <Modal open={contactModal} onClose={() => setContactModal(false)} title="Ajouter un interlocuteur">
         <form onSubmit={handleAddContact} className="space-y-3">
@@ -1227,6 +1254,190 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         />
       )}
     </div>
+  )
+}
+
+/* ─── ContactPanel ─── */
+function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
+  contact: Contact
+  notes: Note[]
+  onClose: () => void
+  onUpdate: (c: Contact) => void
+  onDelete: (id: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({
+    first_name: contact.first_name,
+    last_name: contact.last_name,
+    role: contact.role ?? '',
+    phone: contact.phone ?? '',
+    email: contact.email ?? '',
+    notes: contact.notes ?? '',
+    is_main_contact: contact.is_main_contact,
+  })
+  const [saving, setSaving] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    requestAnimationFrame(() => setMounted(true))
+  }, [])
+
+  const initials = getInitials(`${contact.first_name} ${contact.last_name}`)
+  const relatedNotes = notes.filter((n) =>
+    n.content?.toLowerCase().includes(contact.first_name.toLowerCase()) ||
+    n.content?.toLowerCase().includes(contact.last_name.toLowerCase())
+  ).slice(0, 3)
+
+  const handleSave = async () => {
+    setSaving(true)
+    const supabase = createClient()
+    const { data, error } = await supabase.from('contacts').update({
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+      role: form.role || null,
+      phone: form.phone || null,
+      email: form.email || null,
+      notes: form.notes || null,
+      is_main_contact: form.is_main_contact,
+    }).eq('id', contact.id).select().single()
+    if (!error && data) { onUpdate(data); setEditing(false) }
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40"
+        style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(1px)' }}
+        onClick={onClose}
+      />
+      <div
+        className="fixed right-0 top-0 h-full z-50 bg-white flex flex-col"
+        style={{
+          width: 'min(380px, 100vw)',
+          boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
+          transform: mounted ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 200ms ease',
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
+          <h3 className="text-sm font-semibold text-[#1E293B]">Fiche contact</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Avatar + Name */}
+          <div className="flex flex-col items-center gap-3 pt-2">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
+              style={{ background: '#4C6EF5' }}>
+              {initials}
+            </div>
+            <div className="text-center">
+              <p className="font-semibold text-[#1E293B]">{contact.first_name} {contact.last_name}</p>
+              {contact.role && <p className="text-xs text-[#64748B] mt-0.5">{contact.role}</p>}
+              {contact.is_main_contact && (
+                <span className="inline-flex items-center gap-0.5 mt-1.5 px-2 py-0.5 bg-amber-50 text-amber-600 text-xs font-medium rounded-lg">
+                  <Star className="w-2.5 h-2.5" />Contact principal
+                </span>
+              )}
+            </div>
+          </div>
+
+          {!editing ? (
+            <div className="space-y-2">
+              {contact.phone && (
+                <a href={`tel:${contact.phone.replace(/\s/g, '')}`}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F0F4FF] hover:bg-[#E8EEFF] transition-all"
+                >
+                  <Phone className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
+                  <span className="text-sm text-[#1E293B]">{contact.phone}</span>
+                </a>
+              )}
+              {contact.email && (
+                <a href={`mailto:${contact.email}`}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F0F4FF] hover:bg-[#E8EEFF] transition-all"
+                >
+                  <Mail className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
+                  <span className="text-sm text-[#1E293B]">{contact.email}</span>
+                </a>
+              )}
+              {!contact.phone && !contact.email && (
+                <p className="text-sm text-[#94A3B8] text-center py-2">Aucune coordonnée renseignée</p>
+              )}
+              {contact.notes && (
+                <div className="px-3 py-2.5 rounded-xl bg-[#F0F4FF]">
+                  <p className="text-xs text-[#94A3B8] mb-1">Notes</p>
+                  <p className="text-sm text-[#1E293B]">{contact.notes}</p>
+                </div>
+              )}
+              <button
+                onClick={() => setEditing(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-all hover:bg-[#EEF2FF]"
+                style={{ border: '1.5px dashed #C5D0F0', color: '#4C6EF5' }}
+              >
+                <Edit2 className="w-3.5 h-3.5" />Modifier les informations
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Input label="Prénom" value={form.first_name} onChange={(e) => setForm((p) => ({ ...p, first_name: e.target.value }))} />
+                <Input label="Nom" value={form.last_name} onChange={(e) => setForm((p) => ({ ...p, last_name: e.target.value }))} />
+              </div>
+              <Input label="Rôle" value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))} />
+              <Input label="Téléphone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+              <Input label="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+              <div>
+                <label className="text-sm font-medium text-[#1E293B] block mb-1.5">Notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] resize-none focus:outline-none focus:ring-2 focus:ring-[#4C6EF5] focus:border-transparent"
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.is_main_contact}
+                  onChange={(e) => setForm((p) => ({ ...p, is_main_contact: e.target.checked }))}
+                  className="rounded" />
+                <span className="text-sm text-[#1E293B]">Contact principal</span>
+              </label>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" className="flex-1" onClick={() => setEditing(false)}>Annuler</Button>
+                <Button size="sm" className="flex-1" loading={saving} onClick={handleSave}>Sauvegarder</Button>
+              </div>
+            </div>
+          )}
+
+          {relatedNotes.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#94A3B8' }}>Notes liées</p>
+              <div className="space-y-2">
+                {relatedNotes.map((n) => (
+                  <div key={n.id} className="px-3 py-2.5 rounded-xl bg-[#F0F4FF]">
+                    {n.title && <p className="text-xs font-semibold text-[#1E293B] mb-1">{n.title}</p>}
+                    <p className="text-xs text-[#64748B] line-clamp-2">{n.content}</p>
+                    <p className="text-[10px] mt-1" style={{ color: '#94A3B8' }}>{fmtDay(n.created_at)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-4 shrink-0" style={{ borderTop: '1px solid rgba(30,39,97,0.08)' }}>
+          <button
+            onClick={() => { onDelete(contact.id); onClose() }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all"
+          >
+            <Trash2 className="w-4 h-4" />Supprimer ce contact
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 
