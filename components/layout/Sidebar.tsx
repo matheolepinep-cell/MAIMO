@@ -81,7 +81,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden md:flex flex-col w-[200px] min-h-screen py-5 shrink-0"
+      className="hidden md:flex flex-col w-[200px] fixed top-0 left-0 h-screen overflow-y-auto py-5 z-30"
       style={{ background: '#0A1628' }}
     >
       {/* Logo */}
