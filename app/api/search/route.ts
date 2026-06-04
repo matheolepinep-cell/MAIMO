@@ -3,7 +3,8 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { embed } from '@/lib/embeddings'
-import type { SearchSource } from '@/types/database'
+import { detectCompanyInQuery } from '@/lib/search-utils'
+import type { SearchSource, UserProfile } from '@/types/database'
 
 interface SearchChunk {
   id: string
@@ -16,12 +17,15 @@ interface SearchChunk {
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(request: Request) {
-  const user = await getAuthenticatedUser()
+  const user = (await getAuthenticatedUser()) as UserProfile | null
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { query, account_id, account_ids, status = 'all', city, company_id, workspace_id: clientWorkspaceId, history = [] } = await request.json()
+  const {
+    query, account_id, account_ids, status = 'all', city,
+    company_id, workspace_id: clientWorkspaceId, history = [],
+  } = await request.json()
 
   if (!query || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -52,37 +56,84 @@ export async function POST(request: Request) {
       if ((userRow as { is_super_admin?: boolean } | null)?.is_super_admin) {
         workspace_id = clientWorkspaceId
       }
-      // else: silently ignore invalid workspace_id — search full company scope
     }
   }
 
-  const queryEmbedding = await embed(query)
+  // ── PARALLEL: embed query + load accounts for company detection ──
+  const [queryEmbedding, allAccounts] = await Promise.all([
+    embed(query),
+    (async () => {
+      if (account_id) return [] as { id: string; name: string }[]
+      let q = supabase.from('accounts').select('id, name').eq('company_id', company_id)
+      if (workspace_id) q = q.or(`workspace_id.eq.${workspace_id},workspace_id.is.null`)
+      const { data } = await q
+      return (data ?? []) as { id: string; name: string }[]
+    })(),
+  ])
 
+  // ── COMPANY DETECTION via normalize + Levenshtein ──
+  const detectedCompany = account_id ? null : detectCompanyInQuery(query, allAccounts)
+
+  // ── HYBRID SEARCH STRATEGY ──
   let rawChunks: SearchChunk[]
 
   if (account_id) {
+    // Account-specific search (user is on an account detail page)
     const { data, error } = await supabase.rpc('search_chunks', {
       query_embedding: queryEmbedding,
       match_client_id: account_id,
       match_company_id: company_id,
-      match_count: 5,
+      match_count: 15,
     })
     if (error) {
       console.error('Search error:', error)
       return NextResponse.json({ error: 'Search failed' }, { status: 500 })
     }
     rawChunks = (data as SearchChunk[]) ?? []
+  } else if (detectedCompany?.confidence === 'high') {
+    // High confidence: company-specific search only
+    const { data, error } = await supabase.rpc('search_chunks', {
+      query_embedding: queryEmbedding,
+      match_client_id: detectedCompany.account.id,
+      match_company_id: company_id,
+      match_count: 15,
+    })
+    if (error) {
+      console.error('Search error (high confidence):', error)
+      return NextResponse.json({ error: 'Search failed' }, { status: 500 })
+    }
+    rawChunks = (data as SearchChunk[]) ?? []
+  } else if (detectedCompany) {
+    // Medium or low confidence (typo): company + global, merge with company priority
+    const [compRes, globRes] = await Promise.all([
+      supabase.rpc('search_chunks', {
+        query_embedding: queryEmbedding,
+        match_client_id: detectedCompany.account.id,
+        match_company_id: company_id,
+        match_count: 10,
+      }),
+      supabase.rpc('search_chunks_global', {
+        query_embedding: queryEmbedding,
+        match_company_id: company_id,
+        match_count: 10,
+      }),
+    ])
+    const compChunks = (compRes.data as SearchChunk[]) ?? []
+    const globChunks = (globRes.data as SearchChunk[]) ?? []
+    const seen = new Set(compChunks.map((c) => c.id))
+    rawChunks = [...compChunks, ...globChunks.filter((c) => !seen.has(c.id))].slice(0, 15)
   } else {
+    // No company detected: global search with similarity threshold
     const { data, error } = await supabase.rpc('search_chunks_global', {
       query_embedding: queryEmbedding,
       match_company_id: company_id,
-      match_count: 20,
+      match_count: 12,
     })
     if (error) {
       console.error('Global search error:', error)
       return NextResponse.json({ error: 'Search failed' }, { status: 500 })
     }
-    rawChunks = (data as SearchChunk[]) ?? []
+    rawChunks = ((data as SearchChunk[]) ?? []).filter((c) => c.similarity >= 0.60)
   }
 
   if (rawChunks.length === 0) {
@@ -92,7 +143,7 @@ export async function POST(request: Request) {
     })
   }
 
-  // Enrich notes and documents
+  // ── ENRICH: fetch note/doc metadata ──
   const noteIds = rawChunks.filter((c) => c.source_type === 'note').map((c) => c.source_id)
   const docIds = rawChunks.filter((c) => c.source_type === 'document').map((c) => c.source_id)
 
@@ -173,9 +224,9 @@ export async function POST(request: Request) {
       if (status === 'prospect' && acc.status !== 'prospect') return false
       if (city && !acc.city?.toLowerCase().includes((city as string).toLowerCase())) return false
       return true
-    }).slice(0, 5)
-  } else if (!account_id) {
-    chunks = rawChunks.slice(0, 5)
+    }).slice(0, 8)
+  } else if (!account_id && !detectedCompany) {
+    chunks = rawChunks.slice(0, 8)
   }
 
   if (chunks.length === 0) {
