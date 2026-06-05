@@ -11,6 +11,7 @@ import { detectConflicts, type ConflictResult } from '@/lib/conflicts'
 interface NoteInputProps {
   clientId: string
   onNoteSaved: () => void
+  companyName?: string
 }
 
 declare global {
@@ -20,7 +21,7 @@ declare global {
   }
 }
 
-export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
+export function NoteInput({ clientId, onNoteSaved, companyName }: NoteInputProps) {
   const { profile } = useUser()
   const [mode, setMode] = useState<'text' | 'vocal'>('text')
   const [title, setTitle] = useState('')
@@ -46,13 +47,16 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
+    const finalTitle = title.trim() ||
+      `Note du ${new Date().toLocaleDateString('fr-FR')}${companyName ? ` — ${companyName}` : ''}`
+
     const { data: note, error } = await supabase
       .from('notes')
       .insert({
         account_id: clientId,
         company_id: profile?.company_id ?? null,
         user_id: profile?.id ?? user?.id ?? null,
-        title: title.trim() || null,
+        title: finalTitle,
         content: content.trim(),
         source,
         is_deleted: false,
@@ -79,7 +83,7 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
     }
 
     setSaving(false)
-  }, [profile, clientId, title, onNoteSaved])
+  }, [profile, clientId, title, companyName, onNoteSaved])
 
   const saveNote = useCallback(async (content: string, source: 'text' | 'vocal') => {
     if (!content.trim()) return
@@ -221,7 +225,7 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Titre (optionnel)"
+        placeholder="Titre (optionnel — généré automatiquement si vide)"
         className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150 mb-3"
       />
 
@@ -293,8 +297,6 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
           ) : text && !recording && (
             <button
               onClick={() => {
-                const autoTitle = text.trim().split(/\s+/).slice(0, 8).join(' ')
-                if (!title.trim()) setTitle(autoTitle.length > 50 ? autoTitle.slice(0, 50) + '…' : autoTitle)
                 saveNote(text, 'vocal')
               }}
               disabled={saving || checking}

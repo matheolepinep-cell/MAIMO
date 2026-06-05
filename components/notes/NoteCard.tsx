@@ -21,6 +21,7 @@ interface NoteCardProps {
   accountId?: string
   companyId?: string | null
   workspaceId?: string | null
+  companyName?: string
   membersMap?: Record<string, string>
   onDelete: (id: string) => void
   onUpdate?: (updated: Note) => void
@@ -28,7 +29,7 @@ interface NoteCardProps {
 }
 
 export function NoteCard({
-  note, noteDocuments = [], accountId, companyId, workspaceId,
+  note, noteDocuments = [], accountId, companyId, workspaceId, companyName,
   membersMap = {}, onDelete, onUpdate, onOpenDoc,
 }: NoteCardProps) {
   const { profile } = useUser()
@@ -88,19 +89,25 @@ export function NoteCard({
     setSaving(true)
     const supabase = createClient()
 
+    const finalTitle = editTitle.trim() ||
+      `Note du ${new Date().toLocaleDateString('fr-FR')}${companyName ? ` — ${companyName}` : ''}`
+
     // 1. Update note record
     const { data: updatedNote, error } = await supabase
       .from('notes')
       .update({
-        title: editTitle.trim() || null,
+        title: finalTitle,
         content: editContent.trim(),
-        updated_at: new Date().toISOString(),
       })
       .eq('id', note.id)
       .select()
       .single()
 
-    if (error || !updatedNote) { setSaving(false); return }
+    if (error || !updatedNote) {
+      console.error('Note update error:', error)
+      setSaving(false)
+      return
+    }
 
     // 2. Soft-delete removed documents
     for (const docId of removedDocIds) {

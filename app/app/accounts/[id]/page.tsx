@@ -293,8 +293,11 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
   /* ─── notes ─── */
   const saveNote = useCallback(async (content: string, source: 'text' | 'vocal') => {
-    if (!content.trim() || !noteTitle.trim()) { setNoteError('Le titre est obligatoire.'); return }
+    if (!content.trim()) { setNoteError('Le contenu est obligatoire.'); return }
     setNoteError('')
+
+    const finalTitle = noteTitle.trim() ||
+      `Note du ${new Date().toLocaleDateString('fr-FR')} — ${account?.name ?? ''}`
 
     // Conflict detection (skip if force-save flagged)
     if (!forceSaveRef.current) {
@@ -318,7 +321,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       account_id: id,
       company_id: profile?.company_id ?? null,
       user_id: profile?.id ?? user?.id ?? null,
-      title: noteTitle.trim(),
+      title: finalTitle,
       content: content.trim(),
       source,
       is_deleted: false,
@@ -369,7 +372,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       }
     }
     setSavingNote(false)
-  }, [noteTitle, id, profile, wsId, attachments, fetchAll])
+  }, [noteTitle, account, id, profile, wsId, attachments, fetchAll])
 
   const startRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -991,7 +994,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       </button>
                     ))}
                   </div>
-                  <Input placeholder="Titre de la note (obligatoire)" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} />
+                  <Input placeholder="Titre (optionnel — généré automatiquement si vide)" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} />
                   {noteMode === 'text' ? (
                     <form onSubmit={(e) => { e.preventDefault(); saveNote(noteText, 'text') }} className="space-y-2">
                       <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
@@ -1030,7 +1033,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                           </div>
                         </div>
                       ) : (
-                        <Button type="submit" loading={savingNote || conflictChecking} disabled={!noteText.trim() || !noteTitle.trim()} className="w-full" size="sm">
+                        <Button type="submit" loading={savingNote || conflictChecking} disabled={!noteText.trim()} className="w-full" size="sm">
                           <Send className="w-3.5 h-3.5 mr-1.5" />Enregistrer
                         </Button>
                       )}
@@ -1055,12 +1058,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       )}
                       {noteText.trim() && !recording && (
                         <button
-                          onClick={() => {
-                            const autoTitle = noteText.trim().split(/\s+/).slice(0, 8).join(' ')
-                            const finalTitle = noteTitle.trim() || (autoTitle.length > 50 ? autoTitle.slice(0, 50) + '…' : autoTitle)
-                            if (!noteTitle.trim()) setNoteTitle(finalTitle)
-                            saveNote(noteText, 'vocal')
-                          }}
+                          onClick={() => saveNote(noteText, 'vocal')}
                           disabled={savingNote || conflictChecking}
                           className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all disabled:opacity-50"
                           style={{ background: '#1E2761', borderRadius: 10, height: 44 }}
@@ -1131,6 +1129,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                           accountId={id}
                           companyId={profile?.company_id ?? null}
                           workspaceId={wsId ?? null}
+                          companyName={account.name}
                           membersMap={membersMap}
                           onDelete={handleDeleteNote}
                           onUpdate={handleUpdateNote}

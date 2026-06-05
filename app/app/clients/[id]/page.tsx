@@ -171,7 +171,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
       <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
         {/* Note input */}
-        <NoteInput clientId={id} onNoteSaved={fetchData} />
+        <NoteInput clientId={id} onNoteSaved={fetchData} companyName={client?.name} />
 
         {/* Notes list */}
         {notes.length === 0 ? (
