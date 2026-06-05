@@ -14,12 +14,29 @@ interface SearchChunk {
   similarity: number
 }
 
+// Enriched chunk stored client-side and passed back on follow-up
+export interface ChunkUsed {
+  id: string
+  content: string
+  source_type: 'note' | 'document'
+  source_id: string
+  title?: string | null
+  date?: string
+  author?: string
+  file_name?: string
+  file_url?: string
+  account_id?: string
+}
+
 type HistMsg = { role: 'user' | 'assistant'; content: string }
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// Detect whether the new message is a follow-up on the previous exchange.
-// Returns true if the user is asking about the previous answer (not a new independent query).
+// Normalize French typographic apostrophes to ASCII before pattern matching
+function normalizeApostrophes(s: string): string {
+  return s.replace(/[‘’ʼ]/g, "'")
+}
+
 function isFollowUp(
   query: string,
   history: HistMsg[],
@@ -28,39 +45,72 @@ function isFollowUp(
 ): boolean {
   if (history.length === 0) return false
 
-  const q = query.toLowerCase().trim()
+  // Normalize apostrophes then lowercase
+  const q = normalizeApostrophes(query).toLowerCase().trim()
 
   const patterns = [
-    "qu'est-ce qui te fait dire",
-    "pourquoi tu dis",
-    "d'où tu tiens",
+    "qui te fait dire",
+    "pourquoi",
     "comment tu sais",
+    "d'où",
     "explique",
     "précise",
     "développe",
-    "tu parles de quoi",
-    "c'est quoi",
+    "source",
+    "quelle note",
+    "quel document",
+    "c'est écrit où",
+    "tu parles de",
     "c'est-à-dire",
     "et alors",
-    "et ensuite",
     "par rapport à quoi",
   ]
 
   for (const p of patterns) {
-    if (q.includes(p)) return true
+    if (q.includes(normalizeApostrophes(p))) return true
   }
 
-  const wordCount = query.trim().split(/\s+/).filter(Boolean).length
-  if (wordCount < 8) {
-    if (accountId) return true  // account page: short message = follow-up
+  // Short message heuristic: < 6 words with no detectable proper noun
+  const words = query.trim().split(/\s+/).filter(Boolean)
+  if (words.length < 6) {
+    // Proper noun = word after position 0 starting with uppercase
+    const hasProperNoun = words.slice(1).some((w) => /^[A-ZÉÀÈÙÂÊÎÔÛÇŒÆ]/.test(w))
     const hasCompany = allAccounts.some((a) => {
-      const n = a.name.toLowerCase()
+      const n = normalizeApostrophes(a.name).toLowerCase()
       return q.includes(n) || n.split(/\s+/).some((w) => w.length > 4 && q.includes(w))
     })
-    if (!hasCompany) return true
+    if (!hasProperNoun && !hasCompany) return true
   }
 
   return false
+}
+
+function buildContextString(chunks: ChunkUsed[]): string {
+  const fmtDate = (d: string) =>
+    new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
+
+  return chunks.map((chunk, i) => {
+    if (chunk.source_type === 'note') {
+      return `[Extrait ${i + 1} — note du ${chunk.date ? fmtDate(chunk.date) : 'date inconnue'} par ${chunk.author ?? 'source inconnue'}]\n${chunk.content}`
+    } else {
+      return `[Extrait ${i + 1} — document "${chunk.title ?? chunk.file_name ?? 'document'}" du ${chunk.date ? fmtDate(chunk.date) : 'date inconnue'}]\n${chunk.content}`
+    }
+  }).join('\n\n---\n\n')
+}
+
+function buildSourcesFromChunks(chunks: ChunkUsed[]): SearchSource[] {
+  const seen = new Set<string>()
+  const sources: SearchSource[] = []
+  for (const chunk of chunks) {
+    if (seen.has(chunk.source_id)) continue
+    seen.add(chunk.source_id)
+    if (chunk.source_type === 'note') {
+      sources.push({ type: 'note', id: chunk.source_id, title: chunk.title ?? 'Note sans titre', date: chunk.date, author: chunk.author })
+    } else {
+      sources.push({ type: 'document', id: chunk.source_id, title: chunk.title ?? chunk.file_name ?? 'Document', file_name: chunk.file_name, url: chunk.file_url, date: chunk.date })
+    }
+  }
+  return sources
 }
 
 export async function POST(request: Request) {
@@ -72,7 +122,7 @@ export async function POST(request: Request) {
   const {
     query, account_id, account_ids, status = 'all', city,
     company_id, workspace_id: clientWorkspaceId, history = [],
-    previousContext = null,
+    previousChunks = [],
   } = await request.json()
 
   if (!query || !company_id) {
@@ -87,7 +137,7 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Validate workspace_id server-side — never trust client
+  // Validate workspace_id server-side
   let workspace_id: string | null = null
   if (clientWorkspaceId) {
     const { data: membership } = await supabase
@@ -107,7 +157,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── LOAD ACCOUNTS for company detection + follow-up detection ──
+  // Load accounts for company detection and follow-up detection (global search only)
   let allAccounts: { id: string; name: string }[] = []
   if (!account_id) {
     let q = supabase.from('accounts').select('id, name').eq('company_id', company_id)
@@ -127,8 +177,12 @@ export async function POST(request: Request) {
   const dateActuelle = capitalize(now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
   const userName = user.full_name ?? 'l\'équipe'
 
-  const buildSystemPrompt = (companyContext: string) =>
-    `Tu es l'assistant commercial de ${userName}. Aujourd'hui nous sommes le ${dateActuelle}.
+  const buildSystemPrompt = (companyContext: string, followUp = false) => {
+    const followUpPrefix = followUp
+      ? `L'utilisateur pose une question de suivi sur ta réponse précédente. Explique ton raisonnement en citant précisément les extraits des sources ci-dessous qui t'ont permis de donner cette information. Ne fais pas de nouvelle recherche, reste dans le contexte de la conversation.\n\n`
+      : ''
+
+    return `${followUpPrefix}Tu es l'assistant commercial de ${userName}. Aujourd'hui nous sommes le ${dateActuelle}.
 
 RÈGLES DE RAISONNEMENT — OBLIGATOIRES :
 
@@ -145,12 +199,15 @@ RÈGLES DE RAISONNEMENT — OBLIGATOIRES :
 6. Format de réponse : réponse directe sans introduction. Si plusieurs éléments : liste avec un tiret par élément, ligne vide entre chaque élément. Pas de markdown, pas d'astérisques, pas d'emojis. Maximum 2 phrases par élément.
 
 Contexte client détecté : ${companyContext}`
+  }
 
-  // ── FOLLOW-UP: reuse previous context, skip vector search ──
-  const prevContextParts = (previousContext as { contextParts?: string } | null)?.contextParts ?? null
-  const prevSources = (previousContext as { sources?: SearchSource[] } | null)?.sources ?? []
+  // ── FOLLOW-UP: skip vector search, reuse previous chunks ──
+  const prevChunks = (previousChunks as ChunkUsed[])
+  const followUp = prevChunks.length > 0 && isFollowUp(query, historySlice, account_id, allAccounts)
 
-  if (isFollowUp(query, historySlice, account_id, allAccounts) && prevContextParts) {
+  if (followUp) {
+    const contextStr = buildContextString(prevChunks)
+    const sources = buildSourcesFromChunks(prevChunks)
     const companyContext = account_id
       ? 'Contexte : fiche entreprise spécifique'
       : 'Recherche globale sur tout le portefeuille'
@@ -158,15 +215,15 @@ Contexte client détecté : ${companyContext}`
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
-      system: buildSystemPrompt(companyContext),
+      system: buildSystemPrompt(companyContext, true),
       messages: [
         ...historySlice,
-        { role: 'user' as const, content: `Sources disponibles :\n\n${prevContextParts}\n\n---\n\nQuestion : ${query}` },
+        { role: 'user' as const, content: `Sources disponibles :\n\n${contextStr}\n\n---\n\nQuestion : ${query}` },
       ],
     })
 
     const answer = message.content[0].type === 'text' ? message.content[0].text : ''
-    return NextResponse.json({ answer, sources: prevSources, contextParts: prevContextParts })
+    return NextResponse.json({ answer, sources, chunksUsed: prevChunks })
   }
 
   // ── INDEPENDENT QUERY: full vector search ──
@@ -175,7 +232,6 @@ Contexte client détecté : ${companyContext}`
     Promise.resolve(account_id ? null : detectCompanyInQuery(query, allAccounts)),
   ])
 
-  // ── HYBRID SEARCH STRATEGY ──
   let rawChunks: SearchChunk[]
 
   if (account_id) {
@@ -237,7 +293,7 @@ Contexte client détecté : ${companyContext}`
     return NextResponse.json({
       answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question.",
       sources: [],
-      contextParts: '',
+      chunksUsed: [],
     })
   }
 
@@ -331,24 +387,46 @@ Contexte client détecté : ${companyContext}`
     return NextResponse.json({
       answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question dans ce périmètre.",
       sources: [],
-      contextParts: '',
+      chunksUsed: [],
     })
   }
 
   const fmtDate = (d: string) =>
     new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
 
-  const contextPartsStr = chunks.map((chunk, i) => {
+  // Build enriched chunks for storage and reuse
+  const chunksUsed: ChunkUsed[] = chunks.map((chunk) => {
     if (chunk.source_type === 'note') {
       const note = notesMap[chunk.source_id]
-      return `[Extrait ${i + 1} — note du ${note ? fmtDate(note.created_at) : 'date inconnue'} par ${note?.author ?? 'source inconnue'}]\n${chunk.content}`
+      return {
+        id: chunk.id,
+        content: chunk.content,
+        source_type: 'note' as const,
+        source_id: chunk.source_id,
+        title: note?.title,
+        date: note?.created_at,
+        author: note?.author,
+        account_id: note?.account_id,
+      }
     } else {
       const doc = docsMap[chunk.source_id]
-      return `[Extrait ${i + 1} — document "${doc?.title ?? doc?.file_name ?? 'document'}" du ${doc ? fmtDate(doc.created_at) : 'date inconnue'}]\n${chunk.content}`
+      return {
+        id: chunk.id,
+        content: chunk.content,
+        source_type: 'document' as const,
+        source_id: chunk.source_id,
+        title: doc?.title,
+        date: doc?.created_at,
+        file_name: doc?.file_name,
+        file_url: doc?.file_url,
+        account_id: doc?.account_id,
+      }
     }
-  }).join('\n\n---\n\n')
+  })
 
-  // ── RECENT FULL NOTES for high-confidence company or explicit account ──
+  const contextStr = buildContextString(chunksUsed)
+
+  // ── RECENT FULL NOTES ──
   const targetAccountId = account_id ?? (detectedCompany?.confidence === 'high' ? detectedCompany.account.id : null)
   let recentNotesSection = ''
 
@@ -382,9 +460,6 @@ Contexte client détecté : ${companyContext}`
     }
   }
 
-  // Full context string that will be stored client-side for follow-up reuse
-  const fullContextParts = `${contextPartsStr}${recentNotesSection}`
-
   const companyContext = detectedCompany
     ? `Entreprise ciblée : ${detectedCompany.account.name} (confiance : ${detectedCompany.confidence})`
     : account_id ? 'Contexte : fiche entreprise spécifique' : 'Recherche globale sur tout le portefeuille'
@@ -392,30 +467,15 @@ Contexte client détecté : ${companyContext}`
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: buildSystemPrompt(companyContext),
+    system: buildSystemPrompt(companyContext, false),
     messages: [
       ...historySlice,
-      { role: 'user' as const, content: `Sources disponibles :\n\n${fullContextParts}\n\n---\n\nQuestion : ${query}` },
+      { role: 'user' as const, content: `Sources disponibles :\n\n${contextStr}${recentNotesSection}\n\n---\n\nQuestion : ${query}` },
     ],
   })
 
   const answer = message.content[0].type === 'text' ? message.content[0].text : ''
+  const sources = buildSourcesFromChunks(chunksUsed)
 
-  const seenIds = new Set<string>()
-  const sources: SearchSource[] = []
-
-  for (const chunk of chunks) {
-    if (seenIds.has(chunk.source_id)) continue
-    seenIds.add(chunk.source_id)
-
-    if (chunk.source_type === 'note') {
-      const note = notesMap[chunk.source_id]
-      sources.push({ type: 'note', id: chunk.source_id, title: note?.title ?? 'Note sans titre', date: note?.created_at, author: note?.author })
-    } else {
-      const doc = docsMap[chunk.source_id]
-      sources.push({ type: 'document', id: chunk.source_id, title: doc?.title ?? doc?.file_name ?? 'Document', file_name: doc?.file_name, url: doc?.file_url, date: doc?.created_at })
-    }
-  }
-
-  return NextResponse.json({ answer, sources, contextParts: fullContextParts })
+  return NextResponse.json({ answer, sources, chunksUsed })
 }

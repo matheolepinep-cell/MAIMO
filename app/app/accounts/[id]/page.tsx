@@ -108,7 +108,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [previewLoadingDocId, setPreviewLoadingDocId] = useState<string | null>(null)
 
   // AI Search tab
-  type ConversationTurn = { userMessage: string; aiResponse: string; sources: SearchSource[]; contextParts: string }
+  type ChunkUsed = { id: string; content: string; source_type: 'note' | 'document'; source_id: string; title?: string | null; date?: string; author?: string; file_name?: string; file_url?: string; account_id?: string }
+  type ConversationTurn = { userMessage: string; aiResponse: string; sources: SearchSource[]; chunksUsed: ChunkUsed[] }
   const [searchQuery, setSearchQuery] = useState('')
   const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
@@ -483,8 +484,9 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setSearchLoading(true)
     try {
       const lastTurn = conversationHistory[conversationHistory.length - 1] ?? null
+      // History: clean user/assistant pairs (no embedded context — server handles that)
       const history = conversationHistory.flatMap((turn) => ([
-        { role: 'user' as const, content: `Sources disponibles :\n\n${turn.contextParts}\n\n---\n\nQuestion : ${turn.userMessage}` },
+        { role: 'user' as const, content: turn.userMessage },
         { role: 'assistant' as const, content: turn.aiResponse },
       ]))
       const res = await fetch('/api/search', {
@@ -496,7 +498,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           company_id: profile?.company_id,
           workspace_id: wsId,
           history,
-          previousContext: lastTurn ? { contextParts: lastTurn.contextParts, sources: lastTurn.sources } : null,
+          previousChunks: lastTurn?.chunksUsed ?? [],
         }),
       })
       const data = await res.json()
@@ -504,7 +506,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         userMessage: query,
         aiResponse: data.answer ?? '',
         sources: data.sources ?? [],
-        contextParts: data.contextParts ?? '',
+        chunksUsed: data.chunksUsed ?? [],
       }
       setConversationHistory((prev) => [...prev, newTurn])
       setSearchQuery('')
@@ -513,7 +515,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         userMessage: query,
         aiResponse: 'Erreur lors de la recherche.',
         sources: [],
-        contextParts: '',
+        chunksUsed: [],
       }
       setConversationHistory((prev) => [...prev, errTurn])
     }
