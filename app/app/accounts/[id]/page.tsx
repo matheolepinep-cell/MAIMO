@@ -108,9 +108,9 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [previewLoadingDocId, setPreviewLoadingDocId] = useState<string | null>(null)
 
   // AI Search tab
+  type ConversationTurn = { userMessage: string; aiResponse: string; sources: SearchSource[]; contextParts: string }
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchAnswer, setSearchAnswer] = useState('')
-  const [searchSources, setSearchSources] = useState<SearchSource[]>([])
+  const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchRecording, setSearchRecording] = useState(false)
   const [expandedSource, setExpandedSource] = useState<string | null>(null)
@@ -480,19 +480,45 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const handleSearch = useCallback(async (q?: string) => {
     const query = q ?? searchQuery
     if (!query.trim()) return
-    setSearchLoading(true); setSearchAnswer(''); setSearchSources([])
+    setSearchLoading(true)
     try {
+      const lastTurn = conversationHistory[conversationHistory.length - 1] ?? null
+      const history = conversationHistory.flatMap((turn) => ([
+        { role: 'user' as const, content: `Sources disponibles :\n\n${turn.contextParts}\n\n---\n\nQuestion : ${turn.userMessage}` },
+        { role: 'assistant' as const, content: turn.aiResponse },
+      ]))
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, client_id: id, company_id: profile?.company_id }),
+        body: JSON.stringify({
+          query,
+          account_id: id,
+          company_id: profile?.company_id,
+          workspace_id: wsId,
+          history,
+          previousContext: lastTurn ? { contextParts: lastTurn.contextParts, sources: lastTurn.sources } : null,
+        }),
       })
       const data = await res.json()
-      setSearchAnswer(data.answer ?? '')
-      setSearchSources(data.sources ?? [])
-    } catch { setSearchAnswer('Erreur lors de la recherche.') }
+      const newTurn: ConversationTurn = {
+        userMessage: query,
+        aiResponse: data.answer ?? '',
+        sources: data.sources ?? [],
+        contextParts: data.contextParts ?? '',
+      }
+      setConversationHistory((prev) => [...prev, newTurn])
+      setSearchQuery('')
+    } catch {
+      const errTurn: ConversationTurn = {
+        userMessage: query,
+        aiResponse: 'Erreur lors de la recherche.',
+        sources: [],
+        contextParts: '',
+      }
+      setConversationHistory((prev) => [...prev, errTurn])
+    }
     setSearchLoading(false)
-  }, [searchQuery, id, profile])
+  }, [searchQuery, conversationHistory, id, profile, wsId])
 
   const startSearchRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -506,10 +532,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     r.start(); setSearchRecording(true)
   }, [handleSearch])
 
-  const speakAnswer = () => {
-    if (!searchAnswer || !('speechSynthesis' in window)) return
+  const speakAnswer = (text: string) => {
+    if (!text || !('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(searchAnswer); u.lang = 'fr-FR'
+    const u = new SpeechSynthesisUtterance(text); u.lang = 'fr-FR'
     window.speechSynthesis.speak(u)
   }
 
@@ -1164,69 +1190,93 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             {/* ── AI SEARCH TAB ── */}
             {tab === 'search' && (
               <>
-                <div className="space-y-3">
+                {/* Input */}
+                <div className="space-y-2">
                   <div className="flex gap-2">
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      placeholder="Posez une question sur ce client..."
+                      placeholder={conversationHistory.length > 0 ? 'Posez une question de suivi…' : 'Posez une question sur ce client…'}
                       className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" />
                     <button onClick={searchRecording ? () => setSearchRecording(false) : startSearchRecording}
                       className={`p-2.5 rounded-xl transition-all duration-150 ${searchRecording ? 'bg-red-500 text-white animate-pulse' : 'border border-gray-200 text-[#64748B] hover:bg-gray-50'}`}>
                       {searchRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                     </button>
                   </div>
-                  <Button onClick={() => handleSearch()} loading={searchLoading} disabled={!searchQuery.trim()} className="w-full">
-                    <Search className="w-4 h-4 mr-2" />Rechercher
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleSearch()} loading={searchLoading} disabled={!searchQuery.trim()} className="flex-1">
+                      <Search className="w-4 h-4 mr-2" />Rechercher
+                    </Button>
+                    {conversationHistory.length > 0 && (
+                      <button
+                        onClick={() => { setConversationHistory([]); setExpandedSource(null) }}
+                        className="px-3 py-2 rounded-xl text-xs font-medium text-[#94A3B8] border border-gray-200 hover:bg-gray-50 transition-all"
+                      >
+                        Effacer
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {searchLoading && (
-                  <div className="flex items-center justify-center gap-2 py-8">
-                    <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce" />
+                {/* Conversation history */}
+                {conversationHistory.length > 0 && (
+                  <div className="space-y-4">
+                    {conversationHistory.map((turn, i) => (
+                      <div key={i} className="space-y-2">
+                        {/* User message */}
+                        <div className="flex justify-end">
+                          <div className="max-w-[85%] bg-[#1E2761]/8 rounded-2xl rounded-tr-sm px-3 py-2 text-sm text-[#1E293B]">
+                            {turn.userMessage}
+                          </div>
+                        </div>
+                        {/* AI answer */}
+                        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">IA</span>
+                            <button onClick={() => speakAnswer(turn.aiResponse)} className="p-1 rounded-lg text-[#94A3B8] hover:text-[#64748B] hover:bg-gray-100 transition-all">
+                              <Volume2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <p className="text-sm text-[#1E293B] leading-relaxed whitespace-pre-wrap">{turn.aiResponse}</p>
+                          {turn.sources.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <div className="flex flex-wrap gap-1.5">
+                                {turn.sources.map((src) => (
+                                  <button key={src.id}
+                                    onClick={() => {
+                                      if (src.type === 'document' && src.url) window.open(src.url, '_blank')
+                                      else setExpandedSource(expandedSource === src.id ? null : src.id)
+                                    }}
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#1E2761]/5 text-xs font-medium text-[#1E2761] hover:bg-[#1E2761]/10 transition-all duration-150"
+                                  >
+                                    {src.type === 'document' ? <ExternalLink className="w-2.5 h-2.5" /> : <FileText className="w-2.5 h-2.5" />}
+                                    <span className="truncate max-w-[120px]">{src.title}</span>
+                                    {src.date && <span className="text-[#94A3B8] shrink-0">· {fmtDay(src.date)}</span>}
+                                  </button>
+                                ))}
+                              </div>
+                              {expandedSource && (() => {
+                                const src = turn.sources.find((s) => s.id === expandedSource)
+                                return src ? (
+                                  <div className="mt-2 p-3 bg-gray-50 rounded-xl">
+                                    <p className="text-xs font-medium text-[#1E293B] mb-0.5">{src.title}</p>
+                                    {src.author && <p className="text-xs text-[#64748B]">Par {src.author}{src.date ? ` · ${fmtDay(src.date)}` : ''}</p>}
+                                  </div>
+                                ) : null
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
 
-                {searchAnswer && !searchLoading && (
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Réponse</span>
-                      <button onClick={speakAnswer} className="p-1.5 rounded-lg text-[#64748B] hover:bg-gray-100">
-                        <Volume2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <p className="text-sm text-[#1E293B] leading-relaxed whitespace-pre-wrap">{searchAnswer}</p>
-
-                    {searchSources.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <p className="text-xs font-medium text-[#64748B] mb-2">Sources</p>
-                        <div className="flex flex-wrap gap-2">
-                          {searchSources.map((src) => (
-                            <button key={src.id}
-                              onClick={() => {
-                                if (src.type === 'document' && src.url) window.open(src.url, '_blank')
-                                else setExpandedSource(expandedSource === src.id ? null : src.id)
-                              }}
-                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1E2761]/5 text-xs font-medium text-[#1E2761] hover:bg-[#1E2761]/10 transition-all duration-150"
-                            >
-                              {src.type === 'document' ? <ExternalLink className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                              {src.title}
-                              {src.date && <span className="text-[#94A3B8]">· {fmtDay(src.date)}</span>}
-                            </button>
-                          ))}
-                        </div>
-                        {expandedSource && (() => {
-                          const src = searchSources.find((s) => s.id === expandedSource)
-                          return src ? (
-                            <div className="mt-3 p-3 bg-gray-50 rounded-xl">
-                              <p className="text-xs font-medium text-[#1E293B] mb-1">{src.title}</p>
-                              {src.author && <p className="text-xs text-[#64748B]">Par {src.author}{src.date ? ` · ${fmtDay(src.date)}` : ''}</p>}
-                            </div>
-                          ) : null
-                        })()}
-                      </div>
-                    )}
+                {/* Loading indicator */}
+                {searchLoading && (
+                  <div className="flex items-center gap-2 py-4 pl-1">
+                    <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-2 h-2 bg-[#3B82F6] rounded-full animate-bounce" />
                   </div>
                 )}
               </>

@@ -14,7 +14,54 @@ interface SearchChunk {
   similarity: number
 }
 
+type HistMsg = { role: 'user' | 'assistant'; content: string }
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+// Detect whether the new message is a follow-up on the previous exchange.
+// Returns true if the user is asking about the previous answer (not a new independent query).
+function isFollowUp(
+  query: string,
+  history: HistMsg[],
+  accountId: string | null | undefined,
+  allAccounts: { id: string; name: string }[]
+): boolean {
+  if (history.length === 0) return false
+
+  const q = query.toLowerCase().trim()
+
+  const patterns = [
+    "qu'est-ce qui te fait dire",
+    "pourquoi tu dis",
+    "d'où tu tiens",
+    "comment tu sais",
+    "explique",
+    "précise",
+    "développe",
+    "tu parles de quoi",
+    "c'est quoi",
+    "c'est-à-dire",
+    "et alors",
+    "et ensuite",
+    "par rapport à quoi",
+  ]
+
+  for (const p of patterns) {
+    if (q.includes(p)) return true
+  }
+
+  const wordCount = query.trim().split(/\s+/).filter(Boolean).length
+  if (wordCount < 8) {
+    if (accountId) return true  // account page: short message = follow-up
+    const hasCompany = allAccounts.some((a) => {
+      const n = a.name.toLowerCase()
+      return q.includes(n) || n.split(/\s+/).some((w) => w.length > 4 && q.includes(w))
+    })
+    if (!hasCompany) return true
+  }
+
+  return false
+}
 
 export async function POST(request: Request) {
   const user = (await getAuthenticatedUser()) as UserProfile | null
@@ -25,6 +72,7 @@ export async function POST(request: Request) {
   const {
     query, account_id, account_ids, status = 'all', city,
     company_id, workspace_id: clientWorkspaceId, history = [],
+    previousContext = null,
   } = await request.json()
 
   if (!query || !company_id) {
@@ -59,26 +107,78 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── PARALLEL: embed query + load accounts for company detection ──
-  const [queryEmbedding, allAccounts] = await Promise.all([
-    embed(query),
-    (async () => {
-      if (account_id) return [] as { id: string; name: string }[]
-      let q = supabase.from('accounts').select('id, name').eq('company_id', company_id)
-      if (workspace_id) q = q.or(`workspace_id.eq.${workspace_id},workspace_id.is.null`)
-      const { data } = await q
-      return (data ?? []) as { id: string; name: string }[]
-    })(),
-  ])
+  // ── LOAD ACCOUNTS for company detection + follow-up detection ──
+  let allAccounts: { id: string; name: string }[] = []
+  if (!account_id) {
+    let q = supabase.from('accounts').select('id, name').eq('company_id', company_id)
+    if (workspace_id) q = q.or(`workspace_id.eq.${workspace_id},workspace_id.is.null`)
+    const { data } = await q
+    allAccounts = (data ?? []) as { id: string; name: string }[]
+  }
 
-  // ── COMPANY DETECTION via normalize + Levenshtein ──
-  const detectedCompany = account_id ? null : detectCompanyInQuery(query, allAccounts)
+  const historySlice = (history as HistMsg[]).slice(-8)
+
+  // ── TEMPORAL CONTEXT ──
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.toLocaleString('fr-FR', { month: 'long' })
+  const lastYear = currentYear - 1
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+  const dateActuelle = capitalize(now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
+  const userName = user.full_name ?? 'l\'équipe'
+
+  const buildSystemPrompt = (companyContext: string) =>
+    `Tu es l'assistant commercial de ${userName}. Aujourd'hui nous sommes le ${dateActuelle}.
+
+RÈGLES DE RAISONNEMENT — OBLIGATOIRES :
+
+1. Raisonnement temporel : "l'année dernière" = ${lastYear}, "cette année" = ${currentYear}, "ce mois" = ${currentMonth} ${currentYear}, "récemment" = les 30 derniers jours. Fais toujours la conversion avant de répondre.
+
+2. Tolérance aux fautes : si un nom dans une note ressemble à un nom d'entreprise ou de personne mentionné dans la question (ex: "Ferrettire" ≈ "Ferretti", "Benneteau" ≈ "Bénéteau"), considère que c'est la même entité. Ne rejette jamais une information à cause d'une faute d'orthographe dans une note.
+
+3. Inférence logique : une note datée du 23/06/${lastYear} parle bien de l'année ${lastYear}, qui est l'année dernière si nous sommes en ${currentYear}. Si quelqu'un demande "l'année dernière", cette note est pertinente.
+
+4. Contexte entreprise : chaque chunk est préfixé par [Entreprise: X]. Même si le nom de l'entreprise n'est pas dans le corps du texte, ce chunk appartient à cette entreprise.
+
+5. Ne jamais halluciner : si l'information n'est pas dans les sources, dis "Je n'ai pas cette information dans les notes disponibles." N'invente jamais de chiffres, dates ou faits.
+
+6. Format de réponse : réponse directe sans introduction. Si plusieurs éléments : liste avec un tiret par élément, ligne vide entre chaque élément. Pas de markdown, pas d'astérisques, pas d'emojis. Maximum 2 phrases par élément.
+
+Contexte client détecté : ${companyContext}`
+
+  // ── FOLLOW-UP: reuse previous context, skip vector search ──
+  const prevContextParts = (previousContext as { contextParts?: string } | null)?.contextParts ?? null
+  const prevSources = (previousContext as { sources?: SearchSource[] } | null)?.sources ?? []
+
+  if (isFollowUp(query, historySlice, account_id, allAccounts) && prevContextParts) {
+    const companyContext = account_id
+      ? 'Contexte : fiche entreprise spécifique'
+      : 'Recherche globale sur tout le portefeuille'
+
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      system: buildSystemPrompt(companyContext),
+      messages: [
+        ...historySlice,
+        { role: 'user' as const, content: `Sources disponibles :\n\n${prevContextParts}\n\n---\n\nQuestion : ${query}` },
+      ],
+    })
+
+    const answer = message.content[0].type === 'text' ? message.content[0].text : ''
+    return NextResponse.json({ answer, sources: prevSources, contextParts: prevContextParts })
+  }
+
+  // ── INDEPENDENT QUERY: full vector search ──
+  const [queryEmbedding, detectedCompany] = await Promise.all([
+    embed(query),
+    Promise.resolve(account_id ? null : detectCompanyInQuery(query, allAccounts)),
+  ])
 
   // ── HYBRID SEARCH STRATEGY ──
   let rawChunks: SearchChunk[]
 
   if (account_id) {
-    // Account-specific search (user is on an account detail page)
     const { data, error } = await supabase.rpc('search_chunks', {
       query_embedding: queryEmbedding,
       match_client_id: account_id,
@@ -91,7 +191,6 @@ export async function POST(request: Request) {
     }
     rawChunks = (data as SearchChunk[]) ?? []
   } else if (detectedCompany?.confidence === 'high') {
-    // High confidence: company-specific search only
     const { data, error } = await supabase.rpc('search_chunks', {
       query_embedding: queryEmbedding,
       match_client_id: detectedCompany.account.id,
@@ -104,7 +203,6 @@ export async function POST(request: Request) {
     }
     rawChunks = (data as SearchChunk[]) ?? []
   } else if (detectedCompany) {
-    // Medium or low confidence (typo): company + global, merge with company priority
     const [compRes, globRes] = await Promise.all([
       supabase.rpc('search_chunks', {
         query_embedding: queryEmbedding,
@@ -123,7 +221,6 @@ export async function POST(request: Request) {
     const seen = new Set(compChunks.map((c) => c.id))
     rawChunks = [...compChunks, ...globChunks.filter((c) => !seen.has(c.id))].slice(0, 15)
   } else {
-    // No company detected: global search with similarity threshold
     const { data, error } = await supabase.rpc('search_chunks_global', {
       query_embedding: queryEmbedding,
       match_company_id: company_id,
@@ -140,6 +237,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question.",
       sources: [],
+      contextParts: '',
     })
   }
 
@@ -233,13 +331,14 @@ export async function POST(request: Request) {
     return NextResponse.json({
       answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question dans ce périmètre.",
       sources: [],
+      contextParts: '',
     })
   }
 
   const fmtDate = (d: string) =>
     new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
 
-  const contextParts = chunks.map((chunk, i) => {
+  const contextPartsStr = chunks.map((chunk, i) => {
     if (chunk.source_type === 'note') {
       const note = notesMap[chunk.source_id]
       return `[Extrait ${i + 1} — note du ${note ? fmtDate(note.created_at) : 'date inconnue'} par ${note?.author ?? 'source inconnue'}]\n${chunk.content}`
@@ -283,46 +382,20 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── TEMPORAL CONTEXT ──
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.toLocaleString('fr-FR', { month: 'long' })
-  const lastYear = currentYear - 1
-  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-  const dateActuelle = capitalize(now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
-  const userName = user.full_name ?? 'l\'équipe'
+  // Full context string that will be stored client-side for follow-up reuse
+  const fullContextParts = `${contextPartsStr}${recentNotesSection}`
+
   const companyContext = detectedCompany
     ? `Entreprise ciblée : ${detectedCompany.account.name} (confiance : ${detectedCompany.confidence})`
     : account_id ? 'Contexte : fiche entreprise spécifique' : 'Recherche globale sur tout le portefeuille'
 
-  type HistMsg = { role: 'user' | 'assistant'; content: string }
-  const historySlice = (history as HistMsg[]).slice(-8)
-
-  const systemPrompt = `Tu es l'assistant commercial de ${userName}. Aujourd'hui nous sommes le ${dateActuelle}.
-
-RÈGLES DE RAISONNEMENT — OBLIGATOIRES :
-
-1. Raisonnement temporel : "l'année dernière" = ${lastYear}, "cette année" = ${currentYear}, "ce mois" = ${currentMonth} ${currentYear}, "récemment" = les 30 derniers jours. Fais toujours la conversion avant de répondre.
-
-2. Tolérance aux fautes : si un nom dans une note ressemble à un nom d'entreprise ou de personne mentionné dans la question (ex: "Ferrettire" ≈ "Ferretti", "Benneteau" ≈ "Bénéteau"), considère que c'est la même entité. Ne rejette jamais une information à cause d'une faute d'orthographe dans une note.
-
-3. Inférence logique : une note datée du 23/06/${lastYear} parle bien de l'année ${lastYear}, qui est l'année dernière si nous sommes en ${currentYear}. Si quelqu'un demande "l'année dernière", cette note est pertinente.
-
-4. Contexte entreprise : chaque chunk est préfixé par [Entreprise: X]. Même si le nom de l'entreprise n'est pas dans le corps du texte, ce chunk appartient à cette entreprise.
-
-5. Ne jamais halluciner : si l'information n'est pas dans les sources, dis "Je n'ai pas cette information dans les notes disponibles." N'invente jamais de chiffres, dates ou faits.
-
-6. Format de réponse : réponse directe sans introduction. Si plusieurs éléments : liste avec un tiret par élément, ligne vide entre chaque élément. Pas de markdown, pas d'astérisques, pas d'emojis. Maximum 2 phrases par élément.
-
-Contexte client détecté : ${companyContext}`
-
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: systemPrompt,
+    system: buildSystemPrompt(companyContext),
     messages: [
       ...historySlice,
-      { role: 'user' as const, content: `Sources disponibles :\n\n${contextParts}${recentNotesSection}\n\n---\n\nQuestion : ${query}` },
+      { role: 'user' as const, content: `Sources disponibles :\n\n${fullContextParts}\n\n---\n\nQuestion : ${query}` },
     ],
   })
 
@@ -344,5 +417,5 @@ Contexte client détecté : ${companyContext}`
     }
   }
 
-  return NextResponse.json({ answer, sources })
+  return NextResponse.json({ answer, sources, contextParts: fullContextParts })
 }
