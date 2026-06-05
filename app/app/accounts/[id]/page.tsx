@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/Input'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Modal } from '@/components/ui/Modal'
 import { BottomSheet } from '@/components/ui/BottomSheet'
+import { NoteCard } from '@/components/notes/NoteCard'
 import type { Account, Contact, Note, Document, SearchSource } from '@/types/database'
 import { detectConflicts, type ConflictResult } from '@/lib/conflicts'
 
@@ -392,6 +393,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     const supabase = createClient()
     await supabase.from('notes').update({ is_deleted: true }).eq('id', noteId)
     setNotes((prev) => prev.filter((n) => n.id !== noteId))
+  }
+
+  const handleUpdateNote = (updated: Note) => {
+    setNotes((prev) => prev.map((n) => n.id === updated.id ? updated : n))
   }
 
   /* ─── attachments ─── */
@@ -1103,7 +1108,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                           key={note.id}
                           note={note}
                           noteDocuments={documents.filter(d => d.note_id === note.id && !d.is_deleted)}
+                          accountId={id}
+                          companyId={profile?.company_id ?? null}
+                          workspaceId={wsId ?? null}
+                          membersMap={membersMap}
                           onDelete={handleDeleteNote}
+                          onUpdate={handleUpdateNote}
                           onOpenDoc={handleOpenDocument}
                         />
                       ))}
@@ -1438,58 +1448,6 @@ function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
         </div>
       </div>
     </>
-  )
-}
-
-/* ─── NoteCard inline ─── */
-function NoteCard({ note, noteDocuments, onDelete, onOpenDoc }: {
-  note: Note
-  noteDocuments: Document[]
-  onDelete: (id: string) => void
-  onOpenDoc: (doc: Document) => void
-}) {
-  const [confirming, setConfirming] = useState(false)
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${note.source === 'vocal' ? 'bg-red-50' : 'bg-blue-50'}`}>
-            {note.source === 'vocal' ? <Mic className="w-3.5 h-3.5 text-red-500" /> : <Type className="w-3.5 h-3.5 text-[#3B82F6]" />}
-          </div>
-          <div>
-            {note.title && <p className="text-xs font-semibold text-[#1E293B]">{note.title}</p>}
-            <p className="text-xs text-[#94A3B8]">{new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(note.created_at))}</p>
-          </div>
-        </div>
-        {confirming ? (
-          <div className="flex gap-1">
-            <button onClick={() => onDelete(note.id)} className="px-2 py-1 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600">Supprimer</button>
-            <button onClick={() => setConfirming(false)} className="px-2 py-1 text-xs font-medium text-[#64748B] bg-gray-100 rounded-lg hover:bg-gray-200">Annuler</button>
-          </div>
-        ) : (
-          <button onClick={() => setConfirming(true)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-      <p className="text-sm text-[#1E293B] leading-relaxed whitespace-pre-wrap">{note.content}</p>
-      {noteDocuments.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
-          {noteDocuments.map(doc => (
-            <button
-              key={doc.id}
-              onClick={() => onOpenDoc(doc)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-150 max-w-[160px]"
-            >
-              {doc.file_type === 'image'
-                ? <ImageIcon className="w-3.5 h-3.5 text-[#3B82F6] shrink-0" />
-                : <ExternalLink className="w-3.5 h-3.5 text-[#64748B] shrink-0" />}
-              <span className="text-xs text-[#64748B] truncate">{doc.title ?? doc.file_name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
 
