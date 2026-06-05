@@ -5,9 +5,17 @@ import { embedBatch } from '@/lib/embeddings'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveFileUrl(fileUrl: string, supabase: any): Promise<string> {
-  if (fileUrl.startsWith('http')) return fileUrl
-  const { data } = await supabase.storage.from('imports').createSignedUrl(fileUrl, 3600)
-  return data?.signedUrl ?? fileUrl
+  // Extract path from Supabase storage public/signed URL and create a fresh signed URL
+  const storageMatch = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/imports\/(.+?)(?:\?|$)/)
+  if (storageMatch) {
+    const { data } = await supabase.storage.from('imports').createSignedUrl(decodeURIComponent(storageMatch[1]), 3600)
+    if (data?.signedUrl) return data.signedUrl
+  }
+  if (!fileUrl.startsWith('http')) {
+    const { data } = await supabase.storage.from('imports').createSignedUrl(fileUrl, 3600)
+    if (data?.signedUrl) return data.signedUrl
+  }
+  return fileUrl
 }
 
 async function extractText(fileUrl: string, fileType: string): Promise<string> {
