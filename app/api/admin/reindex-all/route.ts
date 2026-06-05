@@ -172,10 +172,12 @@ export async function GET(request: Request) {
         }))
 
         const { error } = await supabase.from('chunks').insert(rows)
-        if (error) { errors++; console.error(`Doc ${doc.id}:`, error.message) }
+        if (error) { errors++; if (!firstError) firstError = `Doc ${doc.id}: ${error.message}`; console.error(`Doc ${doc.id}:`, error.message) }
         else reindexed += rows.length
       } catch (err) {
         errors++
+        const msg = err instanceof Error ? err.message : String(err)
+        if (!firstError) firstError = `Doc ${doc.id} catch: ${msg}`
         console.error(`Doc ${doc.id} failed:`, err)
       }
     }
