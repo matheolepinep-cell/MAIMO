@@ -385,9 +385,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   }, [])
 
   const stopRecording = useCallback(() => {
-    recognitionRef.current?.stop(); setRecording(false)
-    if (noteText.trim()) saveNote(noteText, 'vocal')
-  }, [noteText, saveNote])
+    recognitionRef.current?.stop()
+    setRecording(false)
+    // do not auto-save — let the user click "Enregistrer"
+  }, [])
 
   const handleDeleteNote = async (noteId: string) => {
     const supabase = createClient()
@@ -1045,11 +1046,30 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       {noteError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{noteError}</p>}
                       {!recording ? (
                         <button onClick={startRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 transition-all duration-150">
-                          <Mic className="w-5 h-5" />Démarrer l'enregistrement
+                          <Mic className="w-5 h-5" />Démarrer l&apos;enregistrement
                         </button>
                       ) : (
                         <button onClick={stopRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 animate-pulse">
-                          <MicOff className="w-5 h-5" />Arrêter et sauvegarder
+                          <MicOff className="w-5 h-5" />Arrêter l&apos;enregistrement
+                        </button>
+                      )}
+                      {noteText.trim() && !recording && (
+                        <button
+                          onClick={() => {
+                            const autoTitle = noteText.trim().split(/\s+/).slice(0, 8).join(' ')
+                            const finalTitle = noteTitle.trim() || (autoTitle.length > 50 ? autoTitle.slice(0, 50) + '…' : autoTitle)
+                            if (!noteTitle.trim()) setNoteTitle(finalTitle)
+                            saveNote(noteText, 'vocal')
+                          }}
+                          disabled={savingNote || conflictChecking}
+                          className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all disabled:opacity-50"
+                          style={{ background: '#1E2761', borderRadius: 10, height: 44 }}
+                        >
+                          {savingNote || conflictChecking
+                            ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            : <Save className="w-4 h-4" />
+                          }
+                          Enregistrer la note
                         </button>
                       )}
                     </div>

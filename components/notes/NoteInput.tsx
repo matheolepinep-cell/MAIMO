@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { Mic, MicOff, Send, Type, AlertTriangle, Copy } from 'lucide-react'
+import { Mic, MicOff, Send, Save, Type, AlertTriangle, Copy } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -148,8 +148,8 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
   const stopRecording = useCallback(() => {
     recognitionRef.current?.stop()
     setRecording(false)
-    if (text.trim()) saveNote(text, 'vocal')
-  }, [text, saveNote])
+    // do not auto-save — let the user click "Enregistrer"
+  }, [])
 
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -275,7 +275,7 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition-all duration-150 animate-pulse"
               >
                 <MicOff className="w-5 h-5" />
-                Arrêter et sauvegarder
+                Arrêter l&apos;enregistrement
               </button>
             )}
           </div>
@@ -291,10 +291,22 @@ export function NoteInput({ clientId, onNoteSaved }: NoteInputProps) {
           {conflictResult ? (
             <ConflictBanner />
           ) : text && !recording && (
-            <Button onClick={() => saveNote(text, 'vocal')} loading={saving || checking} className="w-full" size="sm">
-              <Send className="w-3.5 h-3.5 mr-1.5" />
-              Sauvegarder la note
-            </Button>
+            <button
+              onClick={() => {
+                const autoTitle = text.trim().split(/\s+/).slice(0, 8).join(' ')
+                if (!title.trim()) setTitle(autoTitle.length > 50 ? autoTitle.slice(0, 50) + '…' : autoTitle)
+                saveNote(text, 'vocal')
+              }}
+              disabled={saving || checking}
+              className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all disabled:opacity-50"
+              style={{ background: '#1E2761', borderRadius: 10, height: 44 }}
+            >
+              {saving || checking
+                ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <Save className="w-4 h-4" />
+              }
+              Enregistrer la note
+            </button>
           )}
         </div>
       )}
