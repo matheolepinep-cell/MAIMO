@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, Loader2, Check, Building2, ChevronDown } from 'lucide-react'
+import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, Loader2, Check, Building2, Users, FileCheck, ChevronRight, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -43,20 +43,18 @@ function fileCategory(name: string): 'spreadsheet' | 'document' | 'image' {
   return 'document'
 }
 
-type Step = 'idle' | 'uploading' | 'extracting' | 'error'
+type Step = 'idle' | 'uploading' | 'extracting' | 'analyzing' | 'error'
 
-type DocPending = {
-  text: string
-  file_path: string
-  file_name: string
-}
-
-type DetectionResult = {
-  matched: boolean
-  company_name: string
-  account_id: string | null
-  confidence: 'high' | 'medium' | 'low'
-  reason: string
+type AnalysisResult = {
+  summary: string
+  companiesCreated: string[]
+  companiesUpdated: { name: string; fieldsAdded: number }[]
+  contactsCreated: string[]
+  notesCreated: number
+  firstAccountId: string | null
+  firstCompanyName: string | null
+  multipleCompanies: boolean
+  needsAccount: boolean
 }
 
 type AccountOption = { id: string; name: string }
@@ -71,15 +69,13 @@ export default function ImportPage() {
   const [step, setStep] = useState<Step>('idle')
   const [error, setError] = useState('')
 
-  // Document detection modal state
-  const [docPending, setDocPending] = useState<DocPending | null>(null)
-  const [detecting, setDetecting] = useState(false)
-  const [detection, setDetection] = useState<DetectionResult | null>(null)
+  // Document analysis modal state
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
+  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null)
+  const [pendingText, setPendingText] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
-  const [showAltPicker, setShowAltPicker] = useState(false)
   const [attaching, setAttaching] = useState(false)
-  const [attachSuccess, setAttachSuccess] = useState(false)
 
   const validateFile = (f: File): string | null => {
     if (!ACCEPTED_MIME.includes(f.type) && !ACCEPTED_EXT.test(f.name)) {
@@ -138,78 +134,89 @@ export default function ImportPage() {
     }
 
     const data = await res.json()
-    setStep('idle')
 
     if (data.type === 'spreadsheet') {
+      setStep('idle')
       router.push(`/app/import/${data.import_id}`)
       return
     }
 
-    // Document — start detection flow
-    const pending: DocPending = { text: data.text, file_path: path, file_name: file.name }
-    setDocPending(pending)
-    setDetecting(true)
+    // Document flow — run full analysis
+    setStep('analyzing')
+    setPendingFilePath(path)
+    setPendingText(data.text)
 
-    // Load accounts in parallel with detection
+    // Load accounts in parallel with analysis
     let accQ = supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).order('name')
     if (wsId) accQ = accQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
     const { data: accs } = await accQ
     setAccounts((accs ?? []) as AccountOption[])
 
-    // Detect company
-    const detectRes = await fetch('/api/import/detect-company', {
+    const analyzeRes = await fetch('/api/import/analyze-document', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: pending.text, company_id: profile.company_id }),
+      body: JSON.stringify({
+        text: data.text,
+        file_path: path,
+        file_name: file.name,
+        file_type: file.name.split('.').pop()?.toLowerCase() ?? '',
+        company_id: profile.company_id,
+        workspace_id: wsId ?? null,
+      }),
     })
-    if (detectRes.ok) {
-      const det = await detectRes.json()
-      setDetection(det)
-      if (det.account_id) setSelectedAccountId(det.account_id)
-    } else {
-      setDetection({ matched: false, company_name: '', account_id: null, confidence: 'low', reason: '' })
+
+    setStep('idle')
+
+    if (!analyzeRes.ok) {
+      setError('Erreur lors de l\'analyse du document.')
+      return
     }
-    setDetecting(false)
+
+    const result = await analyzeRes.json()
+    setAnalysisResult(result)
   }
 
-  const handleAttach = async (accountId: string) => {
-    if (!docPending || !profile || !accountId) return
+  // Fallback: manually attach when no companies were detected
+  const handleManualAttach = async () => {
+    if (!pendingText || !pendingFilePath || !profile || !selectedAccountId) return
     setAttaching(true)
-    const ext = docPending.file_name.split('.').pop()?.toLowerCase() ?? ''
+    const ext = (pendingFilePath.split('.').pop() ?? '').toLowerCase()
+    const fileName = file?.name ?? pendingFilePath.split('/').pop() ?? 'document'
     const res = await fetch('/api/import/attach-document', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: docPending.text,
-        file_path: docPending.file_path,
-        file_name: docPending.file_name,
+        text: pendingText,
+        file_path: pendingFilePath,
+        file_name: fileName,
         file_type: ext,
-        account_id: accountId,
+        account_id: selectedAccountId,
         company_id: profile.company_id,
         workspace_id: wsId ?? null,
       }),
     })
     setAttaching(false)
     if (res.ok) {
-      const { account_id } = await res.json()
-      setAttachSuccess(true)
-      setTimeout(() => router.push(`/app/accounts/${account_id}`), 1500)
+      router.push(`/app/accounts/${selectedAccountId}`)
     } else {
       setError('Erreur lors de l\'association du document.')
     }
   }
 
-  const handleIgnore = () => {
-    setDocPending(null)
-    setDetection(null)
+  const handleClose = () => {
+    setAnalysisResult(null)
+    setPendingFilePath(null)
+    setPendingText(null)
     setSelectedAccountId('')
-    setAttachSuccess(false)
     setFile(null)
   }
 
-  const busy = step === 'uploading' || step === 'extracting'
+  const busy = step === 'uploading' || step === 'extracting' || step === 'analyzing'
 
-  const showModal = !!docPending
+  const stepLabel =
+    step === 'uploading' ? 'Envoi du fichier…' :
+    step === 'extracting' ? 'Extraction du contenu…' :
+    'Analyse IA en cours…'
 
   return (
     <div className="flex flex-col min-h-full">
@@ -270,7 +277,7 @@ export default function ImportPage() {
                   {(file.size / 1024).toFixed(0)} KB · {
                     fileCategory(file.name) === 'spreadsheet' ? 'Liste clients' :
                     fileCategory(file.name) === 'image' ? 'Image (extraction texte via IA)' :
-                    'Document (indexé pour la recherche)'
+                    'Document (analyse IA + indexation)'
                   }
                 </p>
               </div>
@@ -295,9 +302,7 @@ export default function ImportPage() {
           <div className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
             style={{ background: 'rgba(76,110,245,0.06)', border: '1px solid rgba(76,110,245,0.12)' }}>
             <Loader2 className="w-4 h-4 text-[#4C6EF5] animate-spin shrink-0" />
-            <p className="text-sm text-[#1E2761] font-medium">
-              {step === 'uploading' ? 'Envoi du fichier…' : 'Extraction du contenu…'}
-            </p>
+            <p className="text-sm text-[#1E2761] font-medium">{stepLabel}</p>
           </div>
         )}
 
@@ -328,114 +333,146 @@ export default function ImportPage() {
         )}
       </div>
 
-      {/* Company detection modal */}
-      {showModal && (
+      {/* ── Analysis result modal ──────────────────────────────────────────── */}
+      {analysisResult && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
           style={{ background: 'rgba(10,16,35,0.65)', backdropFilter: 'blur(6px)' }}
         >
-          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-7">
+          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
 
-            {attachSuccess ? (
-              <div className="text-center py-4">
-                <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-7 h-7 text-green-600" />
+            {/* Header */}
+            <div className="px-7 pt-7 pb-5"
+              style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Check className="w-5 h-5 text-white" />
                 </div>
-                <p className="font-bold text-[#0F172A] mb-1">Document associé !</p>
-                <p className="text-sm text-[#64748B]">Redirection vers la fiche client…</p>
+                <span className="font-bold text-white text-lg">Import terminé</span>
               </div>
-            ) : detecting ? (
-              <div className="text-center py-6">
-                <Loader2 className="w-8 h-8 text-[#4C6EF5] animate-spin mx-auto mb-3" />
-                <p className="text-sm font-medium text-[#0F172A]">Analyse du document…</p>
-                <p className="text-xs text-slate-400 mt-1">Détection automatique de l&apos;entreprise</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mb-5">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-sm"
-                    style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}>
-                    M
-                  </div>
-                  <span className="font-bold text-[#1E2761]">Association au client</span>
-                </div>
+              {analysisResult.summary && (
+                <p className="text-white/80 text-sm leading-relaxed">{analysisResult.summary}</p>
+              )}
+            </div>
 
-                <p className="text-xs text-slate-400 truncate mb-4">{docPending?.file_name}</p>
+            <div className="px-7 py-5 space-y-3">
 
-                {detection?.matched && (detection.confidence === 'high' || detection.confidence === 'medium') && !showAltPicker ? (
-                  <>
-                    <div className="rounded-xl p-4 mb-4"
-                      style={{ background: 'rgba(76,110,245,0.06)', border: '1px solid rgba(76,110,245,0.12)' }}>
-                      <p className="text-xs text-slate-500 mb-1">Document détecté pour</p>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-[#4C6EF5]" />
-                        <p className="font-semibold text-[#0F172A]">{detection.company_name}</p>
-                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
-                          style={{ background: detection.confidence === 'high' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: detection.confidence === 'high' ? '#065F46' : '#92400E' }}>
-                          {detection.confidence === 'high' ? 'Certain' : 'Probable'}
-                        </span>
-                      </div>
-                      {detection.reason && (
-                        <p className="text-xs text-slate-400 mt-2 italic">{detection.reason}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Button className="w-full" onClick={() => handleAttach(detection.account_id!)} loading={attaching}>
-                        Confirmer — {detection.company_name}
-                      </Button>
-                      <Button variant="secondary" className="w-full" onClick={() => setShowAltPicker(true)}>
-                        <ChevronDown className="w-4 h-4 mr-1" />
-                        Choisir une autre entreprise
-                      </Button>
-                      <button onClick={handleIgnore}
-                        className="w-full text-sm text-[#94A3B8] hover:text-[#64748B] py-2 transition-colors">
-                        Ignorer
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-[#64748B] mb-4">
-                      {detection?.matched === false || detection?.confidence === 'low'
-                        ? 'Aucune correspondance certaine détectée. Sélectionnez l\'entreprise manuellement :'
-                        : 'Choisissez l\'entreprise à associer :'}
+              {/* What was created */}
+              {analysisResult.companiesCreated.length > 0 && (
+                <div className="rounded-xl p-4 flex items-start gap-3"
+                  style={{ background: 'rgba(76,110,245,0.06)', border: '1px solid rgba(76,110,245,0.12)' }}>
+                  <Building2 className="w-4 h-4 text-[#4C6EF5] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-[#0F172A]">
+                      {analysisResult.companiesCreated.length} fiche{analysisResult.companiesCreated.length > 1 ? 's' : ''} entreprise créée{analysisResult.companiesCreated.length > 1 ? 's' : ''}
                     </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{analysisResult.companiesCreated.join(', ')}</p>
+                  </div>
+                </div>
+              )}
 
-                    <div className="relative mb-4">
-                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                      <select
-                        value={selectedAccountId}
-                        onChange={(e) => setSelectedAccountId(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none"
-                        style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }}
-                      >
-                        <option value="">Sélectionner une entreprise…</option>
-                        {accounts.map((a) => (
-                          <option key={a.id} value={a.id}>{a.name}</option>
-                        ))}
-                      </select>
-                    </div>
+              {analysisResult.companiesUpdated.length > 0 && (
+                <div className="rounded-xl p-4 flex items-start gap-3"
+                  style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                  <FileCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-[#0F172A]">
+                      {analysisResult.companiesUpdated.length} fiche{analysisResult.companiesUpdated.length > 1 ? 's' : ''} déjà existante{analysisResult.companiesUpdated.length > 1 ? 's' : ''} — mise à jour
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {analysisResult.companiesUpdated.map((u) => `${u.name} (+${u.fieldsAdded} info${u.fieldsAdded > 1 ? 's' : ''})`).join(', ')}
+                    </p>
+                  </div>
+                </div>
+              )}
 
-                    <div className="space-y-2">
-                      <Button className="w-full" onClick={() => handleAttach(selectedAccountId)}
-                        disabled={!selectedAccountId} loading={attaching}>
-                        Associer le document
-                      </Button>
-                      {showAltPicker && (
-                        <Button variant="secondary" className="w-full" onClick={() => setShowAltPicker(false)}>
-                          ← Retour
-                        </Button>
-                      )}
-                      <button onClick={handleIgnore}
-                        className="w-full text-sm text-[#94A3B8] hover:text-[#64748B] py-2 transition-colors">
-                        Ignorer
-                      </button>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
+              {analysisResult.contactsCreated.length > 0 && (
+                <div className="rounded-xl p-4 flex items-start gap-3"
+                  style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                  <Users className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-[#0F172A]">
+                      {analysisResult.contactsCreated.length} contact{analysisResult.contactsCreated.length > 1 ? 's' : ''} ajouté{analysisResult.contactsCreated.length > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{analysisResult.contactsCreated.join(', ')}</p>
+                  </div>
+                </div>
+              )}
+
+              {analysisResult.notesCreated > 0 && (
+                <div className="rounded-xl p-4 flex items-start gap-3"
+                  style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
+                  <FileText className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+                  <p className="text-sm font-semibold text-[#0F172A]">
+                    {analysisResult.notesCreated} note{analysisResult.notesCreated > 1 ? 's' : ''} créée{analysisResult.notesCreated > 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
+
+              {/* Nothing created + needs manual account */}
+              {analysisResult.needsAccount && (
+                <div className="rounded-xl p-4"
+                  style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.1)' }}>
+                  <p className="text-sm text-[#64748B] mb-3">
+                    Aucune entreprise détectée automatiquement. Associez manuellement ce document :
+                  </p>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <select
+                      value={selectedAccountId}
+                      onChange={(e) => setSelectedAccountId(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none"
+                      style={{ background: 'white', border: '1px solid rgba(30,39,97,0.15)' }}
+                    >
+                      <option value="">Sélectionner une entreprise…</option>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Actions */}
+            <div className="px-7 pb-7 space-y-2">
+              {analysisResult.needsAccount ? (
+                <Button
+                  className="w-full"
+                  onClick={handleManualAttach}
+                  disabled={!selectedAccountId}
+                  loading={attaching}
+                >
+                  Associer le document
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : analysisResult.firstAccountId && !analysisResult.multipleCompanies ? (
+                <Button
+                  className="w-full"
+                  onClick={() => router.push(`/app/accounts/${analysisResult.firstAccountId}`)}
+                >
+                  Voir la fiche {analysisResult.firstCompanyName}
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  className="w-full"
+                  onClick={() => router.push('/app/portfolio')}
+                >
+                  Voir le portefeuille
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              )}
+
+              <button
+                onClick={handleClose}
+                className="w-full text-sm text-[#94A3B8] hover:text-[#64748B] py-2 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+
           </div>
         </div>
       )}
