@@ -283,21 +283,25 @@ export default function DashboardPage() {
       label: 'Entreprises', value: stats.accounts,
       icon: Building2, iconColor: '#4C6EF5', iconBg: 'rgba(76,110,245,0.1)',
       delta: stats.accountsWeek > 0 ? `+${stats.accountsWeek} cette semaine` : null,
+      href: '/app/accounts',
     },
     {
       label: 'Notes', value: stats.notes,
       icon: FileText, iconColor: '#10B981', iconBg: 'rgba(16,185,129,0.1)',
       delta: stats.notesWeek > 0 ? `+${stats.notesWeek} cette semaine` : null,
+      href: '/app/portfolio',
     },
     {
       label: 'Documents', value: stats.docs,
       icon: Upload, iconColor: '#8B5CF6', iconBg: 'rgba(139,92,246,0.1)',
       delta: null,
+      href: '/app/import',
     },
     {
       label: 'Membres', value: stats.team,
       icon: Users, iconColor: '#F59E0B', iconBg: 'rgba(245,158,11,0.1)',
       delta: null,
+      href: '/app/team',
     },
   ]
 
@@ -380,19 +384,23 @@ export default function DashboardPage() {
 
             {/* ROW 1 — Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-              {statCards.map(({ label, value, icon: Icon, iconColor, iconBg, delta }) => (
-                <div
+              {statCards.map(({ label, value, icon: Icon, iconColor, iconBg, delta, href }) => (
+                <button
                   key={label}
-                  className="bg-white rounded-2xl p-3 md:p-5 cursor-default transition-all duration-200 hover:-translate-y-0.5"
+                  onClick={() => router.push(href)}
+                  className="text-left bg-white rounded-2xl p-3 md:p-5 transition-all duration-150 hover:-translate-y-0.5"
                   style={{
                     border: '1px solid rgba(30,39,97,0.08)',
                     boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
+                    cursor: 'pointer',
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 12px rgba(30,39,97,0.10), 0 8px 24px rgba(30,39,97,0.08)'
+                    e.currentTarget.style.border = '1px solid rgba(30,39,97,0.22)'
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(30,39,97,0.10), 0 8px 24px rgba(30,39,97,0.08)'
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)'
+                    e.currentTarget.style.border = '1px solid rgba(30,39,97,0.08)'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)'
                   }}
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
@@ -407,7 +415,7 @@ export default function DashboardPage() {
                   {delta && !desktopLoading && (
                     <p className="text-xs text-emerald-600 font-medium mt-1.5">{delta}</p>
                   )}
-                </div>
+                </button>
               ))}
             </div>
 
