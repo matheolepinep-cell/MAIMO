@@ -13,6 +13,7 @@ import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { CityInput } from '@/components/ui/CityInput'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Modal } from '@/components/ui/Modal'
 import { BottomSheet } from '@/components/ui/BottomSheet'
@@ -74,6 +75,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   // Info editing
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<Partial<Account>>({})
+  const [pendingCityCoords, setPendingCityCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [saving, setSaving] = useState(false)
 
   // Contact modal
@@ -216,21 +218,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     if (!account) return
     setSaving(true)
     const supabase = createClient()
-    const { data, error } = await supabase.from('accounts').update(editData).eq('id', id).select().single()
+    const payload = { ...editData, ...(pendingCityCoords ? { lat: pendingCityCoords.lat, lng: pendingCityCoords.lng } : {}) }
+    const { data, error } = await supabase.from('accounts').update(payload).eq('id', id).select().single()
     if (!error && data) {
       setAccount(data)
       setEditing(false)
-      if (editData.city && editData.city !== account.city) {
-        fetch('/api/geocode', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ city: editData.city }),
-        }).then((r) => r.json()).then((coords) => {
-          if (coords?.lat) {
-            supabase.from('accounts').update({ lat: coords.lat, lng: coords.lng }).eq('id', id).then(() => {})
-          }
-        }).catch(console.error)
-      }
+      setPendingCityCoords(null)
     }
     setSaving(false)
   }
@@ -709,9 +702,22 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             <div className="space-y-3">
               {infoFields.map(({ key, label, placeholder }) => (
                 editing ? (
-                  <Input key={key} label={label} placeholder={placeholder}
-                    value={(editData[key] as string) ?? ''}
-                    onChange={(e) => setEditData((prev) => ({ ...prev, [key]: e.target.value || null }))} />
+                  key === 'city' ? (
+                    <CityInput
+                      key={key}
+                      label={label}
+                      placeholder={placeholder}
+                      value={(editData[key] as string) ?? ''}
+                      onChange={(city, lat, lng) => {
+                        setEditData((prev) => ({ ...prev, city: city || null }))
+                        setPendingCityCoords(lat !== undefined && lng !== undefined ? { lat, lng } : null)
+                      }}
+                    />
+                  ) : (
+                    <Input key={key} label={label} placeholder={placeholder}
+                      value={(editData[key] as string) ?? ''}
+                      onChange={(e) => setEditData((prev) => ({ ...prev, [key]: e.target.value || null }))} />
+                  )
                 ) : (account[key] ? (
                   <div key={key}>
                     <p className="text-xs text-[#94A3B8] mb-0.5">{label}</p>

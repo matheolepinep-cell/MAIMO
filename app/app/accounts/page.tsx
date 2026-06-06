@@ -9,6 +9,7 @@ import { Header } from '@/components/layout/Header'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { CityInput } from '@/components/ui/CityInput'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { CompanyCard, getInitials } from '@/components/ui/CompanyCard'
 import { AlphaList } from '@/components/ui/AlphaList'
@@ -65,6 +66,7 @@ export default function AccountsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [newCity, setNewCity] = useState('')
+  const [newCityCoords, setNewCityCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [newIndustry, setNewIndustry] = useState('')
   const [newStatus, setNewStatus] = useState<'client' | 'prospect'>('client')
   const [creating, setCreating] = useState(false)
@@ -131,6 +133,8 @@ export default function AccountsPage() {
       .insert({
         name: newName.trim(),
         city: newCity.trim() || null,
+        lat: newCityCoords?.lat ?? null,
+        lng: newCityCoords?.lng ?? null,
         industry: newIndustry.trim() || null,
         status: newStatus,
         company_id: profile.company_id,
@@ -464,7 +468,16 @@ export default function AccountsPage() {
       <BottomSheet open={createOpen} onClose={() => { setCreateOpen(false); setCreateError('') }} title="Nouvelle entreprise">
         <form onSubmit={handleCreate} className="space-y-4">
           <Input id="acc-name" label="Raison sociale" placeholder="Entreprise Dupont" value={newName} onChange={(e) => setNewName(e.target.value)} required autoFocus />
-          <Input id="acc-city" label="Ville (optionnel)" placeholder="Lyon" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
+          <CityInput
+            id="acc-city"
+            label="Ville (optionnel)"
+            placeholder="Lyon"
+            value={newCity}
+            onChange={(city, lat, lng) => {
+              setNewCity(city)
+              setNewCityCoords(lat !== undefined && lng !== undefined ? { lat, lng } : null)
+            }}
+          />
           <Input id="acc-industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={newIndustry} onChange={(e) => setNewIndustry(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-[#0F172A] mb-1.5">Statut</label>
