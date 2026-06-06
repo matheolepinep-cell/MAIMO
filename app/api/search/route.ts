@@ -179,7 +179,7 @@ export async function POST(request: Request) {
   if (workspace_id) {
     const { data: wsData } = await supabase
       .from('workspaces')
-      .select('company_name, company_sector, company_description, company_services, company_zone, company_clients_type, company_tone, company_differentiator')
+      .select('company_name, company_sector, company_description, company_services, company_zone, company_clients_type, company_values, company_differentiator')
       .eq('id', workspace_id)
       .maybeSingle()
     const ws = wsData as Record<string, string | null> | null
@@ -191,7 +191,7 @@ Ce que vous faites : ${ws.company_description || 'non renseigné'}
 Services proposés : ${ws.company_services || 'non renseigné'}
 Zone géographique : ${ws.company_zone || 'non renseigné'}
 Type de clients ciblés : ${ws.company_clients_type || 'non renseigné'}
-Ton de communication : ${ws.company_tone || 'Professionnel'}
+Valeurs de l'entreprise : ${ws.company_values || 'non renseigné'}
 Argument clé : ${ws.company_differentiator || 'non renseigné'}
 
 Utilise ce contexte pour :

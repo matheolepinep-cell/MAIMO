@@ -38,12 +38,12 @@ export default function SettingsPage() {
   type WsProfile = {
     company_name: string; company_sector: string; company_description: string
     company_services: string; company_zone: string; company_clients_type: string
-    company_tone: string; company_differentiator: string
+    company_values: string; company_differentiator: string
   }
   const [wsProfile, setWsProfile] = useState<WsProfile>({
     company_name: '', company_sector: '', company_description: '',
     company_services: '', company_zone: '', company_clients_type: '',
-    company_tone: 'Professionnel', company_differentiator: '',
+    company_values: '', company_differentiator: '',
   })
   const [savingWs, setSavingWs] = useState(false)
   const [wsMsg, setWsMsg] = useState('')
@@ -53,7 +53,7 @@ export default function SettingsPage() {
     const supabase = createClient()
     supabase
       .from('workspaces')
-      .select('company_name, company_sector, company_description, company_services, company_zone, company_clients_type, company_tone, company_differentiator')
+      .select('company_name, company_sector, company_description, company_services, company_zone, company_clients_type, company_values, company_differentiator')
       .eq('id', wsId)
       .single()
       .then(({ data }) => {
@@ -64,7 +64,7 @@ export default function SettingsPage() {
           company_services: (data as Record<string, string | null>).company_services ?? '',
           company_zone: (data as Record<string, string | null>).company_zone ?? '',
           company_clients_type: (data as Record<string, string | null>).company_clients_type ?? '',
-          company_tone: (data as Record<string, string | null>).company_tone ?? 'Professionnel',
+          company_values: (data as Record<string, string | null>).company_values ?? '',
           company_differentiator: (data as Record<string, string | null>).company_differentiator ?? '',
         })
       })
@@ -108,7 +108,7 @@ export default function SettingsPage() {
       company_services: wsProfile.company_services.trim() || null,
       company_zone: wsProfile.company_zone.trim() || null,
       company_clients_type: wsProfile.company_clients_type.trim() || null,
-      company_tone: wsProfile.company_tone || null,
+      company_values: wsProfile.company_values.trim() || null,
       company_differentiator: wsProfile.company_differentiator.trim() || null,
     }).eq('id', wsId)
     setWsMsg(error ? error.message : 'Fiche enregistrée !')
@@ -189,16 +189,12 @@ export default function SettingsPage() {
                 onChange={(e) => setWsProfile(p => ({ ...p, company_clients_type: e.target.value }))}
                 placeholder="PME industrielles 50-500 salariés, responsables de production" />
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="ws_company_tone" className="text-sm font-medium text-[#0F172A]">Ton de communication</label>
-                <select id="ws_company_tone" value={wsProfile.company_tone}
-                  onChange={(e) => setWsProfile(p => ({ ...p, company_tone: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
-                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }}>
-                  <option value="Professionnel">Professionnel</option>
-                  <option value="Proche et direct">Proche et direct</option>
-                  <option value="Technique">Technique</option>
-                  <option value="Formel">Formel</option>
-                </select>
+                <label htmlFor="ws_company_values" className="text-sm font-medium text-[#0F172A]">Valeurs de l'entreprise</label>
+                <textarea id="ws_company_values" rows={2} value={wsProfile.company_values}
+                  onChange={(e) => setWsProfile(p => ({ ...p, company_values: e.target.value }))}
+                  placeholder="Ex: Proximité client, réactivité, expertise technique, engagement qualité..."
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
+                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="ws_company_differentiator" className="text-sm font-medium text-[#0F172A]">Argument différenciateur clé</label>
@@ -219,7 +215,7 @@ export default function SettingsPage() {
                 { label: "Nom de l'entreprise", value: wsProfile.company_name },
                 { label: 'Secteur', value: wsProfile.company_sector },
                 { label: 'Zone géographique', value: wsProfile.company_zone },
-                { label: 'Ton de communication', value: wsProfile.company_tone !== 'Professionnel' ? wsProfile.company_tone : '' },
+                { label: 'Valeurs', value: wsProfile.company_values },
               ].filter(f => f.value).map(({ label, value }) => (
                 <div key={label} className="flex gap-2 text-sm">
                   <span className="text-[#94A3B8] shrink-0 min-w-[140px]">{label}</span>

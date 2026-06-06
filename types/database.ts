@@ -27,7 +27,7 @@ export interface Workspace {
   company_services?: string | null
   company_zone?: string | null
   company_clients_type?: string | null
-  company_tone?: string | null
+  company_values?: string | null
   company_differentiator?: string | null
 }
 
