@@ -254,12 +254,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       payload.lng = pendingCityCoords.lng
     }
 
-    console.log('[saveEdit] payload →', payload)
-
     const { data, error } = await supabase.from('accounts').update(payload).eq('id', id).select().single()
-    if (error) {
-      console.error('[saveEdit] error →', error)
-    } else if (data) {
+    if (!error && data) {
       setAccount(data)
       setEditing(false)
       setPendingCityCoords(null)
