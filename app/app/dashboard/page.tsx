@@ -434,7 +434,7 @@ export default function DashboardPage() {
       label: 'Notes', value: stats.notes,
       icon: FileText, iconColor: '#10B981', iconBg: 'rgba(16,185,129,0.1)',
       delta: stats.notesWeek > 0 ? `+${stats.notesWeek} cette semaine` : null,
-      href: '/app/portfolio',
+      href: '/app/notes',
     },
     {
       label: 'Documents', value: stats.docs,
