@@ -11,6 +11,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { getInitials } from '@/components/ui/CompanyCard'
 import { Modal } from '@/components/ui/Modal'
 import type { MapAccount } from '@/components/AccountsMap'
+import { CompanyProfileBanner } from '@/components/ui/CompanyProfileBanner'
 
 const AccountsMap = dynamic(() => import('@/components/AccountsMap'), { ssr: false, loading: () => <div className="w-full h-full bg-gray-100 animate-pulse rounded-xl" /> })
 
@@ -532,6 +533,9 @@ export default function DashboardPage() {
               </div>
               <div className="mt-4" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)', marginBottom: 0 }} />
             </div>
+
+            {/* Company profile banner */}
+            <CompanyProfileBanner />
 
             {/* Client search */}
             <div className="max-w-lg">

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
+import { CompanyProfileBanner } from '@/components/ui/CompanyProfileBanner'
 import type { SearchSource } from '@/types/database'
 
 declare global {
@@ -377,7 +378,7 @@ function SearchPageContent() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 w-full">
+          <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4 w-full">
             <div className="text-center">
               <Sparkles className="mx-auto mb-3" style={{ width: 32, height: 32, color: '#4C6EF5' }} />
               <p style={{ fontSize: 20, fontWeight: 500, color: '#0A1628' }}>Que voulez-vous savoir ?</p>
@@ -385,6 +386,7 @@ function SearchPageContent() {
                 Posez une question sur n'importe quel client, note ou document de votre équipe.
               </p>
             </div>
+            <div className="w-full"><CompanyProfileBanner /></div>
             <div className="flex flex-wrap justify-center gap-2">
               {suggestions.map((s) => (
                 <button key={s} onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
@@ -413,7 +415,7 @@ function SearchPageContent() {
             { label: 'MAIMOO', href: '/app/dashboard' },
             { label: 'Recherche IA' },
           ]} />
-          <div className="flex items-center justify-between mt-3 mb-4">
+          <div className="flex items-center justify-between mt-3 mb-3">
             <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Recherche IA</h1>
             {inConversation && (
               <button onClick={handleReset}
@@ -422,6 +424,8 @@ function SearchPageContent() {
               </button>
             )}
           </div>
+
+          {!inConversation && <div className="mb-3"><CompanyProfileBanner /></div>}
 
           {desktopTabs}
 
