@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, Check, Maximize2 } from 'lucide-react'
+import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, Check, Maximize2, AlertTriangle } from 'lucide-react'
+import { CityInput } from '@/components/ui/CityInput'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
@@ -82,9 +83,18 @@ export default function DashboardPage() {
   const [noteToast, setNoteToast] = useState('')
   const [detectedAccount, setDetectedAccount] = useState<{ id: string; name: string } | null>(null)
   const [detectingAccount, setDetectingAccount] = useState(false)
-  const [showAccountSelector, setShowAccountSelector] = useState(false)
+  const [detectedRawName, setDetectedRawName] = useState<string | null>(null)
+  const [noMatchFound, setNoMatchFound] = useState(false)
+  const [noteCreationMode, setNoteCreationMode] = useState<'none' | 'create' | 'select'>('none')
   const [accountQuery, setAccountQuery] = useState('')
   const [accountResults, setAccountResults] = useState<{ id: string; name: string }[]>([])
+  const [newAccName, setNewAccName] = useState('')
+  const [newAccCity, setNewAccCity] = useState('')
+  const [newAccCityLat, setNewAccCityLat] = useState<number | undefined>()
+  const [newAccCityLng, setNewAccCityLng] = useState<number | undefined>()
+  const [newAccSector, setNewAccSector] = useState('')
+  const [newAccStatus, setNewAccStatus] = useState<'client' | 'prospect'>('prospect')
+  const [creatingAcc, setCreatingAcc] = useState(false)
   const noteRecognitionRef = useRef<SpeechRecognition | null>(null)
   const detectDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -240,7 +250,14 @@ export default function DashboardPage() {
   }, [clientQuery, profile, wsId])
 
   const detectCompanyFromText = useCallback(async (text: string) => {
-    if (!text.trim()) { setDetectedAccount(null); return }
+    if (!text.trim()) {
+      setDetectedAccount(null); setDetectedRawName(null); setNoMatchFound(false); setNoteCreationMode('none')
+      return
+    }
+    if (text.trim().split(/\s+/).length < 4) {
+      setDetectedAccount(null); setDetectedRawName(null); setNoMatchFound(false)
+      return
+    }
     setDetectingAccount(true)
     try {
       const res = await fetch('/api/detect-company-from-text', {
@@ -249,7 +266,16 @@ export default function DashboardPage() {
         body: JSON.stringify({ text }),
       })
       const data = await res.json()
-      setDetectedAccount(data.account_id ? { id: data.account_id, name: data.account_name } : null)
+      if (data.account_id) {
+        setDetectedAccount({ id: data.account_id, name: data.account_name })
+        setNoMatchFound(false); setDetectedRawName(null); setNoteCreationMode('none')
+      } else {
+        setDetectedAccount(null)
+        setNoMatchFound(true)
+        const rawName: string | null = data.detected_name ?? null
+        setDetectedRawName(rawName)
+        if (rawName) setNewAccName((prev) => prev || rawName)
+      }
     } catch { /* ignore */ } finally {
       setDetectingAccount(false)
     }
@@ -328,13 +354,71 @@ export default function DashboardPage() {
       }).catch(console.error)
 
       setStats((prev) => ({ ...prev, notes: prev.notes + 1 }))
-      setNoteText('')
-      setDetectedAccount(null)
+      setNoteText(''); setDetectedAccount(null); setNoMatchFound(false)
+      setDetectedRawName(null); setNoteCreationMode('none')
+      setNewAccName(''); setNewAccCity(''); setNewAccCityLat(undefined)
+      setNewAccCityLng(undefined); setNewAccSector(''); setNewAccStatus('prospect')
       setNoteModalOpen(false)
       setNoteToast('Note enregistrée')
       setTimeout(() => setNoteToast(''), 3000)
     }
     setNoteSaving(false)
+  }
+
+  const handleCreateAndAssociate = async () => {
+    if (!newAccName.trim() || !profile) return
+    setCreatingAcc(true)
+    const supabase = createClient()
+
+    // Dedup by name
+    const { data: existing } = await supabase
+      .from('accounts').select('id, name')
+      .eq('company_id', profile.company_id)
+      .ilike('name', newAccName.trim())
+      .maybeSingle()
+
+    let accountId: string
+    let accountName: string
+
+    if (existing) {
+      accountId = (existing as { id: string }).id
+      accountName = (existing as { name: string }).name
+    } else {
+      const payload: Record<string, unknown> = {
+        company_id: profile.company_id,
+        name: newAccName.trim(),
+        status: newAccStatus,
+        created_by: profile.id,
+      }
+      if (wsId) payload.workspace_id = wsId
+      if (newAccCity.trim()) payload.city = newAccCity.trim()
+      if (newAccSector.trim()) payload.industry = newAccSector.trim()
+      if (newAccCityLat && newAccCityLng) { payload.lat = newAccCityLat; payload.lng = newAccCityLng }
+
+      const { data: created, error } = await supabase
+        .from('accounts').insert(payload).select().single()
+
+      if (error || !created) { setCreatingAcc(false); return }
+      accountId = (created as { id: string }).id
+      accountName = (created as { name: string }).name
+
+      // Geocode in background if city but no coords yet
+      if (newAccCity.trim() && !newAccCityLat) {
+        fetch('/api/geocode', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ city: newAccCity.trim() }),
+        }).then(async (r) => {
+          const coords = await r.json()
+          if (coords?.lat) supabase.from('accounts').update({ lat: coords.lat, lng: coords.lng }).eq('id', accountId)
+        }).catch(() => {})
+      }
+    }
+
+    setDetectedAccount({ id: accountId, name: accountName })
+    setNoteCreationMode('none'); setNoMatchFound(false)
+    setNewAccName(''); setNewAccCity(''); setNewAccCityLat(undefined); setNewAccCityLng(undefined)
+    setNewAccSector(''); setNewAccStatus('prospect')
+    setCreatingAcc(false)
   }
 
   useEffect(() => {
@@ -509,7 +593,13 @@ export default function DashboardPage() {
                   </div>
                 </button>
                 <button
-                  onClick={() => { setNoteText(''); setDetectedAccount(null); setNoteModalOpen(true) }}
+                  onClick={() => {
+                  setNoteText(''); setDetectedAccount(null); setNoMatchFound(false)
+                  setDetectedRawName(null); setNoteCreationMode('none')
+                  setNewAccName(''); setNewAccCity(''); setNewAccCityLat(undefined)
+                  setNewAccCityLng(undefined); setNewAccSector(''); setNewAccStatus('prospect')
+                  setNoteModalOpen(true)
+                }}
                   className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
                   style={{ background: '#fff', borderRadius: 12, padding: 14, border: '0.5px solid #C5D0F0' }}
                 >
@@ -801,71 +891,128 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Detected company badge */}
-          <div className="min-h-[28px] flex items-center gap-2">
+          {/* Detection area */}
+          <div className="space-y-2">
             {detectingAccount && (
               <span className="text-xs text-[#64748B] flex items-center gap-1">
                 <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 Détection en cours…
               </span>
             )}
-            {!detectingAccount && detectedAccount && !showAccountSelector && (
-              <>
+
+            {!detectingAccount && detectedAccount && noteCreationMode !== 'select' && (
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                  style={{ background: '#22C55E' }}>
+                  {detectedAccount.name.split(' ').slice(0, 2).map((w: string) => w[0] ?? '').join('').toUpperCase().slice(0, 2)}
+                </div>
                 <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
-                  style={{ background: 'rgba(30,39,97,0.08)', color: '#1E2761' }}>
+                  style={{ background: 'rgba(34,197,94,0.1)', color: '#15803D' }}>
                   <Check className="w-3 h-3" />
                   {detectedAccount.name}
                 </span>
                 <button
-                  onClick={() => { setShowAccountSelector(true); setAccountQuery('') }}
-                  className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors"
-                >
+                  onClick={() => { setDetectedAccount(null); setNoteCreationMode('select'); setAccountQuery('') }}
+                  className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors">
                   Changer
                 </button>
-              </>
+              </div>
             )}
-            {!detectingAccount && !detectedAccount && !showAccountSelector && noteText.trim() && (
-              <button
-                onClick={() => { setShowAccountSelector(true); setAccountQuery('') }}
-                className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors"
-              >
+
+            {!detectingAccount && !detectedAccount && noMatchFound && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
+                  style={{ background: '#FFF7ED', border: '0.5px solid #F59E0B' }}>
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span style={{ color: '#92400E' }}>Aucun client correspondant trouvé dans votre portefeuille</span>
+                </div>
+
+                {noteCreationMode === 'none' && (
+                  <div className="flex flex-col gap-1.5 pl-1">
+                    <button
+                      onClick={() => { setNoteCreationMode('create'); if (detectedRawName && !newAccName) setNewAccName(detectedRawName) }}
+                      className="text-left text-xs font-semibold text-[#1E2761] hover:text-[#4C6EF5] transition-colors">
+                      + Créer une fiche{detectedRawName ? ` pour "${detectedRawName}"` : ''}
+                    </button>
+                    <button
+                      onClick={() => { setNoteCreationMode('select'); setAccountQuery('') }}
+                      className="text-left text-xs text-[#64748B] hover:text-[#1E2761] transition-colors">
+                      Associer à un client existant
+                    </button>
+                    <button
+                      onClick={() => setNoMatchFound(false)}
+                      className="text-left text-xs text-[#94A3B8] hover:text-[#64748B] transition-colors">
+                      Enregistrer sans associer à un client
+                    </button>
+                  </div>
+                )}
+
+                {noteCreationMode === 'create' && (
+                  <div className="rounded-xl p-3 space-y-2" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <input type="text" value={newAccName} onChange={(e) => setNewAccName(e.target.value)}
+                      placeholder="Nom de l'entreprise"
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all" />
+                    <CityInput value={newAccCity}
+                      onChange={(city, lat, lng) => { setNewAccCity(city); if (lat !== undefined) setNewAccCityLat(lat); if (lng !== undefined) setNewAccCityLng(lng) }}
+                      placeholder="Ville" />
+                    <input type="text" value={newAccSector} onChange={(e) => setNewAccSector(e.target.value)}
+                      placeholder="Secteur (facultatif)"
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all" />
+                    <div className="flex gap-2">
+                      {(['prospect', 'client'] as const).map((s) => (
+                        <button key={s} type="button" onClick={() => setNewAccStatus(s)}
+                          className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+                          style={newAccStatus === s ? { background: '#1E2761', color: '#fff' } : { background: '#F1F5F9', color: '#64748B' }}>
+                          {s === 'client' ? 'Client' : 'Prospect'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={handleCreateAndAssociate} disabled={!newAccName.trim() || creatingAcc}
+                        className="flex-1 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40 transition-all"
+                        style={{ background: '#1E2761' }}>
+                        {creatingAcc ? 'Création…' : 'Créer et associer'}
+                      </button>
+                      <button type="button" onClick={() => setNoteCreationMode('none')}
+                        className="px-3 py-2 rounded-xl text-xs text-[#64748B] hover:text-[#1E2761] transition-colors">
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {noteCreationMode === 'select' && (
+              <div className="relative">
+                <input autoFocus type="text" placeholder="Rechercher une entreprise..."
+                  value={accountQuery} onChange={(e) => setAccountQuery(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" />
+                {accountResults.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden">
+                    {accountResults.map((acc) => (
+                      <button key={acc.id}
+                        onClick={() => { setDetectedAccount(acc); setNoteCreationMode('none'); setAccountQuery(''); setNoMatchFound(false) }}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-[#F0F4FF] transition-colors">
+                        {acc.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button onClick={() => { setNoteCreationMode('none'); setAccountQuery('') }}
+                  className="mt-1 text-xs text-[#64748B] hover:text-[#1E2761] underline">
+                  Annuler
+                </button>
+              </div>
+            )}
+
+            {!detectingAccount && !detectedAccount && !noMatchFound && noteCreationMode === 'none' && noteText.trim() && (
+              <button onClick={() => { setNoteCreationMode('select'); setAccountQuery('') }}
+                className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors">
                 + Associer à un client
               </button>
             )}
           </div>
-
-          {/* Manual account selector */}
-          {showAccountSelector && (
-            <div className="relative">
-              <input
-                autoFocus
-                type="text"
-                placeholder="Rechercher une entreprise..."
-                value={accountQuery}
-                onChange={(e) => setAccountQuery(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
-              />
-              {accountResults.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden">
-                  {accountResults.map((acc) => (
-                    <button
-                      key={acc.id}
-                      onClick={() => { setDetectedAccount(acc); setShowAccountSelector(false); setAccountQuery('') }}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-[#F0F4FF] transition-colors"
-                    >
-                      {acc.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={() => { setShowAccountSelector(false); setAccountQuery('') }}
-                className="mt-1 text-xs text-[#64748B] hover:text-[#1E2761] underline"
-              >
-                Annuler
-              </button>
-            </div>
-          )}
 
           <button
             onClick={handleNoteSave}
