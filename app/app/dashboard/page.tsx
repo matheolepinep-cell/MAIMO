@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload } from 'lucide-react'
+import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { getInitials } from '@/components/ui/CompanyCard'
+import { Modal } from '@/components/ui/Modal'
 
 /* ─── types ─── */
 type MobileItem =
@@ -67,6 +68,20 @@ export default function DashboardPage() {
   const [clientLoading, setClientLoading] = useState(false)
   const [showClientDrop, setShowClientDrop] = useState(false)
   const clientSearchRef = useRef<HTMLDivElement>(null)
+
+  /* note modal state */
+  const [noteModalOpen, setNoteModalOpen] = useState(false)
+  const [noteText, setNoteText] = useState('')
+  const [noteRecording, setNoteRecording] = useState(false)
+  const [noteSaving, setNoteSaving] = useState(false)
+  const [noteToast, setNoteToast] = useState('')
+  const [detectedAccount, setDetectedAccount] = useState<{ id: string; name: string } | null>(null)
+  const [detectingAccount, setDetectingAccount] = useState(false)
+  const [showAccountSelector, setShowAccountSelector] = useState(false)
+  const [accountQuery, setAccountQuery] = useState('')
+  const [accountResults, setAccountResults] = useState<{ id: string; name: string }[]>([])
+  const noteRecognitionRef = useRef<SpeechRecognition | null>(null)
+  const detectDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /* desktop state */
   const [stats, setStats] = useState<Stats>({ accounts: 0, notes: 0, docs: 0, team: 0, notesWeek: 0, accountsWeek: 0 })
@@ -206,6 +221,120 @@ export default function DashboardPage() {
     }, 200)
     return () => clearTimeout(timer)
   }, [clientQuery, profile, wsId])
+
+  const detectCompanyFromText = useCallback(async (text: string) => {
+    if (!text.trim()) { setDetectedAccount(null); return }
+    setDetectingAccount(true)
+    try {
+      const res = await fetch('/api/detect-company-from-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      const data = await res.json()
+      setDetectedAccount(data.account_id ? { id: data.account_id, name: data.account_name } : null)
+    } catch { /* ignore */ } finally {
+      setDetectingAccount(false)
+    }
+  }, [])
+
+  const handleNoteTextChange = (val: string) => {
+    setNoteText(val)
+    if (detectDebounceRef.current) clearTimeout(detectDebounceRef.current)
+    detectDebounceRef.current = setTimeout(() => detectCompanyFromText(val), 500)
+  }
+
+  const handleNoteRecordStart = () => {
+    const SR = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
+      || (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
+    if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return }
+    const rec = new SR()
+    rec.lang = 'fr-FR'
+    rec.continuous = true
+    rec.interimResults = true
+    rec.onresult = (event: SpeechRecognitionEvent) => {
+      let t = ''
+      for (let i = 0; i < event.results.length; i++) t += event.results[i][0].transcript
+      setNoteText(t)
+      if (detectDebounceRef.current) clearTimeout(detectDebounceRef.current)
+      detectDebounceRef.current = setTimeout(() => detectCompanyFromText(t), 500)
+    }
+    rec.onerror = () => setNoteRecording(false)
+    rec.onend = () => setNoteRecording(false)
+    noteRecognitionRef.current = rec
+    rec.start()
+    setNoteRecording(true)
+  }
+
+  const handleNoteRecordStop = () => {
+    noteRecognitionRef.current?.stop()
+    setNoteRecording(false)
+  }
+
+  const handleNoteSave = async () => {
+    if (!noteText.trim() || !profile) return
+    setNoteSaving(true)
+    const supabase = createClient()
+    const today = new Date().toLocaleDateString('fr-FR')
+    const clientLabel = detectedAccount?.name ?? 'Sans client'
+    const title = `Note du ${today} — ${clientLabel}`
+
+    const { data: note, error } = await supabase
+      .from('notes')
+      .insert({
+        account_id: detectedAccount?.id ?? null,
+        company_id: profile.company_id,
+        user_id: profile.id,
+        title,
+        content: noteText.trim(),
+        source: noteRecording ? 'vocal' : 'text',
+        is_deleted: false,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      setNoteSaving(false)
+      return
+    }
+
+    if (note) {
+      fetch('/api/index-note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          note_id: note.id,
+          content: note.content,
+          account_id: detectedAccount?.id ?? null,
+          company_id: profile.company_id,
+        }),
+      }).catch(console.error)
+
+      setStats((prev) => ({ ...prev, notes: prev.notes + 1 }))
+      setNoteText('')
+      setDetectedAccount(null)
+      setNoteModalOpen(false)
+      setNoteToast('Note enregistrée')
+      setTimeout(() => setNoteToast(''), 3000)
+    }
+    setNoteSaving(false)
+  }
+
+  useEffect(() => {
+    if (!accountQuery.trim() || !profile?.company_id) { setAccountResults([]); return }
+    const timer = setTimeout(async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('accounts')
+        .select('id, name')
+        .eq('company_id', profile.company_id)
+        .ilike('name', `%${accountQuery.trim()}%`)
+        .order('name')
+        .limit(7)
+      setAccountResults(data ?? [])
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [accountQuery, profile])
 
   const firstName = profile?.full_name?.split(' ')[0] ?? ''
   const clientSearchBox = (
@@ -350,16 +479,27 @@ export default function DashboardPage() {
             {/* Actions rapides */}
             <div>
               <p className="text-[13px] font-semibold mb-2" style={{ color: '#8899BB' }}>Actions rapides</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <button
                   onClick={() => router.push('/app/search')}
-                  className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
+                  className="col-span-2 md:col-span-1 text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
                   style={{ background: '#0A1628', borderRadius: 12, padding: 14 }}
                 >
                   <Sparkles className="w-5 h-5 text-white" />
                   <div>
                     <p className="text-[13px] font-medium text-white leading-snug">Recherche IA</p>
                     <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>Posez une question sur vos clients</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { setNoteText(''); setDetectedAccount(null); setNoteModalOpen(true) }}
+                  className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
+                  style={{ background: '#fff', borderRadius: 12, padding: 14, border: '0.5px solid #C5D0F0' }}
+                >
+                  <Pencil className="w-5 h-5" style={{ color: '#1E2761' }} />
+                  <div>
+                    <p className="text-[13px] font-medium leading-snug" style={{ color: '#1E2761' }}>Nouvelle note</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: '#8899BB' }}>Texte ou vocal, client détecté auto</p>
                   </div>
                 </button>
                 <button
@@ -620,6 +760,117 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Nouvelle note modal */}
+      <Modal open={noteModalOpen} onClose={() => { setNoteModalOpen(false); handleNoteRecordStop() }} title="Nouvelle note">
+        <div className="space-y-3">
+          <div className="relative">
+            <textarea
+              autoFocus
+              value={noteText}
+              onChange={(e) => handleNoteTextChange(e.target.value)}
+              placeholder="Saisir une note..."
+              rows={5}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150 pr-10"
+            />
+            <button
+              type="button"
+              onClick={noteRecording ? handleNoteRecordStop : handleNoteRecordStart}
+              className="absolute right-2 bottom-2 p-2 rounded-lg transition-all duration-150"
+              style={noteRecording
+                ? { background: '#EF4444', color: '#fff' }
+                : { background: '#F1F5F9', color: '#64748B' }}
+            >
+              {noteRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Detected company badge */}
+          <div className="min-h-[28px] flex items-center gap-2">
+            {detectingAccount && (
+              <span className="text-xs text-[#64748B] flex items-center gap-1">
+                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Détection en cours…
+              </span>
+            )}
+            {!detectingAccount && detectedAccount && !showAccountSelector && (
+              <>
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{ background: 'rgba(30,39,97,0.08)', color: '#1E2761' }}>
+                  <Check className="w-3 h-3" />
+                  {detectedAccount.name}
+                </span>
+                <button
+                  onClick={() => { setShowAccountSelector(true); setAccountQuery('') }}
+                  className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors"
+                >
+                  Changer
+                </button>
+              </>
+            )}
+            {!detectingAccount && !detectedAccount && !showAccountSelector && noteText.trim() && (
+              <button
+                onClick={() => { setShowAccountSelector(true); setAccountQuery('') }}
+                className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors"
+              >
+                + Associer à un client
+              </button>
+            )}
+          </div>
+
+          {/* Manual account selector */}
+          {showAccountSelector && (
+            <div className="relative">
+              <input
+                autoFocus
+                type="text"
+                placeholder="Rechercher une entreprise..."
+                value={accountQuery}
+                onChange={(e) => setAccountQuery(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
+              />
+              {accountResults.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden">
+                  {accountResults.map((acc) => (
+                    <button
+                      key={acc.id}
+                      onClick={() => { setDetectedAccount(acc); setShowAccountSelector(false); setAccountQuery('') }}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-[#F0F4FF] transition-colors"
+                    >
+                      {acc.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => { setShowAccountSelector(false); setAccountQuery('') }}
+                className="mt-1 text-xs text-[#64748B] hover:text-[#1E2761] underline"
+              >
+                Annuler
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={handleNoteSave}
+            disabled={!noteText.trim() || noteSaving}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
+            style={{ background: '#1E2761' }}
+          >
+            {noteSaving
+              ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Enregistrement…</span>
+              : 'Enregistrer la note'
+            }
+          </button>
+        </div>
+      </Modal>
+
+      {/* Toast */}
+      {noteToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-xl text-sm font-medium text-white shadow-lg"
+          style={{ background: '#1E2761' }}>
+          {noteToast}
+        </div>
+      )}
     </div>
   )
 }
