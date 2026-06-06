@@ -12,19 +12,26 @@ async function geocodeCity(city: string): Promise<{ lat: number; lng: number } |
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
 }
 
-export async function POST() {
-  const user = await getAuthenticatedUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+export async function POST(request: Request) {
   const supabase = createSupabaseAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // Accept service role key as bearer token for CLI calls
+  const authHeader = request.headers.get('authorization') ?? ''
+  const bearerToken = authHeader.replace('Bearer ', '').trim()
+  const isServiceRole = bearerToken === process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!isServiceRole) {
+    const user = await getAuthenticatedUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // When called with service role, geocode ALL accounts across all companies
   const { data: accounts } = await supabase
     .from('accounts')
     .select('id, city')
-    .eq('company_id', user.company_id)
     .not('city', 'is', null)
     .is('lat', null)
 
