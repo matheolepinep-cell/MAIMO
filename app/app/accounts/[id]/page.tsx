@@ -212,15 +212,54 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => { if (!profileLoading) fetchAll() }, [profileLoading, fetchAll])
 
   /* ─── account info ─── */
-  const startEdit = () => { setEditData({ ...account }); setEditing(true) }
+  const startEdit = () => {
+    setEditData({
+      name: account?.name,
+      description: account?.description,
+      siret: account?.siret,
+      address: account?.address,
+      city: account?.city,
+      postal_code: account?.postal_code,
+      phone: account?.phone,
+      email: account?.email,
+      website: account?.website,
+      industry: account?.industry,
+      revenue: account?.revenue,
+      employees: account?.employees,
+      notes_general: account?.notes_general,
+      status: account?.status,
+    })
+    setPendingCityCoords(null)
+    setEditing(true)
+  }
   const cancelEdit = () => setEditing(false)
   const saveEdit = async () => {
     if (!account) return
     setSaving(true)
     const supabase = createClient()
-    const payload = { ...editData, ...(pendingCityCoords ? { lat: pendingCityCoords.lat, lng: pendingCityCoords.lng } : {}) }
+
+    // Only send mutable fields — never id, company_id, created_at, last_note_at, created_by
+    const EDITABLE: (keyof Account)[] = [
+      'name', 'description', 'siret', 'address', 'city', 'postal_code',
+      'phone', 'email', 'website', 'industry', 'revenue', 'employees',
+      'notes_general', 'status',
+    ]
+    const payload: Record<string, unknown> = {}
+    for (const key of EDITABLE) {
+      const val = editData[key]
+      if (val !== undefined) payload[key] = val
+    }
+    if (pendingCityCoords) {
+      payload.lat = pendingCityCoords.lat
+      payload.lng = pendingCityCoords.lng
+    }
+
+    console.log('[saveEdit] payload →', payload)
+
     const { data, error } = await supabase.from('accounts').update(payload).eq('id', id).select().single()
-    if (!error && data) {
+    if (error) {
+      console.error('[saveEdit] error →', error)
+    } else if (data) {
       setAccount(data)
       setEditing(false)
       setPendingCityCoords(null)
