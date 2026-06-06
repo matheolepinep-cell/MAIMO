@@ -440,7 +440,7 @@ export default function DashboardPage() {
       label: 'Documents', value: stats.docs,
       icon: Upload, iconColor: '#8B5CF6', iconBg: 'rgba(139,92,246,0.1)',
       delta: null,
-      href: '/app/import',
+      href: '/app/documents',
     },
     {
       label: 'Membres', value: stats.team,
