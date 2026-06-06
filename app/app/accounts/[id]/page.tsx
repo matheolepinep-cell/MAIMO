@@ -217,7 +217,21 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setSaving(true)
     const supabase = createClient()
     const { data, error } = await supabase.from('accounts').update(editData).eq('id', id).select().single()
-    if (!error && data) { setAccount(data); setEditing(false) }
+    if (!error && data) {
+      setAccount(data)
+      setEditing(false)
+      if (editData.city && editData.city !== account.city) {
+        fetch('/api/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ city: editData.city }),
+        }).then((r) => r.json()).then((coords) => {
+          if (coords?.lat) {
+            supabase.from('accounts').update({ lat: coords.lat, lng: coords.lng }).eq('id', id).then(() => {})
+          }
+        }).catch(console.error)
+      }
+    }
     setSaving(false)
   }
 
