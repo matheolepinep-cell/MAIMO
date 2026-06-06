@@ -2,13 +2,17 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, Check } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, Check, Maximize2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { getInitials } from '@/components/ui/CompanyCard'
 import { Modal } from '@/components/ui/Modal'
+import type { MapAccount } from '@/components/AccountsMap'
+
+const AccountsMap = dynamic(() => import('@/components/AccountsMap'), { ssr: false, loading: () => <div className="w-full h-full bg-gray-100 animate-pulse rounded-xl" /> })
 
 /* ─── types ─── */
 type MobileItem =
@@ -89,6 +93,8 @@ export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState<PortfolioRow[]>([])
   const [team, setTeam] = useState<TeamRow[]>([])
   const [desktopLoading, setDesktopLoading] = useState(true)
+  const [mapAccounts, setMapAccounts] = useState<MapAccount[]>([])
+  const [mapFullscreen, setMapFullscreen] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setTime(formatTime()), 60000)
@@ -199,6 +205,16 @@ export default function DashboardPage() {
       )
 
       setDesktopLoading(false)
+
+      // Fetch geocoded accounts for map
+      let mapQ = supabase.from('accounts').select('id, name, status, lat, lng').eq('company_id', cid).not('lat', 'is', null)
+      if (wf) mapQ = mapQ.or(wf)
+      const { data: geoAccounts } = await mapQ
+      setMapAccounts(
+        ((geoAccounts ?? []) as { id: string; name: string; status: string; lat: number; lng: number }[])
+          .filter((a) => a.lat && a.lng)
+          .map((a) => ({ id: a.id, name: a.name, status: a.status as 'client' | 'prospect', lat: a.lat, lng: a.lng }))
+      )
     })
   }, [profileLoading, profile, wsId])
 
@@ -559,68 +575,33 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* ROW 2 — Activity + Portfolio/Team */}
+            {/* ROW 2 — Map + Portfolio/Team */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-5">
 
-              {/* Activity feed — 3/5 */}
-              <div className="col-span-1 lg:col-span-3 bg-white rounded-2xl overflow-hidden"
-                style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
-                <div className="flex items-center justify-between px-6 py-4"
-                  style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
-                  <h2 className="font-semibold text-[#0F172A]">Activité récente</h2>
-                  <button onClick={() => router.push('/app/accounts')} className="text-xs text-[#4C6EF5] hover:underline font-medium">
-                    Tout voir →
-                  </button>
-                </div>
-                {desktopLoading ? (
-                  <div className="divide-y divide-[rgba(30,39,97,0.04)]">
-                    {[...Array(6)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-4 px-6 py-3.5">
-                        <Skeleton className="w-8 h-8 shrink-0" />
-                        <div className="flex-1 space-y-1.5">
-                          <Skeleton className="h-3.5 w-3/4" />
-                          <Skeleton className="h-3 w-1/3" />
-                        </div>
-                        <Skeleton className="h-3 w-12 shrink-0" />
-                      </div>
-                    ))}
+              {/* Map — 3/5 */}
+              <div className="col-span-1 lg:col-span-3 bg-white rounded-2xl overflow-hidden relative"
+                style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)', height: 280 }}>
+                <button
+                  onClick={() => setMapFullscreen(true)}
+                  className="absolute top-2 right-2 z-[400] w-8 h-8 flex items-center justify-center rounded-lg bg-white shadow-md hover:bg-gray-50 transition-colors"
+                  title="Agrandir"
+                >
+                  <Maximize2 className="w-4 h-4 text-[#1E2761]" />
+                </button>
+                {mapAccounts.length === 0 && !desktopLoading ? (
+                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                    <p className="text-sm">Aucune entreprise géocodée</p>
+                    <p className="text-xs mt-1">Ajoutez une ville dans les fiches clients</p>
                   </div>
-                ) : activity.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                    <FileText className="w-8 h-8 mb-2 text-slate-200" />
-                    <p className="text-sm">Aucune activité récente</p>
-                  </div>
+                ) : desktopLoading ? (
+                  <div className="w-full h-full bg-gray-100 animate-pulse" />
                 ) : (
-                  <div className="divide-y divide-[rgba(30,39,97,0.04)]">
-                    {activity.map((item) => (
-                      <button
-                        key={`${item.type}-${item.id}`}
-                        onClick={() => router.push(`/app/accounts/${item.account_id}`)}
-                        className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
-                      >
-                        {item.type === 'note' ? (
-                          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ background: item.source === 'vocal' ? 'rgba(239,68,68,0.1)' : 'rgba(76,110,245,0.1)' }}>
-                            {item.source === 'vocal' ? <Mic className="w-4 h-4 text-red-500" /> : <Type className="w-4 h-4 text-[#4C6EF5]" />}
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ background: 'rgba(139,92,246,0.1)' }}>
-                            <Upload className="w-4 h-4 text-purple-500" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-[#0F172A] truncate">
-                            <span className="font-medium">{item.author_name}</span>
-                            {item.type === 'note' ? ' a ajouté une note sur ' : ' a partagé un document sur '}
-                            <span className="font-medium">{item.account_name}</span>
-                          </p>
-                          <p className="text-xs text-slate-400 truncate mt-0.5">{item.label}</p>
-                        </div>
-                        <span className="text-xs text-slate-400 shrink-0 ml-2">{timeAgo(item.created_at)}</span>
-                      </button>
-                    ))}
-                  </div>
+                  <AccountsMap
+                    accounts={mapAccounts}
+                    onNavigate={(id) => router.push(`/app/accounts/${id}`)}
+                    scrollWheelZoom={false}
+                    style={{ height: 280 }}
+                  />
                 )}
               </div>
 
@@ -734,7 +715,39 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ROW 3 — CTA if empty portfolio */}
+            {/* ROW 3 — Compact Activity */}
+            {activity.length > 0 && (
+              <div className="bg-white rounded-2xl overflow-hidden"
+                style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
+                <div className="px-5 py-3" style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
+                  <h2 className="text-sm font-semibold text-[#0F172A]">Activité récente</h2>
+                </div>
+                <div className="divide-y divide-[rgba(30,39,97,0.04)]">
+                  {activity.slice(0, 3).map((item) => (
+                    <button
+                      key={`${item.type}-${item.id}`}
+                      onClick={() => router.push(`/app/accounts/${item.account_id}`)}
+                      className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
+                    >
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: item.type === 'note' ? (item.source === 'vocal' ? 'rgba(239,68,68,0.1)' : 'rgba(76,110,245,0.1)') : 'rgba(139,92,246,0.1)' }}>
+                        {item.type === 'note'
+                          ? (item.source === 'vocal' ? <Mic className="w-3 h-3 text-red-500" /> : <Type className="w-3 h-3 text-[#4C6EF5]" />)
+                          : <Upload className="w-3 h-3 text-purple-500" />}
+                      </div>
+                      <p className="text-xs text-[#0F172A] flex-1 truncate">
+                        <span className="font-medium">{item.author_name}</span>
+                        {item.type === 'note' ? ' · ' : ' · '}
+                        <span className="text-slate-400">{item.account_name}</span>
+                      </p>
+                      <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(item.created_at)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ROW 4 — CTA if empty portfolio */}
             {!desktopLoading && portfolio.length === 0 && (
               <div className="bg-white rounded-2xl px-8 py-10 flex flex-col items-center text-center"
                 style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
@@ -863,6 +876,24 @@ export default function DashboardPage() {
           </button>
         </div>
       </Modal>
+
+      {/* Fullscreen map modal */}
+      {mapFullscreen && (
+        <div className="fixed inset-0 z-[9999]" style={{ background: 'rgba(0,0,0,0.85)' }}>
+          <button
+            onClick={() => setMapFullscreen(false)}
+            className="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-xl hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-5 h-5 text-[#1E2761]" />
+          </button>
+          <AccountsMap
+            accounts={mapAccounts}
+            onNavigate={(id) => { setMapFullscreen(false); router.push(`/app/accounts/${id}`) }}
+            scrollWheelZoom={true}
+            style={{ width: '100vw', height: '100dvh' }}
+          />
+        </div>
+      )}
 
       {/* Toast */}
       {noteToast && (
