@@ -174,12 +174,42 @@ export async function POST(request: Request) {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   const dateActuelle = capitalize(now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
 
+  // ── WORKSPACE COMPANY PROFILE ──
+  let workspaceProfile = ''
+  if (workspace_id) {
+    const { data: wsData } = await supabase
+      .from('workspaces')
+      .select('company_name, company_sector, company_description, company_services, company_zone, company_clients_type, company_tone, company_differentiator')
+      .eq('id', workspace_id)
+      .maybeSingle()
+    const ws = wsData as Record<string, string | null> | null
+    if (ws?.company_name) {
+      workspaceProfile = `CONTEXTE DE TON ENTREPRISE :
+Tu travailles pour ${ws.company_name}.
+Secteur : ${ws.company_sector || 'non renseigné'}
+Ce que vous faites : ${ws.company_description || 'non renseigné'}
+Services proposés : ${ws.company_services || 'non renseigné'}
+Zone géographique : ${ws.company_zone || 'non renseigné'}
+Type de clients ciblés : ${ws.company_clients_type || 'non renseigné'}
+Ton de communication : ${ws.company_tone || 'Professionnel'}
+Argument clé : ${ws.company_differentiator || 'non renseigné'}
+
+Utilise ce contexte pour :
+- Adapter tes suggestions de relance et scripts d'appel à votre métier et positionnement
+- Proposer des angles d'approche cohérents avec vos services
+- Utiliser le bon vocabulaire métier dans tes réponses
+- Contextualiser les informations clients par rapport à votre activité`
+    }
+  }
+
   const buildSystemPrompt = (chunksFormatted: string, companyContext: string, followUp = false) => {
     const followUpNote = followUp
       ? `\n\nL'utilisateur pose une question de suivi. Explique ton raisonnement en citant précisément les extraits qui t'ont permis de donner ta réponse précédente.`
       : ''
 
-    return `Tu es un assistant commercial intelligent et conversationnel. Tu as accès aux notes et documents de l'équipe sur leurs clients. Aujourd'hui nous sommes le ${dateActuelle}.
+    const wsSection = workspaceProfile ? `${workspaceProfile}\n\n` : ''
+
+    return `${wsSection}Tu es un assistant commercial intelligent et conversationnel. Tu as accès aux notes et documents de l'équipe sur leurs clients. Aujourd'hui nous sommes le ${dateActuelle}.
 
 Comportement attendu :
 - Réponds naturellement comme dans une vraie conversation — pas de format rigide
