@@ -21,6 +21,14 @@ export interface Workspace {
   created_at: string
   is_default: boolean
   role?: 'admin' | 'member'
+  company_name?: string | null
+  company_sector?: string | null
+  company_description?: string | null
+  company_services?: string | null
+  company_zone?: string | null
+  company_clients_type?: string | null
+  company_tone?: string | null
+  company_differentiator?: string | null
 }
 
 export interface WorkspaceMember {

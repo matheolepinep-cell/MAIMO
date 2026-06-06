@@ -19,7 +19,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor, setAccentColor } = useAccentColor()
-  const { userWorkspaces, isSuperAdmin } = useWorkspace()
+  const { userWorkspaces, isSuperAdmin, wsId } = useWorkspace()
   const [company, setCompany] = useState<Company | null>(null)
   const [showCreateWs, setShowCreateWs] = useState(false)
   const [managingWs, setManagingWs] = useState<Workspace | null>(null)
@@ -33,6 +33,42 @@ export default function SettingsPage() {
   const [companyName, setCompanyName] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
   const [companyMsg, setCompanyMsg] = useState('')
+
+  // Workspace company profile
+  type WsProfile = {
+    company_name: string; company_sector: string; company_description: string
+    company_services: string; company_zone: string; company_clients_type: string
+    company_tone: string; company_differentiator: string
+  }
+  const [wsProfile, setWsProfile] = useState<WsProfile>({
+    company_name: '', company_sector: '', company_description: '',
+    company_services: '', company_zone: '', company_clients_type: '',
+    company_tone: 'Professionnel', company_differentiator: '',
+  })
+  const [savingWs, setSavingWs] = useState(false)
+  const [wsMsg, setWsMsg] = useState('')
+
+  useEffect(() => {
+    if (!wsId) return
+    const supabase = createClient()
+    supabase
+      .from('workspaces')
+      .select('company_name, company_sector, company_description, company_services, company_zone, company_clients_type, company_tone, company_differentiator')
+      .eq('id', wsId)
+      .single()
+      .then(({ data }) => {
+        if (data) setWsProfile({
+          company_name: (data as Record<string, string | null>).company_name ?? '',
+          company_sector: (data as Record<string, string | null>).company_sector ?? '',
+          company_description: (data as Record<string, string | null>).company_description ?? '',
+          company_services: (data as Record<string, string | null>).company_services ?? '',
+          company_zone: (data as Record<string, string | null>).company_zone ?? '',
+          company_clients_type: (data as Record<string, string | null>).company_clients_type ?? '',
+          company_tone: (data as Record<string, string | null>).company_tone ?? 'Professionnel',
+          company_differentiator: (data as Record<string, string | null>).company_differentiator ?? '',
+        })
+      })
+  }, [wsId])
 
   useEffect(() => {
     if (profileLoading || !profile) return
@@ -57,6 +93,26 @@ export default function SettingsPage() {
     const { error } = await supabase.from('users').update({ full_name: fullName.trim() }).eq('id', profile.id)
     setProfileMsg(error ? error.message : 'Profil mis à jour !')
     setSavingProfile(false)
+  }
+
+  const handleSaveWs = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!wsId || !isAdmin) return
+    setSavingWs(true)
+    setWsMsg('')
+    const supabase = createClient()
+    const { error } = await supabase.from('workspaces').update({
+      company_name: wsProfile.company_name.trim() || null,
+      company_sector: wsProfile.company_sector.trim() || null,
+      company_description: wsProfile.company_description.trim() || null,
+      company_services: wsProfile.company_services.trim() || null,
+      company_zone: wsProfile.company_zone.trim() || null,
+      company_clients_type: wsProfile.company_clients_type.trim() || null,
+      company_tone: wsProfile.company_tone || null,
+      company_differentiator: wsProfile.company_differentiator.trim() || null,
+    }).eq('id', wsId)
+    setWsMsg(error ? error.message : 'Fiche enregistrée !')
+    setSavingWs(false)
   }
 
   const handleSaveCompany = async (e: React.FormEvent) => {
@@ -89,6 +145,93 @@ export default function SettingsPage() {
       <Header title="Paramètres" />
       <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Paramètres</h1>
+
+        {/* Mon entreprise — workspace company profile */}
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+              <Building2 className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-[#1E293B] text-sm">Mon entreprise</p>
+              <p className="text-xs text-[#64748B]">Personnalise les réponses de l'IA à votre activité</p>
+            </div>
+          </div>
+
+          {isAdmin ? (
+            <form onSubmit={handleSaveWs} className="space-y-3">
+              <Input id="ws_company_name" label="Nom de l'entreprise" value={wsProfile.company_name}
+                onChange={(e) => setWsProfile(p => ({ ...p, company_name: e.target.value }))}
+                placeholder="Entreprise Dupont" />
+              <Input id="ws_company_sector" label="Secteur d'activité" value={wsProfile.company_sector}
+                onChange={(e) => setWsProfile(p => ({ ...p, company_sector: e.target.value }))}
+                placeholder="Maintenance industrielle" />
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ws_company_description" className="text-sm font-medium text-[#0F172A]">Description / Raison d'être</label>
+                <textarea id="ws_company_description" rows={2} value={wsProfile.company_description}
+                  onChange={(e) => setWsProfile(p => ({ ...p, company_description: e.target.value }))}
+                  placeholder="Nous aidons les PME industrielles à réduire leurs arrêts machine"
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
+                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ws_company_services" className="text-sm font-medium text-[#0F172A]">Produits et services proposés</label>
+                <textarea id="ws_company_services" rows={2} value={wsProfile.company_services}
+                  onChange={(e) => setWsProfile(p => ({ ...p, company_services: e.target.value }))}
+                  placeholder="Contrats de maintenance préventive, interventions curatives, formation opérateurs"
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
+                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
+              </div>
+              <Input id="ws_company_zone" label="Zone géographique principale" value={wsProfile.company_zone}
+                onChange={(e) => setWsProfile(p => ({ ...p, company_zone: e.target.value }))}
+                placeholder="Grand Ouest France" />
+              <Input id="ws_company_clients_type" label="Type de clients ciblés" value={wsProfile.company_clients_type}
+                onChange={(e) => setWsProfile(p => ({ ...p, company_clients_type: e.target.value }))}
+                placeholder="PME industrielles 50-500 salariés, responsables de production" />
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ws_company_tone" className="text-sm font-medium text-[#0F172A]">Ton de communication</label>
+                <select id="ws_company_tone" value={wsProfile.company_tone}
+                  onChange={(e) => setWsProfile(p => ({ ...p, company_tone: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
+                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }}>
+                  <option value="Professionnel">Professionnel</option>
+                  <option value="Proche et direct">Proche et direct</option>
+                  <option value="Technique">Technique</option>
+                  <option value="Formel">Formel</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ws_company_differentiator" className="text-sm font-medium text-[#0F172A]">Argument différenciateur clé</label>
+                <textarea id="ws_company_differentiator" rows={2} value={wsProfile.company_differentiator}
+                  onChange={(e) => setWsProfile(p => ({ ...p, company_differentiator: e.target.value }))}
+                  placeholder="Intervention garantie en moins de 4h, techniciens certifiés constructeur"
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
+                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
+              </div>
+              {wsMsg && (
+                <p className={`text-sm px-3 py-2 rounded-lg ${wsMsg.includes('!') ? 'text-green-700 bg-green-50' : 'text-red-500 bg-red-50'}`}>{wsMsg}</p>
+              )}
+              <Button type="submit" loading={savingWs} size="sm">Sauvegarder</Button>
+            </form>
+          ) : (
+            <div className="space-y-2">
+              {[
+                { label: "Nom de l'entreprise", value: wsProfile.company_name },
+                { label: 'Secteur', value: wsProfile.company_sector },
+                { label: 'Zone géographique', value: wsProfile.company_zone },
+                { label: 'Ton de communication', value: wsProfile.company_tone !== 'Professionnel' ? wsProfile.company_tone : '' },
+              ].filter(f => f.value).map(({ label, value }) => (
+                <div key={label} className="flex gap-2 text-sm">
+                  <span className="text-[#94A3B8] shrink-0 min-w-[140px]">{label}</span>
+                  <span className="text-[#1E293B] font-medium">{value}</span>
+                </div>
+              ))}
+              {!wsProfile.company_name && (
+                <p className="text-sm text-[#94A3B8]">Fiche non renseignée par l'administrateur.</p>
+              )}
+            </div>
+          )}
+        </Card>
 
         {/* Company name — admin only */}
         {isAdmin && company && (
