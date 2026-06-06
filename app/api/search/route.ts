@@ -170,35 +170,38 @@ export async function POST(request: Request) {
 
   // ── TEMPORAL CONTEXT ──
   const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.toLocaleString('fr-FR', { month: 'long' })
-  const lastYear = currentYear - 1
+  const lastYear = now.getFullYear() - 1
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
   const dateActuelle = capitalize(now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
-  const userName = user.full_name ?? 'l\'équipe'
 
-  const buildSystemPrompt = (companyContext: string, followUp = false) => {
-    const followUpPrefix = followUp
-      ? `L'utilisateur pose une question de suivi sur ta réponse précédente. Explique ton raisonnement en citant précisément les extraits des sources ci-dessous qui t'ont permis de donner cette information. Ne fais pas de nouvelle recherche, reste dans le contexte de la conversation.\n\n`
+  const buildSystemPrompt = (chunksFormatted: string, companyContext: string, followUp = false) => {
+    const followUpNote = followUp
+      ? `\n\nL'utilisateur pose une question de suivi. Explique ton raisonnement en citant précisément les extraits qui t'ont permis de donner ta réponse précédente.`
       : ''
 
-    return `${followUpPrefix}Tu es l'assistant commercial de ${userName}. Aujourd'hui nous sommes le ${dateActuelle}.
+    return `Tu es un assistant commercial intelligent et conversationnel. Tu as accès aux notes et documents de l'équipe sur leurs clients. Aujourd'hui nous sommes le ${dateActuelle}.
 
-RÈGLES DE RAISONNEMENT — OBLIGATOIRES :
+Comportement attendu :
+- Réponds naturellement comme dans une vraie conversation — pas de format rigide
+- Déduis et interprète : si quelqu'un demande 'des news' sur un client, donne un résumé naturel de la situation actuelle
+- Raisonne sur le contexte : 'l'année dernière' = ${lastYear}, 'récemment' = ces 30 derniers jours, 'bientôt' = dans les 2 prochaines semaines
+- Si une information est partielle, déduis ce qui est logique et signale ce qui est une déduction
+- Reformule les informations techniques en langage naturel et accessible
+- Sois proactif : si tu vois quelque chose d'important dans les notes que l'utilisateur n'a pas demandé mais devrait savoir, mentionne-le
 
-1. Raisonnement temporel : "l'année dernière" = ${lastYear}, "cette année" = ${currentYear}, "ce mois" = ${currentMonth} ${currentYear}, "récemment" = les 30 derniers jours. Fais toujours la conversion avant de répondre.
+Ce que tu ne fais jamais :
+- Inventer des faits qui ne sont pas dans les sources
+- Refuser de répondre parce que la question est vague — interprète-la intelligemment
+- Répéter 'Je n'ai pas cette information' si des informations partielles existent
+- Utiliser un format markdown, des astérisques ou des tirets
+- Commencer par 'Je' ou reformuler la question
 
-2. Tolérance aux fautes : si un nom dans une note ressemble à un nom d'entreprise ou de personne mentionné dans la question (ex: "Ferrettire" ≈ "Ferretti", "Benneteau" ≈ "Bénéteau"), considère que c'est la même entité. Ne rejette jamais une information à cause d'une faute d'orthographe dans une note.
+Si les sources sont insuffisantes, dis-le naturellement en une phrase et propose ce que tu peux faire à la place.
 
-3. Inférence logique : une note datée du 23/06/${lastYear} parle bien de l'année ${lastYear}, qui est l'année dernière si nous sommes en ${currentYear}. Si quelqu'un demande "l'année dernière", cette note est pertinente.
+Sources disponibles :
+${chunksFormatted}
 
-4. Contexte entreprise : chaque chunk est préfixé par [Entreprise: X]. Même si le nom de l'entreprise n'est pas dans le corps du texte, ce chunk appartient à cette entreprise.
-
-5. Ne jamais halluciner : si l'information n'est pas dans les sources, dis "Je n'ai pas cette information dans les notes disponibles." N'invente jamais de chiffres, dates ou faits.
-
-6. Format de réponse : réponse directe sans introduction. Si plusieurs éléments : liste avec un tiret par élément, ligne vide entre chaque élément. Pas de markdown, pas d'astérisques, pas d'emojis. Maximum 2 phrases par élément.
-
-Contexte client détecté : ${companyContext}`
+Contexte : ${companyContext || 'Recherche globale sur tous les clients'}${followUpNote}`
   }
 
   // ── FOLLOW-UP: skip vector search, reuse previous chunks ──
@@ -215,10 +218,10 @@ Contexte client détecté : ${companyContext}`
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
-      system: buildSystemPrompt(companyContext, true),
+      system: buildSystemPrompt(contextStr, companyContext, true),
       messages: [
         ...historySlice,
-        { role: 'user' as const, content: `Sources disponibles :\n\n${contextStr}\n\n---\n\nQuestion : ${query}` },
+        { role: 'user' as const, content: query },
       ],
     })
 
@@ -467,10 +470,10 @@ Contexte client détecté : ${companyContext}`
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: buildSystemPrompt(companyContext, false),
+    system: buildSystemPrompt(contextStr + recentNotesSection, companyContext, false),
     messages: [
       ...historySlice,
-      { role: 'user' as const, content: `Sources disponibles :\n\n${contextStr}${recentNotesSection}\n\n---\n\nQuestion : ${query}` },
+      { role: 'user' as const, content: query },
     ],
   })
 
