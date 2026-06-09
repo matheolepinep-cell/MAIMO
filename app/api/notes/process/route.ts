@@ -75,7 +75,10 @@ Règles STRICTES :
 - Si le message ne contient QUE des instructions (créer, ajouter, mettre...) sans info factuelle → PAS de create_note
 - Ne jamais mettre les instructions dans le contenu d'une note
 - Une note = uniquement des faits, jamais des commandes
-- company_name dans create_contact doit correspondre exactement à une entreprise existante ou à une entreprise créée dans la même réponse`
+- company_name dans create_contact doit correspondre exactement à une entreprise existante ou à une entreprise créée dans la même réponse
+
+RÈGLE ABSOLUE : chaque action create_note ET create_contact DOIT avoir un company_name renseigné (chaîne non vide). Si aucune entreprise n'est explicitement mentionnée, déduis-la depuis le contexte (nom de personne, secteur, indice dans la conversation). Si vraiment impossible à déduire, génère une action create_company avec le nom le plus probable extrait du texte, même partiel, et utilise ce nom dans company_name.
+Il est INTERDIT de retourner une action create_note ou create_contact avec un company_name vide ou absent.`
 
   try {
     const message = await anthropic.messages.create({

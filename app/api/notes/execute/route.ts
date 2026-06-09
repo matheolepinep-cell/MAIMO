@@ -52,6 +52,38 @@ export async function POST(request: Request) {
     return null
   }
 
+  const addToPortfolio = async (accountId: string) => {
+    const payload: Record<string, unknown> = {
+      user_id: user.id,
+      account_id: accountId,
+      company_id: user.company_id,
+      visibility: 'private',
+      workspace_id: workspaceId ?? null,
+    }
+    const { data: existing } = await supabase.from('portfolio').select('id').eq('user_id', user.id).eq('account_id', accountId).maybeSingle()
+    if (!existing) await supabase.from('portfolio').insert(payload)
+  }
+
+  // Auto-create an account when company_name is known but not found in workspace
+  const autoCreateAccount = async (name: string): Promise<{ id: string; name: string } | null> => {
+    const payload: Record<string, unknown> = {
+      company_id: user.company_id,
+      name: name.trim(),
+      status: 'prospect',
+      created_by: user.id,
+    }
+    if (workspaceId) payload.workspace_id = workspaceId
+    const { data: created } = await supabase.from('accounts').insert(payload).select().single()
+    if (!created) return null
+    const c = created as { id: string; name: string }
+    allAccounts.push(c)
+    results.push({ type: 'create_company', companyId: c.id, companyName: c.name, created: true })
+    summary.push(`Fiche ${c.name} créée`)
+    resolvedCompanies[normalizeText(c.name)] = { id: c.id, name: c.name, created: true }
+    await addToPortfolio(c.id)
+    return c
+  }
+
   const resolvedCompanies: Record<string, ResolvedCompany> = {}
   const results: Record<string, unknown>[] = []
   const summary: string[] = []
@@ -89,6 +121,8 @@ export async function POST(request: Request) {
           summary.push(`Fiche ${c.name} créée`)
           allAccounts.push(c)
 
+          await addToPortfolio(c.id)
+
           if (action.city) {
             geocodeCity(action.city).then((coords) => {
               if (coords) supabase.from('accounts').update({ lat: coords.lat, lng: coords.lng }).eq('id', c.id).then(() => {})
@@ -113,7 +147,13 @@ export async function POST(request: Request) {
           accountId = resolvedCompanies[normName].id
         } else {
           const found = findAccount(contactCompanyName)
-          if (found) accountId = found.id
+          if (found) {
+            accountId = found.id
+          } else {
+            // Company not found → auto-create it
+            const autoCreated = await autoCreateAccount(contactCompanyName)
+            if (autoCreated) accountId = autoCreated.id
+          }
         }
       }
 
@@ -164,7 +204,14 @@ export async function POST(request: Request) {
           accountName = resolvedCompanies[normName].name
         } else {
           const found = findAccount(noteCompanyName)
-          if (found) { accountId = found.id; accountName = found.name }
+          if (found) {
+            accountId = found.id
+            accountName = found.name
+          } else {
+            // Company not found → auto-create it
+            const autoCreated = await autoCreateAccount(noteCompanyName)
+            if (autoCreated) { accountId = autoCreated.id; accountName = autoCreated.name }
+          }
         }
       }
 
