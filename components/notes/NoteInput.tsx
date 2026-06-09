@@ -1,260 +1,186 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { Mic, MicOff, Send, Save, Type, AlertTriangle, Copy } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Mic, MicOff, Send, Save, Type, Building2, UserPlus, FileText, Info, CheckCircle2 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
-import { Button } from '@/components/ui/Button'
-import { detectConflicts, type ConflictResult } from '@/lib/conflicts'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
+
+export interface ExecuteResult {
+  type: 'create_company' | 'create_contact' | 'create_note'
+  created: boolean
+  companyId?: string
+  companyName?: string
+  contactName?: string
+  noteId?: string
+  accountId?: string | null
+}
 
 interface NoteInputProps {
-  clientId: string
-  onNoteSaved: () => void
-  companyName?: string
+  accountId: string
+  accountName?: string
+  onSuccess?: (results: ExecuteResult[]) => void
 }
+
+type Phase = 'input' | 'analyzing' | 'executing' | 'done'
 
 declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition
-    webkitSpeechRecognition: typeof SpeechRecognition
-  }
+  interface Window { SpeechRecognition: typeof SpeechRecognition; webkitSpeechRecognition: typeof SpeechRecognition }
 }
 
-export function NoteInput({ clientId, onNoteSaved, companyName }: NoteInputProps) {
+function ResultIcon({ type, created }: { type: string; created: boolean }) {
+  if (!created) return <Info className="w-4 h-4 shrink-0" style={{ color: '#8899BB' }} />
+  if (type === 'create_company') return <Building2 className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
+  if (type === 'create_contact') return <UserPlus className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
+  return <FileText className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
+}
+
+export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps) {
+  const router = useRouter()
   const { profile } = useUser()
+  const { wsId } = useWorkspace()
+
   const [mode, setMode] = useState<'text' | 'vocal'>('text')
-  const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [recording, setRecording] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [checking, setChecking] = useState(false)
-  const [saveError, setSaveError] = useState('')
-  const [conflictResult, setConflictResult] = useState<ConflictResult | null>(null)
-  const [pendingContent, setPendingContent] = useState<string | null>(null)
-  const [pendingSource, setPendingSource] = useState<'text' | 'vocal' | null>(null)
+  const [phase, setPhase] = useState<Phase>('input')
+  const [summary, setSummary] = useState<string[]>([])
+  const [results, setResults] = useState<ExecuteResult[]>([])
   const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const forceSaveRef = useRef(false)
 
-  const doSave = useCallback(async (content: string, source: 'text' | 'vocal') => {
-    if (!content.trim()) return
-    setSaveError('')
-    setSaving(true)
-    setConflictResult(null)
-    setPendingContent(null)
-    setPendingSource(null)
+  const handleSave = useCallback(async (inputText: string, inputMode: 'text' | 'vocal') => {
+    if (!inputText.trim() || !profile) return
+    setPhase('analyzing')
 
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const finalTitle = title.trim() ||
-      `Note du ${new Date().toLocaleDateString('fr-FR')}${companyName ? ` — ${companyName}` : ''}`
-
-    const { data: note, error } = await supabase
-      .from('notes')
-      .insert({
-        account_id: clientId,
-        company_id: profile?.company_id ?? null,
-        user_id: profile?.id ?? user?.id ?? null,
-        title: finalTitle,
-        content: content.trim(),
-        source,
-        is_deleted: false,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      setSaveError(error.message)
-    } else if (note) {
-      setTitle('')
-      setText('')
-      fetch('/api/index-note', {
+    try {
+      const processRes = await fetch('/api/notes/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          note_id: note.id,
-          content: note.content,
-          account_id: clientId,
-          company_id: profile?.company_id ?? null,
-        }),
-      }).catch(console.error)
-      onNoteSaved()
+        body: JSON.stringify({ text: inputText, workspaceId: wsId, userId: profile.id, companyId: accountId }),
+      })
+      const { actions } = await processRes.json()
+
+      setPhase('executing')
+
+      const executeRes = await fetch('/api/notes/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actions, workspaceId: wsId, userId: profile.id, companyId: accountId, source: inputMode }),
+      })
+      const { results: execResults, summary: execSummary } = await executeRes.json()
+
+      setSummary(execSummary ?? [])
+      setResults(execResults ?? [])
+      setPhase('done')
+      onSuccess?.(execResults ?? [])
+    } catch {
+      setPhase('input')
     }
-
-    setSaving(false)
-  }, [profile, clientId, title, companyName, onNoteSaved])
-
-  const saveNote = useCallback(async (content: string, source: 'text' | 'vocal') => {
-    if (!content.trim()) return
-
-    if (forceSaveRef.current) {
-      forceSaveRef.current = false
-      await doSave(content, source)
-      return
-    }
-
-    setChecking(true)
-    const result = await detectConflicts(clientId, content)
-    setChecking(false)
-
-    if (result.hasConflict || result.hasDuplicate) {
-      setConflictResult(result)
-      setPendingContent(content)
-      setPendingSource(source)
-      return
-    }
-
-    await doSave(content, source)
-  }, [clientId, doSave])
-
-  const handleForceSave = () => {
-    if (!pendingContent || !pendingSource) return
-    forceSaveRef.current = true
-    saveNote(pendingContent, pendingSource)
-  }
-
-  const handleCancelConflict = () => {
-    setConflictResult(null)
-    setPendingContent(null)
-    setPendingSource(null)
-  }
+  }, [profile, wsId, accountId, onSuccess])
 
   const startRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SR) {
-      alert("La reconnaissance vocale n'est pas supportée par ce navigateur.")
-      return
+    if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return }
+    const r = new SR(); r.lang = 'fr-FR'; r.continuous = true; r.interimResults = true
+    r.onresult = (e: SpeechRecognitionEvent) => {
+      let t = ''; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript
+      setText(t)
     }
-
-    const recognition = new SR()
-    recognition.lang = 'fr-FR'
-    recognition.continuous = true
-    recognition.interimResults = true
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let transcript = ''
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript
-      }
-      setText(transcript)
-    }
-
-    recognition.onerror = () => setRecording(false)
-    recognition.onend = () => setRecording(false)
-
-    recognitionRef.current = recognition
-    recognition.start()
-    setRecording(true)
-    setMode('vocal')
+    r.onerror = () => setRecording(false)
+    r.onend = () => setRecording(false)
+    recognitionRef.current = r; r.start(); setRecording(true); setMode('vocal')
   }, [])
 
-  const stopRecording = useCallback(() => {
-    recognitionRef.current?.stop()
-    setRecording(false)
-    // do not auto-save — let the user click "Enregistrer"
-  }, [])
+  const stopRecording = useCallback(() => { recognitionRef.current?.stop(); setRecording(false) }, [])
 
-  const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (text.trim()) saveNote(text, 'text')
-  }
+  const handleReset = () => { setText(''); setPhase('input'); setSummary([]); setResults([]) }
 
-  const ConflictBanner = () => {
-    if (!conflictResult) return null
-    const first = conflictResult.conflicts[0]
-    const isContradiction = conflictResult.hasConflict
+  const createdCompany = results.find((r) => r.type === 'create_company')
+
+  /* ── Done state ── */
+  if (phase === 'done') {
     return (
-      <div className="rounded-xl border px-4 py-3 space-y-2" style={{ background: '#FEF9C3', borderColor: '#EAB308' }}>
-        <div className="flex items-start gap-2">
-          {isContradiction
-            ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />
-            : <Copy className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />}
-          <p className="text-xs text-[#713F12] leading-relaxed">
-            {isContradiction && first
-              ? <>Information contradictoire détectée : <span className="font-medium">"{first.existingInfo}"</span> → <span className="font-medium">"{first.newInfo}"</span></>
-              : "Cette information existe déjà dans une note précédente."}
-          </p>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-7 h-7" style={{ color: '#22C55E' }} />
+          <p className="font-semibold text-[#1E293B]">Actions effectuées</p>
         </div>
-        <div className="flex gap-2">
+        <div className="space-y-2.5">
+          {results.length === 0 ? (
+            <p className="text-sm text-[#94A3B8]">Aucune action détectée.</p>
+          ) : results.map((r, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm text-[#334155]">
+              <ResultIcon type={r.type} created={r.created} />
+              <span>{summary[i] ?? ''}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 pt-1">
+          {createdCompany?.companyId && (
+            <button
+              onClick={() => router.push(`/app/accounts/${createdCompany.companyId}`)}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+              style={{ background: '#1E2761' }}
+            >
+              Voir la fiche →
+            </button>
+          )}
           <button
-            onClick={handleForceSave}
-            className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
-            style={{ background: '#EAB308' }}
+            onClick={handleReset}
+            className={clsx(
+              'py-2.5 rounded-xl text-sm font-semibold transition-all',
+              createdCompany?.companyId
+                ? 'flex-1 border border-gray-200 text-[#64748B] hover:bg-gray-50'
+                : 'w-full text-[#1E2761]'
+            )}
+            style={createdCompany?.companyId ? {} : { background: '#EEF2FF' }}
           >
-            Sauvegarder quand même
-          </button>
-          <button
-            onClick={handleCancelConflict}
-            className="flex-1 py-1.5 rounded-lg text-xs font-semibold border bg-white"
-            style={{ color: '#713F12', borderColor: '#EAB308' }}
-          >
-            Annuler
+            Nouvelle note
           </button>
         </div>
       </div>
     )
   }
 
+  /* ── Loading state ── */
+  if (phase === 'analyzing' || phase === 'executing') {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+        <span className="w-5 h-5 border-2 border-[#1E2761] border-t-transparent rounded-full animate-spin shrink-0" />
+        <p className="text-sm text-[#64748B]">
+          {phase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}
+        </p>
+      </div>
+    )
+  }
+
+  /* ── Input state ── */
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
       <div className="flex gap-2 mb-3">
-        <button
-          onClick={() => setMode('text')}
-          className={clsx(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
-            mode === 'text' ? 'bg-[#1E2761] text-white' : 'text-[#64748B] hover:bg-gray-100'
-          )}
-        >
-          <Type className="w-3.5 h-3.5" />
-          Texte
-        </button>
-        <button
-          onClick={() => setMode('vocal')}
-          className={clsx(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
-            mode === 'vocal' ? 'bg-[#1E2761] text-white' : 'text-[#64748B] hover:bg-gray-100'
-          )}
-        >
-          <Mic className="w-3.5 h-3.5" />
-          Vocal
-        </button>
+        {(['text', 'vocal'] as const).map((m) => (
+          <button key={m} onClick={() => setMode(m)}
+            className={clsx(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+              mode === m ? 'bg-[#1E2761] text-white' : 'text-[#64748B] hover:bg-gray-100'
+            )}>
+            {m === 'text' ? <><Type className="w-3.5 h-3.5" />Texte</> : <><Mic className="w-3.5 h-3.5" />Vocal</>}
+          </button>
+        ))}
       </div>
 
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Titre (optionnel — généré automatiquement si vide)"
-        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150 mb-3"
-      />
-
       {mode === 'text' ? (
-        <form onSubmit={handleTextSubmit} className="space-y-3">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Saisir une note..."
+        <form onSubmit={(e) => { e.preventDefault(); handleSave(text, 'text') }} className="space-y-3">
+          <textarea value={text} onChange={(e) => setText(e.target.value)}
+            placeholder="Saisir une note ou une instruction…"
             rows={3}
-            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150"
-          />
-          {saveError && (
-            <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{saveError}</p>
-          )}
-          {checking && (
-            <p className="text-xs text-[#64748B] flex items-center gap-1.5">
-              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Analyse en cours…
-            </p>
-          )}
-          {conflictResult ? (
-            <ConflictBanner />
-          ) : (
-            <Button type="submit" loading={saving || checking} disabled={!text.trim()} className="w-full" size="sm">
-              <Send className="w-3.5 h-3.5 mr-1.5" />
-              Enregistrer
-            </Button>
-          )}
+            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150" />
+          <button type="submit" disabled={!text.trim()}
+            className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+            style={{ background: '#1E2761' }}>
+            <Send className="w-3.5 h-3.5" />Enregistrer
+          </button>
         </form>
       ) : (
         <div className="space-y-3">
@@ -264,49 +190,22 @@ export function NoteInput({ clientId, onNoteSaved, companyName }: NoteInputProps
               {recording && <span className="inline-block w-2 h-4 bg-red-500 ml-1 animate-pulse rounded-sm" />}
             </div>
           )}
-          <div className="flex gap-2">
-            {!recording ? (
-              <button
-                onClick={startRecording}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 transition-all duration-150"
-              >
-                <Mic className="w-5 h-5" />
-                Démarrer l&apos;enregistrement
-              </button>
-            ) : (
-              <button
-                onClick={stopRecording}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition-all duration-150 animate-pulse"
-              >
-                <MicOff className="w-5 h-5" />
-                Arrêter l&apos;enregistrement
-              </button>
-            )}
-          </div>
-          {saveError && (
-            <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{saveError}</p>
+          {!recording ? (
+            <button onClick={startRecording}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 transition-all duration-150">
+              <Mic className="w-5 h-5" />Démarrer l&apos;enregistrement
+            </button>
+          ) : (
+            <button onClick={stopRecording}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 animate-pulse">
+              <MicOff className="w-5 h-5" />Arrêter l&apos;enregistrement
+            </button>
           )}
-          {checking && (
-            <p className="text-xs text-[#64748B] flex items-center gap-1.5">
-              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Analyse en cours…
-            </p>
-          )}
-          {conflictResult ? (
-            <ConflictBanner />
-          ) : text && !recording && (
-            <button
-              onClick={() => {
-                saveNote(text, 'vocal')
-              }}
-              disabled={saving || checking}
-              className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all disabled:opacity-50"
-              style={{ background: '#1E2761', borderRadius: 10, height: 44 }}
-            >
-              {saving || checking
-                ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : <Save className="w-4 h-4" />
-              }
+          {text.trim() && !recording && (
+            <button onClick={() => handleSave(text, 'vocal')}
+              className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all"
+              style={{ background: '#1E2761', borderRadius: 10, height: 44 }}>
+              <Save className="w-4 h-4" />
               Enregistrer la note
             </button>
           )}

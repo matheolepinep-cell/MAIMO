@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, Check, Maximize2, AlertTriangle } from 'lucide-react'
-import { CityInput } from '@/components/ui/CityInput'
+import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, Maximize2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
@@ -79,24 +78,11 @@ export default function DashboardPage() {
   const [noteModalOpen, setNoteModalOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [noteRecording, setNoteRecording] = useState(false)
-  const [noteSaving, setNoteSaving] = useState(false)
+  const [notePhase, setNotePhase] = useState<'input' | 'analyzing' | 'executing' | 'done'>('input')
+  const [noteSummary, setNoteSummary] = useState<string[]>([])
+  const [noteResults, setNoteResults] = useState<{ type: string; created: boolean; companyId?: string; companyName?: string }[]>([])
   const [noteToast, setNoteToast] = useState('')
-  const [detectedAccount, setDetectedAccount] = useState<{ id: string; name: string } | null>(null)
-  const [detectingAccount, setDetectingAccount] = useState(false)
-  const [detectedRawName, setDetectedRawName] = useState<string | null>(null)
-  const [noMatchFound, setNoMatchFound] = useState(false)
-  const [noteCreationMode, setNoteCreationMode] = useState<'none' | 'create' | 'select'>('none')
-  const [accountQuery, setAccountQuery] = useState('')
-  const [accountResults, setAccountResults] = useState<{ id: string; name: string }[]>([])
-  const [newAccName, setNewAccName] = useState('')
-  const [newAccCity, setNewAccCity] = useState('')
-  const [newAccCityLat, setNewAccCityLat] = useState<number | undefined>()
-  const [newAccCityLng, setNewAccCityLng] = useState<number | undefined>()
-  const [newAccSector, setNewAccSector] = useState('')
-  const [newAccStatus, setNewAccStatus] = useState<'client' | 'prospect'>('prospect')
-  const [creatingAcc, setCreatingAcc] = useState(false)
   const noteRecognitionRef = useRef<SpeechRecognition | null>(null)
-  const detectDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /* desktop state */
   const [stats, setStats] = useState<Stats>({ accounts: 0, notes: 0, docs: 0, team: 0, notesWeek: 0, accountsWeek: 0 })
@@ -249,193 +235,57 @@ export default function DashboardPage() {
     return () => clearTimeout(timer)
   }, [clientQuery, profile, wsId])
 
-  const detectCompanyFromText = useCallback(async (text: string) => {
-    if (!text.trim()) {
-      setDetectedAccount(null); setDetectedRawName(null); setNoMatchFound(false); setNoteCreationMode('none')
-      return
-    }
-    if (text.trim().split(/\s+/).length < 4) {
-      setDetectedAccount(null); setDetectedRawName(null); setNoMatchFound(false)
-      return
-    }
-    setDetectingAccount(true)
-    try {
-      const res = await fetch('/api/detect-company-from-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      })
-      const data = await res.json()
-      if (data.account_id) {
-        setDetectedAccount({ id: data.account_id, name: data.account_name })
-        setNoMatchFound(false); setDetectedRawName(null); setNoteCreationMode('none')
-      } else {
-        setDetectedAccount(null)
-        setNoMatchFound(true)
-        const rawName: string | null = data.detected_name ?? null
-        setDetectedRawName(rawName)
-        if (rawName) setNewAccName((prev) => prev || rawName)
-      }
-    } catch { /* ignore */ } finally {
-      setDetectingAccount(false)
-    }
-  }, [])
-
-  const handleNoteTextChange = (val: string) => {
-    setNoteText(val)
-    if (detectDebounceRef.current) clearTimeout(detectDebounceRef.current)
-    detectDebounceRef.current = setTimeout(() => detectCompanyFromText(val), 500)
-  }
-
   const handleNoteRecordStart = () => {
     const SR = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
       || (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
     if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return }
     const rec = new SR()
-    rec.lang = 'fr-FR'
-    rec.continuous = true
-    rec.interimResults = true
+    rec.lang = 'fr-FR'; rec.continuous = true; rec.interimResults = true
     rec.onresult = (event: SpeechRecognitionEvent) => {
-      let t = ''
-      for (let i = 0; i < event.results.length; i++) t += event.results[i][0].transcript
+      let t = ''; for (let i = 0; i < event.results.length; i++) t += event.results[i][0].transcript
       setNoteText(t)
-      if (detectDebounceRef.current) clearTimeout(detectDebounceRef.current)
-      detectDebounceRef.current = setTimeout(() => detectCompanyFromText(t), 500)
     }
     rec.onerror = () => setNoteRecording(false)
     rec.onend = () => setNoteRecording(false)
-    noteRecognitionRef.current = rec
-    rec.start()
-    setNoteRecording(true)
+    noteRecognitionRef.current = rec; rec.start(); setNoteRecording(true)
   }
 
-  const handleNoteRecordStop = () => {
-    noteRecognitionRef.current?.stop()
-    setNoteRecording(false)
-  }
+  const handleNoteRecordStop = () => { noteRecognitionRef.current?.stop(); setNoteRecording(false) }
 
   const handleNoteSave = async () => {
     if (!noteText.trim() || !profile) return
-    setNoteSaving(true)
-    const supabase = createClient()
-    const today = new Date().toLocaleDateString('fr-FR')
-    const clientLabel = detectedAccount?.name ?? 'Sans client'
-    const title = `Note du ${today} — ${clientLabel}`
+    setNotePhase('analyzing')
 
-    const { data: note, error } = await supabase
-      .from('notes')
-      .insert({
-        account_id: detectedAccount?.id ?? null,
-        company_id: profile.company_id,
-        user_id: profile.id,
-        title,
-        content: noteText.trim(),
-        source: noteRecording ? 'vocal' : 'text',
-        is_deleted: false,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      setNoteSaving(false)
-      return
-    }
-
-    if (note) {
-      fetch('/api/index-note', {
+    try {
+      const processRes = await fetch('/api/notes/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          note_id: note.id,
-          content: note.content,
-          account_id: detectedAccount?.id ?? null,
-          company_id: profile.company_id,
-        }),
-      }).catch(console.error)
+        body: JSON.stringify({ text: noteText, workspaceId: wsId, userId: profile.id }),
+      })
+      const { actions } = await processRes.json()
 
-      setStats((prev) => ({ ...prev, notes: prev.notes + 1 }))
-      setNoteText(''); setDetectedAccount(null); setNoMatchFound(false)
-      setDetectedRawName(null); setNoteCreationMode('none')
-      setNewAccName(''); setNewAccCity(''); setNewAccCityLat(undefined)
-      setNewAccCityLng(undefined); setNewAccSector(''); setNewAccStatus('prospect')
-      setNoteModalOpen(false)
-      setNoteToast('Note enregistrée')
-      setTimeout(() => setNoteToast(''), 3000)
+      setNotePhase('executing')
+
+      const executeRes = await fetch('/api/notes/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actions, workspaceId: wsId, userId: profile.id, source: noteRecording ? 'vocal' : 'text' }),
+      })
+      const { results: execResults, summary: execSummary } = await executeRes.json()
+
+      setNoteResults(execResults ?? [])
+      setNoteSummary(execSummary ?? [])
+      setNotePhase('done')
+      setStats((prev) => ({ ...prev, notes: prev.notes + (execResults ?? []).filter((r: { type: string }) => r.type === 'create_note').length }))
+    } catch {
+      setNotePhase('input')
     }
-    setNoteSaving(false)
   }
 
-  const handleCreateAndAssociate = async () => {
-    if (!newAccName.trim() || !profile) return
-    setCreatingAcc(true)
-    const supabase = createClient()
-
-    // Dedup by name
-    const { data: existing } = await supabase
-      .from('accounts').select('id, name')
-      .eq('company_id', profile.company_id)
-      .ilike('name', newAccName.trim())
-      .maybeSingle()
-
-    let accountId: string
-    let accountName: string
-
-    if (existing) {
-      accountId = (existing as { id: string }).id
-      accountName = (existing as { name: string }).name
-    } else {
-      const payload: Record<string, unknown> = {
-        company_id: profile.company_id,
-        name: newAccName.trim(),
-        status: newAccStatus,
-        created_by: profile.id,
-      }
-      if (wsId) payload.workspace_id = wsId
-      if (newAccCity.trim()) payload.city = newAccCity.trim()
-      if (newAccSector.trim()) payload.industry = newAccSector.trim()
-      if (newAccCityLat && newAccCityLng) { payload.lat = newAccCityLat; payload.lng = newAccCityLng }
-
-      const { data: created, error } = await supabase
-        .from('accounts').insert(payload).select().single()
-
-      if (error || !created) { setCreatingAcc(false); return }
-      accountId = (created as { id: string }).id
-      accountName = (created as { name: string }).name
-
-      // Geocode in background if city but no coords yet
-      if (newAccCity.trim() && !newAccCityLat) {
-        fetch('/api/geocode', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ city: newAccCity.trim() }),
-        }).then(async (r) => {
-          const coords = await r.json()
-          if (coords?.lat) supabase.from('accounts').update({ lat: coords.lat, lng: coords.lng }).eq('id', accountId)
-        }).catch(() => {})
-      }
-    }
-
-    setDetectedAccount({ id: accountId, name: accountName })
-    setNoteCreationMode('none'); setNoMatchFound(false)
-    setNewAccName(''); setNewAccCity(''); setNewAccCityLat(undefined); setNewAccCityLng(undefined)
-    setNewAccSector(''); setNewAccStatus('prospect')
-    setCreatingAcc(false)
+  const handleNoteReset = () => {
+    setNoteText(''); setNotePhase('input'); setNoteSummary([]); setNoteResults([])
+    setNoteRecording(false); noteRecognitionRef.current?.stop()
   }
-
-  useEffect(() => {
-    if (!accountQuery.trim() || !profile?.company_id) { setAccountResults([]); return }
-    const timer = setTimeout(async () => {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('accounts')
-        .select('id, name')
-        .eq('company_id', profile.company_id)
-        .ilike('name', `%${accountQuery.trim()}%`)
-        .order('name')
-        .limit(7)
-      setAccountResults(data ?? [])
-    }, 200)
-    return () => clearTimeout(timer)
-  }, [accountQuery, profile])
 
   const firstName = profile?.full_name?.split(' ')[0] ?? ''
   const clientSearchBox = (
@@ -593,13 +443,7 @@ export default function DashboardPage() {
                   </div>
                 </button>
                 <button
-                  onClick={() => {
-                  setNoteText(''); setDetectedAccount(null); setNoMatchFound(false)
-                  setDetectedRawName(null); setNoteCreationMode('none')
-                  setNewAccName(''); setNewAccCity(''); setNewAccCityLat(undefined)
-                  setNewAccCityLng(undefined); setNewAccSector(''); setNewAccStatus('prospect')
-                  setNoteModalOpen(true)
-                }}
+                  onClick={() => { handleNoteReset(); setNoteModalOpen(true) }}
                   className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
                   style={{ background: '#fff', borderRadius: 12, padding: 14, border: '0.5px solid #C5D0F0' }}
                 >
@@ -869,163 +713,90 @@ export default function DashboardPage() {
 
       {/* Nouvelle note modal */}
       <Modal open={noteModalOpen} onClose={() => { setNoteModalOpen(false); handleNoteRecordStop() }} title="Nouvelle note">
-        <div className="space-y-3">
-          <div className="relative">
-            <textarea
-              autoFocus
-              value={noteText}
-              onChange={(e) => handleNoteTextChange(e.target.value)}
-              placeholder="Saisir une note..."
-              rows={5}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150 pr-10"
-            />
-            <button
-              type="button"
-              onClick={noteRecording ? handleNoteRecordStop : handleNoteRecordStart}
-              className="absolute right-2 bottom-2 p-2 rounded-lg transition-all duration-150"
-              style={noteRecording
-                ? { background: '#EF4444', color: '#fff' }
-                : { background: '#F1F5F9', color: '#64748B' }}
-            >
-              {noteRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
-          </div>
-
-          {/* Detection area */}
-          <div className="space-y-2">
-            {detectingAccount && (
-              <span className="text-xs text-[#64748B] flex items-center gap-1">
-                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                Détection en cours…
+        {notePhase === 'done' ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 flex items-center justify-center rounded-full shrink-0" style={{ background: 'rgba(34,197,94,0.1)' }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="#22C55E" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
               </span>
-            )}
-
-            {!detectingAccount && detectedAccount && noteCreationMode !== 'select' && (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                  style={{ background: '#22C55E' }}>
-                  {detectedAccount.name.split(' ').slice(0, 2).map((w: string) => w[0] ?? '').join('').toUpperCase().slice(0, 2)}
+              <p className="font-semibold text-[#1E293B]">Actions effectuées</p>
+            </div>
+            <div className="space-y-2.5">
+              {noteResults.length === 0 ? (
+                <p className="text-sm text-[#94A3B8]">Aucune action détectée.</p>
+              ) : noteResults.map((r, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm text-[#334155]">
+                  {!r.created
+                    ? <svg className="w-4 h-4 shrink-0 text-[#8899BB]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4m0 4h.01" /></svg>
+                    : r.type === 'create_company'
+                      ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#4C6EF5" strokeWidth={2}><path strokeLinecap="round" d="M3 21h18M9 21V7l6-4v18M9 9H3v12M15 9h6v12" /></svg>
+                      : r.type === 'create_contact'
+                        ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#4C6EF5" strokeWidth={2}><path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" d="M20 8v6m3-3h-6" /></svg>
+                        : <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#4C6EF5" strokeWidth={2}><path strokeLinecap="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  }
+                  <span>{noteSummary[i] ?? ''}</span>
                 </div>
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
-                  style={{ background: 'rgba(34,197,94,0.1)', color: '#15803D' }}>
-                  <Check className="w-3 h-3" />
-                  {detectedAccount.name}
-                </span>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-1">
+              {noteResults.find((r) => r.type === 'create_company' && r.companyId)?.companyId && (
                 <button
-                  onClick={() => { setDetectedAccount(null); setNoteCreationMode('select'); setAccountQuery('') }}
-                  className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors">
-                  Changer
+                  onClick={() => { setNoteModalOpen(false); router.push(`/app/accounts/${noteResults.find((r) => r.type === 'create_company')?.companyId}`) }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
+                  style={{ background: '#1E2761' }}
+                >
+                  Voir la fiche →
                 </button>
-              </div>
-            )}
-
-            {!detectingAccount && !detectedAccount && noMatchFound && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
-                  style={{ background: '#FFF7ED', border: '0.5px solid #F59E0B' }}>
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span style={{ color: '#92400E' }}>Aucun client correspondant trouvé dans votre portefeuille</span>
-                </div>
-
-                {noteCreationMode === 'none' && (
-                  <div className="flex flex-col gap-1.5 pl-1">
-                    <button
-                      onClick={() => { setNoteCreationMode('create'); if (detectedRawName && !newAccName) setNewAccName(detectedRawName) }}
-                      className="text-left text-xs font-semibold text-[#1E2761] hover:text-[#4C6EF5] transition-colors">
-                      + Créer une fiche{detectedRawName ? ` pour "${detectedRawName}"` : ''}
-                    </button>
-                    <button
-                      onClick={() => { setNoteCreationMode('select'); setAccountQuery('') }}
-                      className="text-left text-xs text-[#64748B] hover:text-[#1E2761] transition-colors">
-                      Associer à un client existant
-                    </button>
-                    <button
-                      onClick={() => setNoMatchFound(false)}
-                      className="text-left text-xs text-[#94A3B8] hover:text-[#64748B] transition-colors">
-                      Enregistrer sans associer à un client
-                    </button>
-                  </div>
-                )}
-
-                {noteCreationMode === 'create' && (
-                  <div className="rounded-xl p-3 space-y-2" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                    <input type="text" value={newAccName} onChange={(e) => setNewAccName(e.target.value)}
-                      placeholder="Nom de l'entreprise"
-                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all" />
-                    <CityInput value={newAccCity}
-                      onChange={(city, lat, lng) => { setNewAccCity(city); if (lat !== undefined) setNewAccCityLat(lat); if (lng !== undefined) setNewAccCityLng(lng) }}
-                      placeholder="Ville" />
-                    <input type="text" value={newAccSector} onChange={(e) => setNewAccSector(e.target.value)}
-                      placeholder="Secteur (facultatif)"
-                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all" />
-                    <div className="flex gap-2">
-                      {(['prospect', 'client'] as const).map((s) => (
-                        <button key={s} type="button" onClick={() => setNewAccStatus(s)}
-                          className="px-3 py-1 rounded-full text-xs font-medium transition-all"
-                          style={newAccStatus === s ? { background: '#1E2761', color: '#fff' } : { background: '#F1F5F9', color: '#64748B' }}>
-                          {s === 'client' ? 'Client' : 'Prospect'}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={handleCreateAndAssociate} disabled={!newAccName.trim() || creatingAcc}
-                        className="flex-1 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40 transition-all"
-                        style={{ background: '#1E2761' }}>
-                        {creatingAcc ? 'Création…' : 'Créer et associer'}
-                      </button>
-                      <button type="button" onClick={() => setNoteCreationMode('none')}
-                        className="px-3 py-2 rounded-xl text-xs text-[#64748B] hover:text-[#1E2761] transition-colors">
-                        Annuler
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {noteCreationMode === 'select' && (
-              <div className="relative">
-                <input autoFocus type="text" placeholder="Rechercher une entreprise..."
-                  value={accountQuery} onChange={(e) => setAccountQuery(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" />
-                {accountResults.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden">
-                    {accountResults.map((acc) => (
-                      <button key={acc.id}
-                        onClick={() => { setDetectedAccount(acc); setNoteCreationMode('none'); setAccountQuery(''); setNoMatchFound(false) }}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-[#F0F4FF] transition-colors">
-                        {acc.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button onClick={() => { setNoteCreationMode('none'); setAccountQuery('') }}
-                  className="mt-1 text-xs text-[#64748B] hover:text-[#1E2761] underline">
-                  Annuler
-                </button>
-              </div>
-            )}
-
-            {!detectingAccount && !detectedAccount && !noMatchFound && noteCreationMode === 'none' && noteText.trim() && (
-              <button onClick={() => { setNoteCreationMode('select'); setAccountQuery('') }}
-                className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors">
-                + Associer à un client
+              )}
+              <button
+                onClick={() => { handleNoteReset() }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-[#64748B] hover:bg-gray-50 transition-all"
+              >
+                Nouvelle note
               </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {(notePhase === 'analyzing' || notePhase === 'executing') ? (
+              <div className="flex items-center gap-3 py-4">
+                <span className="w-5 h-5 border-2 border-[#1E2761] border-t-transparent rounded-full animate-spin shrink-0" />
+                <p className="text-sm text-[#64748B]">
+                  {notePhase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <textarea
+                    autoFocus
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Saisir une note ou une instruction…"
+                    rows={5}
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={noteRecording ? handleNoteRecordStop : handleNoteRecordStart}
+                    className="absolute right-2 bottom-2 p-2 rounded-lg transition-all duration-150"
+                    style={noteRecording ? { background: '#EF4444', color: '#fff' } : { background: '#F1F5F9', color: '#64748B' }}
+                  >
+                    {noteRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  onClick={handleNoteSave}
+                  disabled={!noteText.trim()}
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
+                  style={{ background: '#1E2761' }}
+                >
+                  Enregistrer la note
+                </button>
+              </>
             )}
           </div>
-
-          <button
-            onClick={handleNoteSave}
-            disabled={!noteText.trim() || noteSaving}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
-            style={{ background: '#1E2761' }}
-          >
-            {noteSaving
-              ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Enregistrement…</span>
-              : 'Enregistrer la note'
-            }
-          </button>
-        </div>
+        )}
       </Modal>
 
       {/* Fullscreen map modal */}
