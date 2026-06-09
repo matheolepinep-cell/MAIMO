@@ -12,6 +12,7 @@ import { getInitials } from '@/components/ui/CompanyCard'
 import { Modal } from '@/components/ui/Modal'
 import type { MapAccount } from '@/components/AccountsMap'
 import { CompanyProfileBanner } from '@/components/ui/CompanyProfileBanner'
+import { ActionCard, AddActionMenu, toCleanAction, type EditableAction, type EditableCreateCompany } from '@/components/notes/NoteInput'
 
 const AccountsMap = dynamic(() => import('@/components/AccountsMap'), { ssr: false, loading: () => <div className="w-full h-full bg-gray-100 animate-pulse rounded-xl" /> })
 
@@ -78,10 +79,15 @@ export default function DashboardPage() {
   const [noteModalOpen, setNoteModalOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [noteRecording, setNoteRecording] = useState(false)
-  const [notePhase, setNotePhase] = useState<'input' | 'analyzing' | 'executing' | 'done'>('input')
+  const [notePhase, setNotePhase] = useState<'input' | 'analyzing' | 'confirm' | 'executing' | 'done'>('input')
   const [noteSummary, setNoteSummary] = useState<string[]>([])
   const [noteResults, setNoteResults] = useState<{ type: string; created: boolean; companyId?: string; companyName?: string }[]>([])
   const [noteToast, setNoteToast] = useState('')
+  const [noteConfirmActions, setNoteConfirmActions] = useState<EditableAction[]>([])
+  const [noteOriginalText, setNoteOriginalText] = useState('')
+  const [noteSourceMode, setNoteSourceMode] = useState<'text' | 'vocal'>('text')
+  const [noteWsAccounts, setNoteWsAccounts] = useState<{ id: string; name: string }[]>([])
+  const [noteShowAddMenu, setNoteShowAddMenu] = useState(false)
   const noteRecognitionRef = useRef<SpeechRecognition | null>(null)
 
   /* desktop state */
@@ -255,6 +261,8 @@ export default function DashboardPage() {
   const handleNoteSave = async () => {
     if (!noteText.trim() || !profile) return
     setNotePhase('analyzing')
+    setNoteOriginalText(noteText)
+    setNoteSourceMode(noteRecording ? 'vocal' : 'text')
 
     try {
       const processRes = await fetch('/api/notes/process', {
@@ -264,28 +272,77 @@ export default function DashboardPage() {
       })
       const { actions } = await processRes.json()
 
-      setNotePhase('executing')
+      const supabase = createClient()
+      const { data: accs } = await supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).order('name').limit(100)
+      setNoteWsAccounts(accs ?? [])
 
-      const executeRes = await fetch('/api/notes/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actions, workspaceId: wsId, userId: profile.id, source: noteRecording ? 'vocal' : 'text' }),
+      const editable: EditableAction[] = (actions ?? []).map((a: Record<string, string>, i: number) => {
+        const id = `a${i}-${Date.now()}`
+        if (a.type === 'create_company') return { id, type: 'create_company', company_name: a.company_name ?? '', city: a.city ?? '', sector: a.sector ?? '', status: (a.status as 'client' | 'prospect') ?? 'prospect' }
+        if (a.type === 'create_contact') return { id, type: 'create_contact', first_name: a.first_name ?? '', last_name: a.last_name ?? '', position: a.position ?? '', email: a.email ?? '', phone: a.phone ?? '', company_name: a.company_name ?? '' }
+        return { id, type: 'create_note' as const, content: a.content ?? '', company_name: a.company_name ?? '' }
       })
-      const { results: execResults, summary: execSummary } = await executeRes.json()
 
-      setNoteResults(execResults ?? [])
-      setNoteSummary(execSummary ?? [])
-      setNotePhase('done')
-      setStats((prev) => ({ ...prev, notes: prev.notes + (execResults ?? []).filter((r: { type: string }) => r.type === 'create_note').length }))
+      setNoteConfirmActions(editable)
+      setNotePhase('confirm')
     } catch {
       setNotePhase('input')
     }
   }
 
+  const handleNoteExecute = async () => {
+    if (!profile) return
+    setNotePhase('executing')
+    try {
+      const executeRes = await fetch('/api/notes/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actions: noteConfirmActions.map(toCleanAction), workspaceId: wsId, userId: profile.id, source: noteSourceMode }),
+      })
+      const { results: execResults, summary: execSummary } = await executeRes.json()
+      setNoteResults(execResults ?? [])
+      setNoteSummary(execSummary ?? [])
+      setNotePhase('done')
+      setStats((prev) => ({ ...prev, notes: prev.notes + (execResults ?? []).filter((r: { type: string }) => r.type === 'create_note').length }))
+    } catch {
+      setNotePhase('confirm')
+    }
+  }
+
+  const handleNoteCancel = () => {
+    setNoteText(noteOriginalText)
+    setNotePhase('input')
+    setNoteConfirmActions([])
+    setNoteWsAccounts([])
+    setNoteShowAddMenu(false)
+  }
+
+  const updateNoteAction = (id: string, updates: Partial<EditableAction>) => {
+    setNoteConfirmActions((prev) => prev.map((a) => a.id === id ? { ...a, ...updates } as EditableAction : a))
+  }
+
+  const removeNoteAction = (id: string) => {
+    setNoteConfirmActions((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  const addNoteAction = (type: EditableAction['type']) => {
+    const newId = `new-${Date.now()}`
+    if (type === 'create_company') setNoteConfirmActions((p) => [...p, { id: newId, type, company_name: '', city: '', sector: '', status: 'prospect' }])
+    else if (type === 'create_contact') setNoteConfirmActions((p) => [...p, { id: newId, type, first_name: '', last_name: '', position: '', email: '', phone: '', company_name: '' }])
+    else setNoteConfirmActions((p) => [...p, { id: newId, type, content: '', company_name: '' }])
+    setNoteShowAddMenu(false)
+  }
+
   const handleNoteReset = () => {
     setNoteText(''); setNotePhase('input'); setNoteSummary([]); setNoteResults([])
     setNoteRecording(false); noteRecognitionRef.current?.stop()
+    setNoteConfirmActions([]); setNoteOriginalText(''); setNoteWsAccounts([]); setNoteShowAddMenu(false)
   }
+
+  const noteCompaniesForSelect = [
+    ...noteWsAccounts.map((a) => a.name),
+    ...noteConfirmActions.filter((a) => a.type === 'create_company').map((a) => (a as EditableCreateCompany).company_name),
+  ].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i)
 
   const firstName = profile?.full_name?.split(' ')[0] ?? ''
   const clientSearchBox = (
@@ -753,6 +810,34 @@ export default function DashboardPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-[#64748B] hover:bg-gray-50 transition-all"
               >
                 Nouvelle note
+              </button>
+            </div>
+          </div>
+        ) : notePhase === 'confirm' ? (
+          <div className="space-y-4">
+            <div>
+              <p className="text-[15px] font-bold text-[#1E293B]">Vérifier les actions</p>
+              <p className="text-[12px] text-[#8899BB] mt-0.5">L&apos;IA a détecté ces actions — modifiez si nécessaire</p>
+            </div>
+            <div className="space-y-3">
+              {noteConfirmActions.length === 0 && (
+                <p className="text-sm text-[#94A3B8] py-1">Aucune action détectée automatiquement.</p>
+              )}
+              {noteConfirmActions.map((action) => (
+                <ActionCard key={action.id} action={action} companiesForSelect={noteCompaniesForSelect}
+                  onUpdate={updateNoteAction} onRemove={removeNoteAction} />
+              ))}
+              <AddActionMenu show={noteShowAddMenu} onToggle={() => setNoteShowAddMenu((v) => !v)} onAdd={addNoteAction} />
+            </div>
+            <div className="space-y-2 pt-1">
+              <button onClick={handleNoteExecute}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                style={{ background: '#1E2761' }}>
+                Confirmer et enregistrer
+              </button>
+              <button onClick={handleNoteCancel}
+                className="w-full py-1.5 text-xs text-[#94A3B8] hover:text-[#64748B] transition-colors text-center">
+                Annuler
               </button>
             </div>
           </div>
