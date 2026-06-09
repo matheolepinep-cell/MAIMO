@@ -90,7 +90,9 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [recording, setRecording] = useState(false)
   const [savingNote, setSavingNote] = useState(false)
   const [noteError, setNoteError] = useState('')
-  const [vocalFeedback, setVocalFeedback] = useState<string | null>(null)
+  const [notePhase, setNotePhase] = useState<'input' | 'analyzing' | 'executing' | 'done'>('input')
+  const [noteSummary, setNoteSummary] = useState<string[]>([])
+  const [noteActionResults, setNoteActionResults] = useState<{ type: string; created: boolean; companyId?: string; contactId?: string; noteId?: string; contactName?: string; accountId?: string | null }[]>([])
   const [conflictChecking, setConflictChecking] = useState(false)
   const [conflictResult, setConflictResult] = useState<ConflictResult | null>(null)
   const [pendingNote, setPendingNote] = useState<{ content: string; source: 'text' | 'vocal' } | null>(null)
@@ -437,111 +439,50 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     // do not auto-save — let the user click "Enregistrer"
   }, [])
 
-  const saveVocalNote = useCallback(async (transcription: string) => {
+  const processVocalNote = useCallback(async (transcription: string) => {
     if (!transcription.trim() || !profile) return
     setSavingNote(true)
     setNoteError('')
-    setVocalFeedback(null)
-
-    console.log('[VOCAL] transcription brute:', transcription)
+    setNotePhase('analyzing')
 
     try {
-      const res = await fetch('/api/analyze-transcription', {
+      const processRes = await fetch('/api/notes/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcription }),
+        body: JSON.stringify({ text: transcription, workspaceId: wsId, userId: profile.id, companyId: id }),
       })
-      const analysis = await res.json()
+      const { actions } = await processRes.json()
 
-      console.log('[VOCAL] analyse Claude:', analysis)
-      console.log('[VOCAL] actions à exécuter:', analysis.actions)
-      console.log('[VOCAL] note_content final:', analysis.note_content)
+      setNotePhase('executing')
 
-      const supabase = createClient()
-      const feedbackParts: string[] = []
+      const executeRes = await fetch('/api/notes/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actions, workspaceId: wsId, userId: profile.id, companyId: id, source: 'vocal' }),
+      })
+      const { results: execResults, summary: execSummary } = await executeRes.json()
 
-      for (const action of (analysis.actions ?? [])) {
-        if (action.type === 'create_contact') {
-          const { data: newContact } = await supabase.from('contacts').insert({
-            account_id: id,
-            company_id: profile.company_id,
-            first_name: action.data.first_name ?? '',
-            last_name: action.data.last_name ?? '',
-            role: action.data.position ?? null,
-            email: action.data.email ?? null,
-            phone: action.data.phone ?? null,
-          }).select().single()
-          if (newContact) {
-            setContacts((prev) => [...prev, newContact])
-            feedbackParts.push(`Contact ${[action.data.first_name, action.data.last_name].filter(Boolean).join(' ')} ajouté`)
-          }
-        } else if (action.type === 'create_company') {
-          const { data: newAcc } = await supabase.from('accounts').insert({
-            company_id: profile.company_id,
-            name: action.data.company_name ?? 'Nouvelle entreprise',
-            city: action.data.city ?? null,
-            industry: action.data.sector ?? null,
-            status: action.data.status ?? 'prospect',
-            created_by: profile.id,
-          }).select().single()
-          if (newAcc) feedbackParts.push(`Fiche ${newAcc.name} créée`)
-        } else if (action.type === 'update_company' || action.type === 'add_info') {
-          const fieldMap: Record<string, string> = {
-            'téléphone': 'phone', 'telephone': 'phone', 'phone': 'phone',
-            'email': 'email', 'e-mail': 'email', 'mail': 'email',
-            'adresse': 'address', 'address': 'address',
-            'ville': 'city', 'city': 'city',
-            'secteur': 'industry', 'sector': 'industry', 'industrie': 'industry',
-            'siret': 'siret',
-            'site': 'website', 'website': 'website', 'site web': 'website',
-          }
-          const dbField = fieldMap[(action.data.field ?? '').toLowerCase().trim()]
-          if (dbField && action.data.value) {
-            await supabase.from('accounts').update({ [dbField]: action.data.value }).eq('id', id)
-            setAccount((prev) => prev ? { ...prev, [dbField]: action.data.value } : prev)
-            feedbackParts.push(`${action.data.field} mis à jour`)
-          }
-        }
-      }
+      // Refresh contacts if any were created for this account
+      const newContact = (execResults ?? []).find((r: { type: string; accountId?: string | null; created: boolean }) => r.type === 'create_contact' && r.created && r.accountId === id)
+      if (newContact) fetchAll()
 
-      if (analysis.note_content) {
-        const { data: { user } } = await supabase.auth.getUser()
-        const title = noteTitle.trim() || `Note du ${new Date().toLocaleDateString('fr-FR')} — ${account?.name ?? ''}`
-        const { data: note } = await supabase.from('notes').insert({
-          account_id: id,
-          company_id: profile.company_id,
-          user_id: profile.id ?? user?.id ?? null,
-          title,
-          content: analysis.note_content,
-          source: 'vocal' as const,
-          is_deleted: false,
-          workspace_id: wsId ?? null,
-        }).select().single()
-        if (note) {
-          setNotes((prev) => [note, ...prev])
-          fetch('/api/index-note', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ note_id: note.id, content: note.content, account_id: id, company_id: profile.company_id, workspace_id: wsId }),
-          }).catch(console.error)
-          feedbackParts.push('Note créée')
-        }
-      }
+      // Refresh notes if any were created for this account
+      const newNote = (execResults ?? []).find((r: { type: string; accountId?: string | null; created: boolean }) => r.type === 'create_note' && r.created)
+      if (newNote) fetchAll()
 
+      setNoteActionResults(execResults ?? [])
+      setNoteSummary(execSummary ?? [])
       setNoteTitle('')
       setNoteText('')
+      setNotePhase('done')
+      setSavingNote(false)
 
-      const msg = feedbackParts.length > 0 ? feedbackParts.join(' · ') : 'Aucune action ni contenu détecté.'
-      setVocalFeedback(msg)
-      setTimeout(() => setVocalFeedback(null), 5000)
-    } catch (err) {
-      console.error('[VOCAL] Erreur analyse:', err)
-      // Fallback: save raw transcription
-      await saveNote(transcription, 'vocal')
-    } finally {
+      setTimeout(() => setNotePhase('input'), 6000)
+    } catch {
+      setNotePhase('input')
       setSavingNote(false)
     }
-  }, [profile, id, noteTitle, account, wsId, saveNote])
+  }, [profile, id, wsId, fetchAll])
 
   const handleDeleteNote = async (noteId: string) => {
     const supabase = createClient()
@@ -1237,23 +1178,31 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                       )}
                       {noteError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{noteError}</p>}
-                      {vocalFeedback && (
-                        <p className="text-xs font-medium px-3 py-2 rounded-lg" style={{ background: 'rgba(16,185,129,0.1)', color: '#065F46' }}>
-                          {vocalFeedback}
-                        </p>
+                      {notePhase === 'done' && noteSummary.length > 0 && (
+                        <div className="rounded-xl px-3 py-2.5 space-y-1.5" style={{ background: 'rgba(34,197,94,0.08)' }}>
+                          {noteActionResults.map((r, i) => (
+                            <p key={i} className="text-xs font-medium" style={{ color: '#065F46' }}>{noteSummary[i] ?? ''}</p>
+                          ))}
+                        </div>
                       )}
-                      {!recording ? (
+                      {(notePhase === 'analyzing' || notePhase === 'executing') && (
+                        <div className="flex items-center gap-2 py-1">
+                          <span className="w-4 h-4 border-2 border-[#1E2761] border-t-transparent rounded-full animate-spin shrink-0" />
+                          <span className="text-xs text-[#64748B]">{notePhase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}</span>
+                        </div>
+                      )}
+                      {notePhase === 'input' && !recording ? (
                         <button onClick={startRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 transition-all duration-150">
                           <Mic className="w-5 h-5" />Démarrer l&apos;enregistrement
                         </button>
-                      ) : (
+                      ) : notePhase === 'input' && recording ? (
                         <button onClick={stopRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 animate-pulse">
                           <MicOff className="w-5 h-5" />Arrêter l&apos;enregistrement
                         </button>
-                      )}
-                      {noteText.trim() && !recording && (
+                      ) : null}
+                      {noteText.trim() && !recording && notePhase === 'input' && (
                         <button
-                          onClick={() => saveVocalNote(noteText)}
+                          onClick={() => processVocalNote(noteText)}
                           disabled={savingNote}
                           className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all disabled:opacity-50"
                           style={{ background: '#1E2761', borderRadius: 10, height: 44 }}
