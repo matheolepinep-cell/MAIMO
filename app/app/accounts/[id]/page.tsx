@@ -90,6 +90,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [recording, setRecording] = useState(false)
   const [savingNote, setSavingNote] = useState(false)
   const [noteError, setNoteError] = useState('')
+  const [vocalFeedback, setVocalFeedback] = useState<string | null>(null)
   const [conflictChecking, setConflictChecking] = useState(false)
   const [conflictResult, setConflictResult] = useState<ConflictResult | null>(null)
   const [pendingNote, setPendingNote] = useState<{ content: string; source: 'text' | 'vocal' } | null>(null)
@@ -435,6 +436,112 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setRecording(false)
     // do not auto-save — let the user click "Enregistrer"
   }, [])
+
+  const saveVocalNote = useCallback(async (transcription: string) => {
+    if (!transcription.trim() || !profile) return
+    setSavingNote(true)
+    setNoteError('')
+    setVocalFeedback(null)
+
+    console.log('[VOCAL] transcription brute:', transcription)
+
+    try {
+      const res = await fetch('/api/analyze-transcription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcription }),
+      })
+      const analysis = await res.json()
+
+      console.log('[VOCAL] analyse Claude:', analysis)
+      console.log('[VOCAL] actions à exécuter:', analysis.actions)
+      console.log('[VOCAL] note_content final:', analysis.note_content)
+
+      const supabase = createClient()
+      const feedbackParts: string[] = []
+
+      for (const action of (analysis.actions ?? [])) {
+        if (action.type === 'create_contact') {
+          const { data: newContact } = await supabase.from('contacts').insert({
+            account_id: id,
+            company_id: profile.company_id,
+            first_name: action.data.first_name ?? '',
+            last_name: action.data.last_name ?? '',
+            role: action.data.position ?? null,
+            email: action.data.email ?? null,
+            phone: action.data.phone ?? null,
+          }).select().single()
+          if (newContact) {
+            setContacts((prev) => [...prev, newContact])
+            feedbackParts.push(`Contact ${[action.data.first_name, action.data.last_name].filter(Boolean).join(' ')} ajouté`)
+          }
+        } else if (action.type === 'create_company') {
+          const { data: newAcc } = await supabase.from('accounts').insert({
+            company_id: profile.company_id,
+            name: action.data.company_name ?? 'Nouvelle entreprise',
+            city: action.data.city ?? null,
+            industry: action.data.sector ?? null,
+            status: action.data.status ?? 'prospect',
+            created_by: profile.id,
+          }).select().single()
+          if (newAcc) feedbackParts.push(`Fiche ${newAcc.name} créée`)
+        } else if (action.type === 'update_company' || action.type === 'add_info') {
+          const fieldMap: Record<string, string> = {
+            'téléphone': 'phone', 'telephone': 'phone', 'phone': 'phone',
+            'email': 'email', 'e-mail': 'email', 'mail': 'email',
+            'adresse': 'address', 'address': 'address',
+            'ville': 'city', 'city': 'city',
+            'secteur': 'industry', 'sector': 'industry', 'industrie': 'industry',
+            'siret': 'siret',
+            'site': 'website', 'website': 'website', 'site web': 'website',
+          }
+          const dbField = fieldMap[(action.data.field ?? '').toLowerCase().trim()]
+          if (dbField && action.data.value) {
+            await supabase.from('accounts').update({ [dbField]: action.data.value }).eq('id', id)
+            setAccount((prev) => prev ? { ...prev, [dbField]: action.data.value } : prev)
+            feedbackParts.push(`${action.data.field} mis à jour`)
+          }
+        }
+      }
+
+      if (analysis.note_content) {
+        const { data: { user } } = await supabase.auth.getUser()
+        const title = noteTitle.trim() || `Note du ${new Date().toLocaleDateString('fr-FR')} — ${account?.name ?? ''}`
+        const { data: note } = await supabase.from('notes').insert({
+          account_id: id,
+          company_id: profile.company_id,
+          user_id: profile.id ?? user?.id ?? null,
+          title,
+          content: analysis.note_content,
+          source: 'vocal' as const,
+          is_deleted: false,
+          workspace_id: wsId ?? null,
+        }).select().single()
+        if (note) {
+          setNotes((prev) => [note, ...prev])
+          fetch('/api/index-note', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note_id: note.id, content: note.content, account_id: id, company_id: profile.company_id, workspace_id: wsId }),
+          }).catch(console.error)
+          feedbackParts.push('Note créée')
+        }
+      }
+
+      setNoteTitle('')
+      setNoteText('')
+
+      const msg = feedbackParts.length > 0 ? feedbackParts.join(' · ') : 'Aucune action ni contenu détecté.'
+      setVocalFeedback(msg)
+      setTimeout(() => setVocalFeedback(null), 5000)
+    } catch (err) {
+      console.error('[VOCAL] Erreur analyse:', err)
+      // Fallback: save raw transcription
+      await saveNote(transcription, 'vocal')
+    } finally {
+      setSavingNote(false)
+    }
+  }, [profile, id, noteTitle, account, wsId, saveNote])
 
   const handleDeleteNote = async (noteId: string) => {
     const supabase = createClient()
@@ -1130,6 +1237,11 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                       )}
                       {noteError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{noteError}</p>}
+                      {vocalFeedback && (
+                        <p className="text-xs font-medium px-3 py-2 rounded-lg" style={{ background: 'rgba(16,185,129,0.1)', color: '#065F46' }}>
+                          {vocalFeedback}
+                        </p>
+                      )}
                       {!recording ? (
                         <button onClick={startRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 transition-all duration-150">
                           <Mic className="w-5 h-5" />Démarrer l&apos;enregistrement
@@ -1141,12 +1253,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       )}
                       {noteText.trim() && !recording && (
                         <button
-                          onClick={() => saveNote(noteText, 'vocal')}
-                          disabled={savingNote || conflictChecking}
+                          onClick={() => saveVocalNote(noteText)}
+                          disabled={savingNote}
                           className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all disabled:opacity-50"
                           style={{ background: '#1E2761', borderRadius: 10, height: 44 }}
                         >
-                          {savingNote || conflictChecking
+                          {savingNote
                             ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                             : <Save className="w-4 h-4" />
                           }
