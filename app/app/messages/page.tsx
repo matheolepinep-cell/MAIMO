@@ -449,9 +449,15 @@ export default function MessagesPage() {
                                 : <FileText className="w-4 h-4" style={{ color: isMine ? 'white' : '#3B82F6' }} />}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-medium truncate" style={{ color: isMine ? 'white' : '#1E293B' }}>
+                              <a
+                                href={`/api/documents/by-path?path=${encodeURIComponent(msg.file_path ?? '')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs font-medium truncate block hover:underline"
+                                style={{ color: isMine ? 'white' : '#1E293B' }}
+                              >
                                 {msg.file_name}
-                              </p>
+                              </a>
                               <p className="text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.7)' : '#94A3B8' }}>
                                 {msg.file_type?.toUpperCase()}
                               </p>

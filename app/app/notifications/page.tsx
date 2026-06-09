@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell, FileText, MessageCircle, Share2, StickyNote } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -59,6 +60,7 @@ function notifIcon(type: Notification['type']) {
 export default function NotificationsPage() {
   const { profile } = useUser()
   const { wsId } = useWorkspace()
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -103,6 +105,40 @@ export default function NotificationsPage() {
     setNotifications([])
   }
 
+  const handleNotifClick = async (n: Notification) => {
+    const { type, data } = n
+    const accountId = data?.account_id
+
+    if (type === 'note_added' && accountId) {
+      router.push(`/app/accounts/${accountId}`)
+    } else if (type === 'document_added' && accountId) {
+      const docId = data?.document_id
+      if (docId) {
+        // Fetch signed URL and open in new tab
+        const res = await fetch(`/api/documents/${docId}/url`).catch(() => null)
+        if (res?.ok) {
+          const { url } = await res.json()
+          if (url) { window.open(url, '_blank'); return }
+        }
+      }
+      router.push(`/app/accounts/${accountId}`)
+    } else if (type === 'document_shared') {
+      const docId = data?.document_id
+      if (docId) {
+        const res = await fetch(`/api/documents/${docId}/url`).catch(() => null)
+        if (res?.ok) {
+          const { url } = await res.json()
+          if (url) { window.open(url, '_blank'); return }
+        }
+      }
+      if (accountId) router.push(`/app/accounts/${accountId}`)
+    } else if (type === 'company_updated' && accountId) {
+      router.push(`/app/accounts/${accountId}`)
+    } else if (type === 'message_received') {
+      router.push('/app/messages')
+    }
+  }
+
   const groups = groupByDate(notifications)
 
   return (
@@ -141,9 +177,10 @@ export default function NotificationsPage() {
                 </p>
                 <div className="flex flex-col gap-2">
                   {group.items.map((n) => (
-                    <div
+                    <button
                       key={n.id}
-                      className="flex items-start gap-3 px-4 py-3 rounded-xl border border-gray-100"
+                      onClick={() => handleNotifClick(n)}
+                      className="flex items-start gap-3 px-4 py-3 rounded-xl border border-gray-100 text-left w-full cursor-pointer transition-colors duration-150 hover:bg-[#F0F4FF]"
                       style={{ background: n.read ? '#fff' : '#F0F4FF' }}
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gray-50 mt-0.5">
@@ -157,7 +194,7 @@ export default function NotificationsPage() {
                       {!n.read && (
                         <div className="w-2 h-2 rounded-full shrink-0 mt-2" style={{ background: '#3B82F6' }} />
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>

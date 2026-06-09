@@ -721,7 +721,16 @@ export default function DashboardPage() {
                   {activity.slice(0, 3).map((item) => (
                     <button
                       key={`${item.type}-${item.id}`}
-                      onClick={() => router.push(`/app/accounts/${item.account_id}`)}
+                      onClick={async () => {
+                        if (item.type === 'document') {
+                          const res = await fetch(`/api/documents/${item.id}/url`).catch(() => null)
+                          if (res?.ok) {
+                            const { url } = await res.json()
+                            if (url) { window.open(url, '_blank'); return }
+                          }
+                        }
+                        router.push(`/app/accounts/${item.account_id}`)
+                      }}
                       className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
                     >
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"

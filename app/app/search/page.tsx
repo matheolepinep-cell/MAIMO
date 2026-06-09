@@ -318,9 +318,30 @@ function SearchPageContent() {
               {parseAIContent(msg.content)}
             </div>
             {msg.sources && msg.sources.length > 0 && (
-              <p className="text-[10px] text-[#8899BB] px-1">
-                Sources : {msg.sources.map((s) => s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')).join(' · ')}
-              </p>
+              <div className="flex flex-wrap gap-x-1 gap-y-0.5 px-1 items-center">
+                <span className="text-[10px] text-[#8899BB]">Sources :</span>
+                {msg.sources.map((s, si) => (
+                  <button
+                    key={si}
+                    onClick={async () => {
+                      if (s.type === 'note' && s.account_id) {
+                        router.push(`/app/accounts/${s.account_id}`)
+                      } else if (s.type === 'document') {
+                        if (s.url) { window.open(s.url, '_blank'); return }
+                        const res = await fetch(`/api/documents/${s.id}/url`).catch(() => null)
+                        if (res?.ok) {
+                          const { url } = await res.json()
+                          if (url) window.open(url, '_blank')
+                        }
+                      }
+                    }}
+                    className="text-[10px] text-[#4C6EF5] hover:underline transition-colors"
+                  >
+                    {s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')}
+                    {si < msg.sources!.length - 1 && <span className="text-[#8899BB] ml-1">·</span>}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )

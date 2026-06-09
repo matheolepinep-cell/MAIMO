@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { accountId, noteTitle, accountName } = await request.json()
+  const { accountId, noteId, noteTitle, accountName } = await request.json()
   if (!accountId) return NextResponse.json({ error: 'Missing accountId' }, { status: 400 })
 
   // company_id always comes from the authenticated user's profile, never from the request body
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     'note_added',
     `Nouvelle note sur ${accountName ?? 'un compte'}`,
     noteTitle ? `"${noteTitle}"` : null,
-    { account_id: accountId }
+    { account_id: accountId, ...(noteId ? { note_id: noteId } : {}) }
   )
 
   return NextResponse.json({ ok: true })

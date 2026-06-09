@@ -403,7 +403,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       fetch('/api/notifications/note', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: id, noteTitle: note.title, accountName: account?.name }),
+        body: JSON.stringify({ accountId: id, noteId: note.id, noteTitle: note.title, accountName: account?.name }),
       }).catch(console.error)
       // Upload pièces jointes
       if (attachments.length > 0) {
@@ -577,7 +577,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       }
       fetch('/api/notifications/document', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: id, fileName: file.name, accountName: account?.name }),
+        body: JSON.stringify({ accountId: id, documentId: standaloneDoc?.id, fileName: file.name, accountName: account?.name }),
       }).catch(console.error)
     }
     e.target.value = ''

@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { accountId, fileName, accountName } = await request.json()
+  const { accountId, documentId, fileName, accountName } = await request.json()
   if (!accountId) return NextResponse.json({ error: 'Missing accountId' }, { status: 400 })
 
   // company_id always comes from the authenticated user's profile, never from the request body
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     'document_added',
     `Nouveau document sur ${accountName ?? 'un compte'}`,
     fileName ?? null,
-    { account_id: accountId }
+    { account_id: accountId, ...(documentId ? { document_id: documentId } : {}) }
   )
 
   return NextResponse.json({ ok: true })
