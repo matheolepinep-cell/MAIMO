@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Edit2, Save, X, Plus, Trash2, Mic, MicOff, Send, Type,
   FileText, Search, User, Star, Volume2, Globe, Lock, Users, Paperclip, Camera, ImageIcon, ExternalLink, Upload, Download, Share2, Bell, BellOff, AlertTriangle, Copy, Phone, Mail,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, MoreVertical
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -134,6 +134,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const [docTypeFilter, setDocTypeFilter] = useState<'all' | 'pdf' | 'docx' | 'xlsx' | 'image'>('all')
   const [initialShareOpen, setInitialShareOpen] = useState(false)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+
+  // Delete account
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteConfirmName, setDeleteConfirmName] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
 
   // Access section
   const [portfolioEntry, setPortfolioEntry] = useState<{ id: string; visibility: 'team' | 'private' | 'custom' } | null>(null)
@@ -276,6 +282,18 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       await supabase.from('muted_companies').insert({ user_id: profile.id, company_id: id })
     }
     setIsMuted((v) => !v)
+  }
+
+  /* ─── delete account ─── */
+  const handleDeleteAccount = async () => {
+    if (!account || deleteConfirmName !== account.name) return
+    setDeleting(true)
+    try {
+      await fetch(`/api/accounts/${id}`, { method: 'DELETE' })
+      router.replace('/app/portfolio')
+    } catch {
+      setDeleting(false)
+    }
   }
 
   /* ─── contacts ─── */
@@ -741,6 +759,43 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         >
           {isMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
         </button>
+
+        {/* Delete — desktop: trash icon; mobile: 3-dot menu */}
+        {(profile?.role === 'admin' || portfolioEntry !== null) && (
+          <>
+            {/* Desktop trash icon */}
+            <button
+              onClick={() => { setDeleteConfirmName(''); setDeleteModalOpen(true) }}
+              title="Supprimer la fiche"
+              className="hidden md:flex p-2 rounded-xl transition-all duration-200 shrink-0 text-[#EF4444] hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            {/* Mobile 3-dot menu */}
+            <div className="relative md:hidden">
+              <button
+                onClick={() => setMoreMenuOpen((v) => !v)}
+                className="p-2 rounded-xl text-slate-400 hover:bg-[#F0F4FF] transition-all duration-200 shrink-0"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              {moreMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setMoreMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-40 bg-white rounded-xl border border-gray-100 shadow-xl overflow-hidden min-w-[180px]">
+                    <button
+                      onClick={() => { setMoreMenuOpen(false); setDeleteConfirmName(''); setDeleteModalOpen(true) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-[#EF4444] hover:bg-red-50 transition-colors text-left"
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />
+                      Supprimer la fiche
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Mobile tabs */}
@@ -1450,6 +1505,52 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           onClose={() => { setPreviewDoc(null); setPreviewUrl(null); setInitialShareOpen(false) }}
         />
       )}
+
+      {/* Delete confirmation modal */}
+      <Modal open={deleteModalOpen} onClose={() => !deleting && setDeleteModalOpen(false)} title={`Supprimer ${account.name} ?`}>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-red-50 border border-red-100">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700 leading-relaxed">
+              Cette action est <strong>irréversible</strong>. Toutes les notes, documents et contacts associés seront également supprimés.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-[#1E293B]">
+              Tapez <span className="font-bold text-[#EF4444]">{account.name}</span> pour confirmer
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              placeholder={account.name}
+              autoFocus
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => setDeleteModalOpen(false)}
+              disabled={deleting}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-[#64748B] hover:bg-gray-50 transition-all disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmName !== account.name || deleting}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+              style={{ background: '#EF4444' }}
+            >
+              {deleting
+                ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <Trash2 className="w-4 h-4" />
+              }
+              Supprimer définitivement
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
