@@ -1,20 +1,31 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
 function RegisterContent() {
   const router = useRouter()
+  const [phase, setPhase] = useState<'form' | 'confirm'>('form')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setTimeout(() => setResendCooldown((v) => v - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendCooldown])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,12 +72,79 @@ function RegisterContent() {
       return
     }
 
-    router.push('/app/dashboard')
-    router.refresh()
+    setLoading(false)
+    setPhase('confirm')
+  }
+
+  const handleResend = async () => {
+    setResendLoading(true)
+    const supabase = createClient()
+    await supabase.auth.resend({ type: 'signup', email })
+    setResendCooldown(60)
+    setResendLoading(false)
+  }
+
+  if (phase === 'confirm') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4"
+        style={{ background: '#1E2761' }}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-[#1E2761] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white font-bold text-xl">M</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-widest text-[#1E2761]">MAIMOO</h1>
+          </div>
+
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(76,110,245,0.1)' }}>
+              <MailCheck className="w-8 h-8" style={{ color: '#4C6EF5' }} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-[#0F172A] mb-2">Vérifiez votre boîte mail</h2>
+              <p className="text-sm text-[#64748B] leading-relaxed">
+                Un email de confirmation a été envoyé à{' '}
+                <span className="font-medium text-[#1E293B]">{email}</span>.
+                Cliquez sur le lien dans l&apos;email pour activer votre compte.
+              </p>
+            </div>
+            <p className="text-xs text-[#94A3B8]">
+              Pensez à vérifier vos spams si vous ne voyez pas l&apos;email.
+            </p>
+            <button
+              onClick={handleResend}
+              disabled={resendLoading || resendCooldown > 0}
+              className="w-full py-2.5 px-4 rounded-xl border text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                borderColor: resendCooldown > 0 ? '#E2E8F0' : '#CBD5E1',
+                color: resendCooldown > 0 ? '#94A3B8' : '#64748B',
+              }}
+            >
+              {resendLoading ? 'Envoi…' : resendCooldown > 0 ? `Renvoyer dans ${resendCooldown}s` : 'Renvoyer l\'email'}
+            </button>
+            <button
+              onClick={() => {
+                setPhase('form')
+                setEmail('')
+                setPassword('')
+                setFullName('')
+                setCompanyName('')
+                setResendCooldown(0)
+              }}
+              className="text-sm text-[#94A3B8] hover:text-[#64748B] transition-colors"
+            >
+              Utiliser une autre adresse
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-[#1E2761] flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: '#1E2761' }}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
         <div className="text-center mb-6">
           <div className="w-14 h-14 bg-[#1E2761] rounded-2xl flex items-center justify-center mx-auto mb-4">

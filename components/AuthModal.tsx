@@ -2,17 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
+import { X, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
-type View = 'login' | 'register'
+type View = 'login' | 'register' | 'email_confirm'
 
 interface AuthModalProps {
   open: boolean
   onClose: () => void
-  defaultView?: View
+  defaultView?: 'login' | 'register'
 }
 
 export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalProps) {
@@ -33,6 +33,11 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
   const [registerError, setRegisterError] = useState('')
   const [registerLoading, setRegisterLoading] = useState(false)
 
+  // Email confirm
+  const [registeredEmail, setRegisteredEmail] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+
   useEffect(() => {
     if (open) {
       setView(defaultView)
@@ -52,6 +57,12 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
       document.body.style.overflow = ''
     }
   }, [open, onClose])
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setTimeout(() => setResendCooldown((v) => v - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendCooldown])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,8 +110,18 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
       setRegisterLoading(false)
       return
     }
-    router.push('/app/dashboard')
-    router.refresh()
+
+    setRegisteredEmail(email)
+    setRegisterLoading(false)
+    setView('email_confirm')
+  }
+
+  const handleResend = async () => {
+    setResendLoading(true)
+    const supabase = createClient()
+    await supabase.auth.resend({ type: 'signup', email: registeredEmail })
+    setResendCooldown(60)
+    setResendLoading(false)
   }
 
   if (!open) return null
@@ -109,18 +130,20 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
       style={{ background: 'rgba(10,16,35,0.65)', backdropFilter: 'blur(6px)' }}
-      onClick={onClose}
+      onClick={view === 'email_confirm' ? undefined : onClose}
     >
       <div
         className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-7 relative"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {view !== 'email_confirm' && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
 
         {/* Logo */}
         <div className="flex items-center gap-2 mb-6">
@@ -155,7 +178,7 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
               </button>
             </div>
           </>
-        ) : (
+        ) : view === 'register' ? (
           <>
             <h2 className="text-xl font-bold text-[#0F172A] mb-4">Créer un compte</h2>
             <form onSubmit={handleRegister} className="space-y-3">
@@ -179,6 +202,49 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
               </button>
             </p>
           </>
+        ) : (
+          /* Email confirmation screen */
+          <div className="flex flex-col items-center text-center gap-4 py-2">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(76,110,245,0.1)' }}>
+              <MailCheck className="w-8 h-8" style={{ color: '#4C6EF5' }} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-[#0F172A] mb-2">Vérifiez votre boîte mail</h2>
+              <p className="text-sm text-[#64748B] leading-relaxed">
+                Un email de confirmation a été envoyé à{' '}
+                <span className="font-medium text-[#1E293B]">{registeredEmail}</span>.
+                Cliquez sur le lien dans l&apos;email pour activer votre compte.
+              </p>
+            </div>
+            <p className="text-xs text-[#94A3B8]">
+              Pensez à vérifier vos spams si vous ne voyez pas l&apos;email.
+            </p>
+            <button
+              onClick={handleResend}
+              disabled={resendLoading || resendCooldown > 0}
+              className="w-full py-2.5 px-4 rounded-xl border text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                borderColor: resendCooldown > 0 ? '#E2E8F0' : '#CBD5E1',
+                color: resendCooldown > 0 ? '#94A3B8' : '#64748B',
+              }}
+            >
+              {resendLoading ? 'Envoi…' : resendCooldown > 0 ? `Renvoyer dans ${resendCooldown}s` : 'Renvoyer l\'email'}
+            </button>
+            <button
+              onClick={() => {
+                setView('register')
+                setEmail('')
+                setPassword('')
+                setFullName('')
+                setCompanyName('')
+                setResendCooldown(0)
+              }}
+              className="text-sm text-[#94A3B8] hover:text-[#64748B] transition-colors"
+            >
+              Utiliser une autre adresse
+            </button>
+          </div>
         )}
       </div>
     </div>
