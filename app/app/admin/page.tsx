@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserPlus, Trash2, ToggleLeft, ToggleRight, Users, Lock } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
@@ -57,6 +58,7 @@ export default function AdminPage() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (!newName.trim() || !newEmail.trim()) { setError('Veuillez remplir le nom et l\'email.'); return }
     setCreating(true)
 
     const res = await fetch('/api/admin/users', {
@@ -255,7 +257,6 @@ export default function AdminPage() {
             placeholder="Jean Dupont"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            required
             autoFocus
           />
           <Input
@@ -265,7 +266,7 @@ export default function AdminPage() {
             placeholder="jean@exemple.com"
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
-            required
+            onInvalid={(e) => e.preventDefault()}
           />
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[#1E293B]">Rôle</label>
@@ -278,9 +279,7 @@ export default function AdminPage() {
               <option value="admin">Admin</option>
             </select>
           </div>
-          {error && (
-            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-          )}
+          {error && <FormMessage type="error" message={error} />}
           <div className="flex gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setModalOpen(false)} className="flex-1">
               Annuler

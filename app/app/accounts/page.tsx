@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Briefcase, Trash2, Upload, ChevronRight, Plus } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -467,7 +468,7 @@ export default function AccountsPage() {
 
       <BottomSheet open={createOpen} onClose={() => { setCreateOpen(false); setCreateError('') }} title="Nouvelle entreprise">
         <form onSubmit={handleCreate} className="space-y-4">
-          <Input id="acc-name" label="Raison sociale" placeholder="Entreprise Dupont" value={newName} onChange={(e) => setNewName(e.target.value)} required autoFocus />
+          <Input id="acc-name" label="Raison sociale" placeholder="Entreprise Dupont" value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
           <CityInput
             id="acc-city"
             label="Ville (optionnel)"
@@ -486,7 +487,7 @@ export default function AccountsPage() {
               <button type="button" onClick={() => setNewStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${newStatus === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
             </div>
           </div>
-          {createError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-xl">{createError}</p>}
+          {createError && <FormMessage type="error" message={createError} />}
           <p className="text-xs text-slate-400">Visible par toute l'équipe par défaut.</p>
           <div className="flex gap-2 pb-2">
             <Button variant="secondary" type="button" onClick={() => { setCreateOpen(false); setCreateError('') }} className="flex-1">Annuler</Button>

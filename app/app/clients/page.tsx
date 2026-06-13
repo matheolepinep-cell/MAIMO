@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Building2, ChevronRight, FileText } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
@@ -145,7 +146,6 @@ export default function ClientsPage() {
             placeholder="Entreprise Dupont"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            required
             autoFocus
           />
           <Input
@@ -155,9 +155,7 @@ export default function ClientsPage() {
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
           />
-          {createError && (
-            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{createError}</p>
-          )}
+          {createError && <FormMessage type="error" message={createError} />}
           <div className="flex gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => { setModalOpen(false); setCreateError('') }} className="flex-1">
               Annuler

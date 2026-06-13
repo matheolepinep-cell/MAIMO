@@ -13,6 +13,7 @@ import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { CityInput } from '@/components/ui/CityInput'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Modal } from '@/components/ui/Modal'
@@ -1186,7 +1187,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
                         placeholder="Contenu de la note..." rows={3}
                         className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" />
-                      {noteError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{noteError}</p>}
+                      {noteError && <FormMessage type="error" message={noteError} />}
                       {conflictChecking && (
                         <p className="text-xs text-[#64748B] flex items-center gap-1.5">
                           <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -1232,7 +1233,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                           {recording && <span className="inline-block w-2 h-4 bg-red-500 ml-1 animate-pulse rounded-sm" />}
                         </div>
                       )}
-                      {noteError && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{noteError}</p>}
+                      {noteError && <FormMessage type="error" message={noteError} />}
                       {notePhase === 'done' && noteSummary.length > 0 && (
                         <div className="rounded-xl px-3 py-2.5 space-y-1.5" style={{ background: 'rgba(34,197,94,0.08)' }}>
                           {noteActionResults.map((r, i) => (
@@ -1473,12 +1474,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       <Modal open={contactModal} onClose={() => setContactModal(false)} title="Ajouter un interlocuteur">
         <form onSubmit={handleAddContact} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Prénom" placeholder="Jean" value={contactForm.first_name} onChange={(e) => setContactForm((p) => ({ ...p, first_name: e.target.value }))} required autoFocus />
-            <Input label="Nom" placeholder="Dupont" value={contactForm.last_name} onChange={(e) => setContactForm((p) => ({ ...p, last_name: e.target.value }))} required />
+            <Input label="Prénom" placeholder="Jean" value={contactForm.first_name} onChange={(e) => setContactForm((p) => ({ ...p, first_name: e.target.value }))} autoFocus />
+            <Input label="Nom" placeholder="Dupont" value={contactForm.last_name} onChange={(e) => setContactForm((p) => ({ ...p, last_name: e.target.value }))} />
           </div>
           <Input label="Rôle" placeholder="Acheteur, Dirigeant..." value={contactForm.role} onChange={(e) => setContactForm((p) => ({ ...p, role: e.target.value }))} />
           <Input label="Téléphone" placeholder="06 ..." value={contactForm.phone} onChange={(e) => setContactForm((p) => ({ ...p, phone: e.target.value }))} />
-          <Input label="Email" type="email" placeholder="jean@..." value={contactForm.email} onChange={(e) => setContactForm((p) => ({ ...p, email: e.target.value }))} />
+          <Input label="Email" type="email" placeholder="jean@..." value={contactForm.email} onChange={(e) => setContactForm((p) => ({ ...p, email: e.target.value }))} onInvalid={(e) => e.preventDefault()} />
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[#1E293B]">Notes</label>
             <textarea value={contactForm.notes} onChange={(e) => setContactForm((p) => ({ ...p, notes: e.target.value }))}

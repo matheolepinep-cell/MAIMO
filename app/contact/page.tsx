@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Send, Check } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 
 export default function ContactPage() {
   const [name, setName] = useState('')
@@ -15,6 +16,9 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (!name.trim()) { setError('Veuillez entrer votre nom.'); return }
+    if (!email.trim()) { setError('Veuillez entrer votre email.'); return }
+    if (!message.trim()) { setError('Veuillez écrire votre message.'); return }
     setLoading(true)
     const res = await fetch('/api/contact', {
       method: 'POST',
@@ -85,7 +89,6 @@ export default function ContactPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
                 placeholder="Jean Dupont"
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30 focus:border-[#3B5BDB] transition-all"
               />
@@ -100,7 +103,7 @@ export default function ContactPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                onInvalid={(e) => e.preventDefault()}
                 placeholder="vous@exemple.com"
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30 focus:border-[#3B5BDB] transition-all"
               />
@@ -114,16 +117,13 @@ export default function ContactPage() {
                 id="c-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                required
                 rows={6}
                 placeholder="Votre message..."
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30 focus:border-[#3B5BDB] transition-all resize-none"
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">{error}</p>
-            )}
+            {error && <FormMessage type="error" message={error} />}
 
             <button
               type="submit"

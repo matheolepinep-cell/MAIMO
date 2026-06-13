@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Search, Briefcase, Plus, User, FileSpreadsheet, Building2 } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -149,7 +150,7 @@ export function BottomNav() {
           </div>
         ) : (
           <form onSubmit={handleCreate} className="space-y-4">
-            <Input id="name" label="Raison sociale" placeholder="Entreprise Dupont" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+            <Input id="name" label="Raison sociale" placeholder="Entreprise Dupont" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             <Input id="city" label="Ville (optionnel)" placeholder="Lyon" value={city} onChange={(e) => setCity(e.target.value)} />
             <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={industry} onChange={(e) => setIndustry(e.target.value)} />
             <div>
@@ -159,7 +160,7 @@ export function BottomNav() {
                 <button type="button" onClick={() => setStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
               </div>
             </div>
-            {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-xl">{error}</p>}
+            {error && <FormMessage type="error" message={error} />}
             <p className="text-xs text-slate-400">Ajoutée à votre portefeuille, visible par toute l'équipe par défaut.</p>
             <div className="flex gap-2 pb-2">
               <Button variant="secondary" type="button" onClick={() => setSheet('menu')} className="flex-1">Retour</Button>

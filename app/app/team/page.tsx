@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Users, UserPlus, Mail, Shield, Trash2, Crown, Briefcase, Building2, Lock } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -93,7 +94,7 @@ export default function TeamPage() {
     e.preventDefault()
     setInviteError('')
     setInviteSuccess('')
-    if (!inviteEmail.trim() || !inviteName.trim()) return
+    if (!inviteName.trim() || !inviteEmail.trim()) { setInviteError('Veuillez remplir le nom et l\'email.'); return }
     setInviting(true)
     const res = await fetch('/api/admin/invite', {
       method: 'POST',
@@ -268,9 +269,10 @@ export default function TeamPage() {
         ) : (
           <form onSubmit={handleInvite} className="space-y-4">
             <Input id="inviteName" label="Nom complet" placeholder="Marie Martin"
-              value={inviteName} onChange={(e) => setInviteName(e.target.value)} required autoFocus />
+              value={inviteName} onChange={(e) => setInviteName(e.target.value)} autoFocus />
             <Input id="inviteEmail" type="email" label="Email" placeholder="marie@exemple.com"
-              value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required />
+              value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
+              onInvalid={(e) => e.preventDefault()} />
             <div>
               <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Rôle</label>
               <div className="flex rounded-xl bg-gray-100 p-1">
@@ -316,7 +318,7 @@ export default function TeamPage() {
                 </div>
               </div>
             )}
-            {inviteError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{inviteError}</p>}
+            {inviteError && <FormMessage type="error" message={inviteError} />}
             <div className="flex gap-2 pt-2">
               <Button variant="secondary" type="button" onClick={() => setModalOpen(false)} className="flex-1">Annuler</Button>
               <Button type="submit" loading={inviting} className="flex-1">Envoyer l'invitation</Button>

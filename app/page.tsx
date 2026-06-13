@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Mic, Search, Users, Sparkles, Smartphone, FileText, Check } from 'lucide-react'
 import { AuthModal } from '@/components/AuthModal'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { fadeInUp, staggerContainer } from '@/lib/animations'
 
@@ -149,6 +150,8 @@ CREATE TABLE IF NOT EXISTS early_access (
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inviteFirstName.trim()) { setInviteError('Le prénom est requis.'); return }
+    if (!invitePassword) { setInviteError('Veuillez choisir un mot de passe.'); return }
+    if (invitePassword.length < 8) { setInviteError('Le mot de passe doit contenir au moins 8 caractères.'); return }
     if (invitePassword !== inviteConfirm) { setInviteError('Les mots de passe ne correspondent pas.'); return }
     setInviteError('')
     setInviteLoading(true)
@@ -182,8 +185,9 @@ CREATE TABLE IF NOT EXISTS early_access (
 
   const handleEarlyAccess = async (e: React.FormEvent) => {
     e.preventDefault()
-    setEarlyLoading(true)
     setEarlyError('')
+    if (!earlyEmail.trim()) { setEarlyError('Veuillez entrer votre adresse email.'); return }
+    setEarlyLoading(true)
     const supabase = createClient()
     const { error } = await supabase.from('early_access').insert({ email: earlyEmail })
     if (error) {
@@ -215,7 +219,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Prénom</label>
-                      <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="Jean" value={inviteFirstName} onChange={(e) => setInviteFirstName(e.target.value)} required />
+                      <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="Jean" value={inviteFirstName} onChange={(e) => setInviteFirstName(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Nom</label>
@@ -224,13 +228,13 @@ CREATE TABLE IF NOT EXISTS early_access (
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Mot de passe</label>
-                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="••••••••" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} required minLength={8} />
+                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="••••••••" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Confirmer</label>
-                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="••••••••" value={inviteConfirm} onChange={(e) => setInviteConfirm(e.target.value)} required />
+                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="••••••••" value={inviteConfirm} onChange={(e) => setInviteConfirm(e.target.value)} />
                   </div>
-                  {inviteError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{inviteError}</p>}
+                  {inviteError && <FormMessage type="error" message={inviteError} />}
                   <button type="submit" disabled={inviteLoading} className="w-full py-3 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60" style={{ background: navyGradient }}>
                     {inviteLoading ? 'Chargement…' : "Rejoindre l'espace"}
                   </button>
@@ -705,7 +709,7 @@ CREATE TABLE IF NOT EXISTS early_access (
               <form onSubmit={handleEarlyAccess} className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="email"
-                  required
+                  onInvalid={(e) => e.preventDefault()}
                   placeholder="votre@email.com"
                   value={earlyEmail}
                   onChange={(e) => setEarlyEmail(e.target.value)}
@@ -722,7 +726,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 </button>
               </form>
             )}
-            {earlyError && <p className="mt-3 text-sm text-red-500">{earlyError}</p>}
+            {earlyError && <div className="mt-3"><FormMessage type="error" message={earlyError} /></div>}
           </motion.div>
         </div>
       </section>

@@ -7,6 +7,7 @@ import { MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { FormMessage } from '@/components/ui/FormMessage'
 
 function RegisterContent() {
   const router = useRouter()
@@ -30,6 +31,8 @@ function RegisterContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (!fullName.trim() || !email.trim() || !password || !companyName.trim()) { setError('Veuillez remplir tous les champs.'); return }
+    if (password.length < 8) { setError('Le mot de passe doit contenir au moins 8 caractères.'); return }
     setLoading(true)
     const supabase = createClient()
 
@@ -156,15 +159,16 @@ function RegisterContent() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input id="fullName" label="Nom complet" placeholder="Jean Dupont"
-            value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+            value={fullName} onChange={(e) => setFullName(e.target.value)} />
           <Input id="email" type="email" label="Email" placeholder="vous@exemple.com"
-            value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+            value={email} onChange={(e) => setEmail(e.target.value)}
+            onInvalid={(e) => e.preventDefault()} autoComplete="email" />
           <Input id="password" type="password" label="Mot de passe" placeholder="••••••••"
-            value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
+            value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
           <Input id="companyName" label="Nom de votre espace" placeholder="Mon espace"
-            value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
+            value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
 
-          {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+          {error && <FormMessage type="error" message={error} />}
 
           <Button type="submit" loading={loading} className="w-full" size="lg">
             Créer mon espace

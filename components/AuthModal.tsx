@@ -6,6 +6,7 @@ import { X, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { FormMessage } from '@/components/ui/FormMessage'
 
 type View = 'login' | 'register' | 'email_confirm'
 
@@ -67,6 +68,7 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError('')
+    if (!loginEmail.trim() || !loginPassword) { setLoginError('Veuillez remplir tous les champs.'); return }
     setLoginLoading(true)
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword })
@@ -82,6 +84,8 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setRegisterError('')
+    if (!fullName.trim() || !email.trim() || !password || !companyName.trim()) { setRegisterError('Veuillez remplir tous les champs.'); return }
+    if (password.length < 8) { setRegisterError('Le mot de passe doit contenir au moins 8 caractères.'); return }
     setRegisterLoading(true)
     const supabase = createClient()
 
@@ -161,10 +165,11 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
             <h2 className="text-xl font-bold text-[#0F172A] mb-5">Se connecter</h2>
             <form onSubmit={handleLogin} className="space-y-4">
               <Input id="m-email" type="email" label="Email" placeholder="vous@exemple.com"
-                value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required autoComplete="email" />
+                value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
+                onInvalid={(e) => e.preventDefault()} autoComplete="email" />
               <Input id="m-pass" type="password" label="Mot de passe" placeholder="••••••••"
-                value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required autoComplete="current-password" />
-              {loginError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{loginError}</p>}
+                value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} autoComplete="current-password" />
+              {loginError && <FormMessage type="error" message={loginError} />}
               <Button type="submit" loading={loginLoading} className="w-full" size="lg">
                 Se connecter
               </Button>
@@ -183,14 +188,15 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
             <h2 className="text-xl font-bold text-[#0F172A] mb-4">Créer un compte</h2>
             <form onSubmit={handleRegister} className="space-y-3">
               <Input id="r-name" label="Nom complet" placeholder="Jean Dupont"
-                value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+                value={fullName} onChange={(e) => setFullName(e.target.value)} />
               <Input id="r-email" type="email" label="Email" placeholder="vous@exemple.com"
-                value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+                value={email} onChange={(e) => setEmail(e.target.value)}
+                onInvalid={(e) => e.preventDefault()} autoComplete="email" />
               <Input id="r-pass" type="password" label="Mot de passe" placeholder="••••••••"
-                value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
+                value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
               <Input id="r-company" label="Nom de votre espace" placeholder="Mon équipe"
-                value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-              {registerError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{registerError}</p>}
+                value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+              {registerError && <FormMessage type="error" message={registerError} />}
               <Button type="submit" loading={registerLoading} className="w-full" size="lg">
                 Créer mon espace
               </Button>

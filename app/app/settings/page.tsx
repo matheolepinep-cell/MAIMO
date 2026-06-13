@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Building2, User, LogOut, Palette, Layers, Settings2 } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
@@ -28,11 +29,13 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMsg, setProfileMsg] = useState('')
+  const [profileMsgType, setProfileMsgType] = useState<'success' | 'error'>('success')
 
   // Company
   const [companyName, setCompanyName] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
   const [companyMsg, setCompanyMsg] = useState('')
+  const [companyMsgType, setCompanyMsgType] = useState<'success' | 'error'>('success')
 
   // Workspace company profile
   type WsProfile = {
@@ -47,6 +50,7 @@ export default function SettingsPage() {
   })
   const [savingWs, setSavingWs] = useState(false)
   const [wsMsg, setWsMsg] = useState('')
+  const [wsMsgType, setWsMsgType] = useState<'success' | 'error'>('success')
 
   useEffect(() => {
     if (!wsId) return
@@ -87,10 +91,12 @@ export default function SettingsPage() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!profile) return
+    if (!fullName.trim()) { setProfileMsg('Veuillez entrer votre nom.'); setProfileMsgType('error'); return }
     setSavingProfile(true)
     setProfileMsg('')
     const supabase = createClient()
     const { error } = await supabase.from('users').update({ full_name: fullName.trim() }).eq('id', profile.id)
+    setProfileMsgType(error ? 'error' : 'success')
     setProfileMsg(error ? error.message : 'Profil mis à jour !')
     setSavingProfile(false)
   }
@@ -111,6 +117,7 @@ export default function SettingsPage() {
       company_values: wsProfile.company_values.trim() || null,
       company_differentiator: wsProfile.company_differentiator.trim() || null,
     }).eq('id', wsId)
+    setWsMsgType(error ? 'error' : 'success')
     setWsMsg(error ? error.message : 'Fiche enregistrée !')
     setSavingWs(false)
   }
@@ -127,8 +134,8 @@ export default function SettingsPage() {
       .eq('id', company.id)
       .select()
       .single()
-    if (!error && data) { setCompany(data); setCompanyMsg('Nom mis à jour !') }
-    else setCompanyMsg(error?.message ?? 'Erreur')
+    if (!error && data) { setCompany(data); setCompanyMsgType('success'); setCompanyMsg('Nom mis à jour !') }
+    else { setCompanyMsgType('error'); setCompanyMsg(error?.message ?? 'Erreur') }
     setSavingCompany(false)
   }
 
@@ -204,9 +211,7 @@ export default function SettingsPage() {
                   className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
                   style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
-              {wsMsg && (
-                <p className={`text-sm px-3 py-2 rounded-lg ${wsMsg.includes('!') ? 'text-green-700 bg-green-50' : 'text-red-500 bg-red-50'}`}>{wsMsg}</p>
-              )}
+              {wsMsg && <FormMessage type={wsMsgType} message={wsMsg} />}
               <Button type="submit" loading={savingWs} size="sm">Sauvegarder</Button>
             </form>
           ) : (
@@ -240,13 +245,11 @@ export default function SettingsPage() {
             </div>
             <form onSubmit={handleSaveCompany} className="space-y-3">
               <Input id="companyName" label="Nom de l'espace" value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)} required />
+                onChange={(e) => setCompanyName(e.target.value)} />
               <p className="text-xs text-[#94A3B8]">
                 Créé le {new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(company.created_at))}
               </p>
-              {companyMsg && (
-                <p className={`text-sm px-3 py-2 rounded-lg ${companyMsg.includes('!') ? 'text-green-700 bg-green-50' : 'text-red-500 bg-red-50'}`}>{companyMsg}</p>
-              )}
+              {companyMsg && <FormMessage type={companyMsgType} message={companyMsg} />}
               <Button type="submit" loading={savingCompany} size="sm">Enregistrer</Button>
             </form>
           </Card>
@@ -341,7 +344,7 @@ export default function SettingsPage() {
           </div>
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <Input id="fullName" label="Nom complet" value={fullName}
-              onChange={(e) => setFullName(e.target.value)} required />
+              onChange={(e) => setFullName(e.target.value)} />
             <Input id="email" label="Email" value={profile?.email ?? ''} disabled
               className="bg-gray-50 text-[#94A3B8]" />
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -349,9 +352,7 @@ export default function SettingsPage() {
             }`}>
               {profile?.role === 'admin' ? 'Admin' : 'Collaborateur'}
             </span>
-            {profileMsg && (
-              <p className={`text-sm px-3 py-2 rounded-lg ${profileMsg.includes('!') ? 'text-green-700 bg-green-50' : 'text-red-500 bg-red-50'}`}>{profileMsg}</p>
-            )}
+            {profileMsg && <FormMessage type={profileMsgType} message={profileMsg} />}
             <Button type="submit" loading={savingProfile} size="sm">Enregistrer</Button>
           </form>
         </Card>

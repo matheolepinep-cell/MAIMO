@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -183,7 +184,7 @@ export function CreateWorkspaceModal({ open, onClose }: Props) {
             )}
           </div>
 
-          {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+          {error && <FormMessage type="error" message={error} />}
         </div>
 
         <div className="px-5 py-4 border-t border-gray-100 flex gap-3 justify-end shrink-0">

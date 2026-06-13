@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Trash2, UserPlus } from 'lucide-react'
+import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -35,6 +36,7 @@ export function ManageWorkspaceModal({ workspace, onClose, onDeleted }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [msg, setMsg] = useState('')
+  const [msgType, setMsgType] = useState<'success' | 'error'>('success')
 
   useEffect(() => {
     if (!profile) return
@@ -69,9 +71,9 @@ export function ManageWorkspaceModal({ workspace, onClose, onDeleted }: Props) {
       .from('workspaces')
       .update({ name: name.trim(), description: description.trim() || null, color })
       .eq('id', workspace.id)
-    if (error) { setMsg(error.message); setSaving(false); return }
+    if (error) { setMsgType('error'); setMsg(error.message); setSaving(false); return }
     await refreshWorkspaces()
-    setMsg('Enregistré !')
+    setMsgType('success'); setMsg('Enregistré !')
     setSaving(false)
   }
 
@@ -164,9 +166,7 @@ export function ManageWorkspaceModal({ workspace, onClose, onDeleted }: Props) {
                 ))}
               </div>
             </div>
-            {msg && (
-              <p className={`text-sm px-3 py-2 rounded-lg ${msg.includes('!') ? 'text-green-700 bg-green-50' : 'text-red-500 bg-red-50'}`}>{msg}</p>
-            )}
+            {msg && <FormMessage type={msgType} message={msg} />}
             <button
               onClick={handleSave}
               disabled={!name.trim() || saving}
