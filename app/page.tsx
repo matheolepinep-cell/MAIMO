@@ -370,12 +370,11 @@ export default function LandingPage() {
       {/* ── CHIFFRES CLÉS ──────────────────────────────────────────────────── */}
       <section className="bg-white border-t border-b border-[#E5E7EB] py-10">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4">
+          <div className="grid grid-cols-1 md:grid-cols-3">
             {[
               { value: <CountUp target={30} suffix="s" />, label: 'Pour capturer un appel', animated: true },
               { value: <CountUp target={3} suffix="s" />, label: 'Pour retrouver une info', animated: true },
               { value: '100%', label: 'Accessible sur mobile', animated: false },
-              { value: '0', label: 'Saisie manuelle', animated: false },
             ].map(({ value, label, animated }, i) => (
               <motion.div
                 key={label}
