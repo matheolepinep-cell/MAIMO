@@ -624,7 +624,7 @@ CREATE TABLE IF NOT EXISTS early_access (
             <motion.div
               variants={fadeInUp}
               className="bg-white flex flex-col relative"
-              style={{ border: '2px solid #4C6EF5', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(76,110,245,0.12)' }}
+              style={{ border: '1px solid #E5E7EB', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
             >
               <span className="absolute top-4 right-4 text-white text-[11px] font-semibold px-3 py-1"
                 style={{ background: '#4C6EF5', borderRadius: 20 }}>
