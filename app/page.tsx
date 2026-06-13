@@ -589,7 +589,7 @@ CREATE TABLE IF NOT EXISTS early_access (
           {/* Cards */}
           <motion.div
             variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start"
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch"
           >
             {/* ── SOLO ── */}
             <motion.div
@@ -615,7 +615,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 {['1 utilisateur', '1 espace', 'Portefeuille illimité', 'Notes texte et vocales illimitées', 'Recherche IA illimitée', '10 imports de documents par mois', "Import Excel jusqu'à 200 lignes par fichier", '5 Go de stockage', 'Support email'].map(f => <FeatureItem key={f} text={f} />)}
               </ul>
               <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
-                style={{ height: 44, borderRadius: 8, border: '1.5px solid #1E2761', color: '#1E2761', fontSize: 14 }}>
+                style={{ height: 44, borderRadius: 8, border: '1.5px solid #1E2761', color: '#1E2761', fontSize: 14, marginTop: 'auto' }}>
                 Commencer
               </button>
             </motion.div>
@@ -647,8 +647,8 @@ CREATE TABLE IF NOT EXISTS early_access (
               <ul className="space-y-3 flex-1 mb-8">
                 {["Jusqu'à 25 utilisateurs", '3 espaces internes', 'Tout Solo inclus', 'Portefeuille partagé (perso + global)', 'Messagerie interne temps réel', "Notifications et activité équipe", 'Carte clients interactive', 'Détection de conflits IA', '50 imports de documents par mois par espace', "Import Excel illimité jusqu'à 1000 lignes", '50 Go de stockage', 'Support prioritaire'].map(f => <FeatureItem key={f} text={f} />)}
               </ul>
-              <button onClick={openRegister} className="w-full font-semibold text-white transition-all hover:opacity-90"
-                style={{ height: 44, borderRadius: 8, background: navyGradient, fontSize: 14 }}>
+              <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
+                style={{ height: 44, borderRadius: 8, border: '1.5px solid #1E2761', color: '#1E2761', fontSize: 14, marginTop: 'auto' }}>
                 Commencer
               </button>
             </motion.div>
@@ -677,7 +677,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 {['Utilisateurs illimités', '5 espaces internes isolés', 'Tout Team inclus', 'Super Admin tous accès', 'Imports de documents illimités', 'Import Excel illimité sans limite de lignes', 'Fiche entreprise IA personnalisée', "Statistiques et rapports d'activité", 'Stockage illimité', 'Intégrations CRM (à venir)', "Support dédié + session d'onboarding"].map(f => <FeatureItem key={f} text={f} />)}
               </ul>
               <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
-                style={{ height: 44, borderRadius: 8, border: '1.5px solid #1E2761', color: '#1E2761', fontSize: 14 }}>
+                style={{ height: 44, borderRadius: 8, border: '1.5px solid #1E2761', color: '#1E2761', fontSize: 14, marginTop: 'auto' }}>
                 Commencer
               </button>
             </motion.div>
