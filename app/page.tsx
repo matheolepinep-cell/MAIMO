@@ -243,20 +243,9 @@ CREATE TABLE IF NOT EXISTS early_access (
 
   // ── Landing page ──────────────────────────────────────────────────────────
   return (
-    <>
-      {/* Fixed grid — stays put while content scrolls over */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'fixed', top: 0, left: 0,
-          width: '100vw', height: '100vh',
-          zIndex: 0, pointerEvents: 'none',
-          backgroundColor: 'white',
-          backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }}
-      />
     <div className="min-h-screen overflow-x-hidden" style={{ position: 'relative', zIndex: 1, color: '#1A1A2E' }}>
+      {/* Fixed grid — stays put while content scrolls over */}
+      <div className="grid-background" aria-hidden="true" />
       <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} defaultView={modalView} />
 
       {/* ── NAVBAR ─────────────────────────────────────────────────────────── */}
@@ -290,7 +279,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </nav>
 
       {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <section>
+      <section className="relative" style={{ zIndex: 1 }}>
         <div className="max-w-4xl mx-auto px-6 pt-[120px] pb-[100px] text-center">
           <motion.div
             variants={fadeInUp} initial="hidden" animate="visible"
@@ -396,7 +385,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── CHIFFRES CLÉS ──────────────────────────────────────────────────── */}
-      <section className="border-t border-b border-[#E5E7EB] py-10">
+      <section className="relative border-t border-b border-[#E5E7EB] py-10" style={{ zIndex: 1 }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-3">
             {[
@@ -423,7 +412,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── PROBLÈMES ──────────────────────────────────────────────────────── */}
-      <section className="py-[100px]">
+      <section className="relative py-[100px]" style={{ zIndex: 1 }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
@@ -453,7 +442,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── BÉNÉFICES ──────────────────────────────────────────────────────── */}
-      <section id="features" className="py-[100px]" style={{ backgroundColor: '#F8F9FF' }}>
+      <section id="features" className="relative py-[100px]" style={{ zIndex: 1, backgroundColor: '#F8F9FF' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
@@ -485,7 +474,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── COMMENT ÇA MARCHE ──────────────────────────────────────────────── */}
-      <section id="how" className="py-[100px]">
+      <section id="how" className="relative py-[100px]" style={{ zIndex: 1 }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
@@ -519,7 +508,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── TÉMOIGNAGES ────────────────────────────────────────────────────── */}
-      <section className="py-[100px]" style={{ backgroundColor: '#F8F9FF' }}>
+      <section className="relative py-[100px]" style={{ zIndex: 1, backgroundColor: '#F8F9FF' }}>
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
@@ -555,7 +544,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── PRICING ────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-[100px]">
+      <section id="pricing" className="relative py-[100px]" style={{ zIndex: 1 }}>
         <div className="max-w-5xl mx-auto px-6">
           {/* Header */}
           <div className="text-center mb-12">
@@ -739,7 +728,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── CTA FINAL ──────────────────────────────────────────────────────── */}
-      <section className="py-[100px] text-center" style={{ background: navyGradient }}>
+      <section className="relative py-[100px] text-center" style={{ zIndex: 1, background: navyGradient }}>
         <div className="max-w-3xl mx-auto px-6">
           <motion.h2
             variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
@@ -763,7 +752,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── FOOTER ─────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-[#E5E7EB] px-6 py-10">
+      <footer className="relative border-t border-[#E5E7EB] px-6 py-10" style={{ zIndex: 1 }}>
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Image src="/logo.png" alt="Maimoo" height={24} width={90} style={{ height: 24, width: 'auto' }} />
@@ -777,6 +766,5 @@ CREATE TABLE IF NOT EXISTS early_access (
         </div>
       </footer>
     </div>
-    </>
   )
 }
