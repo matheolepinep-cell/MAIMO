@@ -11,8 +11,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Maimoo',
-  description: 'Votre mémoire commerciale',
+  title: 'Maimoo — La mémoire de votre équipe commerciale',
+  description: "Capturez chaque information client en 30 secondes, retrouvez tout en 3 secondes. Notes vocales, recherche IA, partage équipe. L'alternative mobile au CRM pour commerciaux terrain.",
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
