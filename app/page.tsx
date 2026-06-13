@@ -15,12 +15,6 @@ type ModalView = 'login' | 'register'
 
 const navyGradient = 'linear-gradient(135deg, #0A1628 0%, #1E2761 60%, #2D3F8F 100%)'
 
-const gridBg: React.CSSProperties = {
-  backgroundImage:
-    'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
-  backgroundSize: '40px 40px',
-}
-
 const serifItalic: React.CSSProperties = {
   fontFamily: 'Georgia, serif',
   fontStyle: 'italic',
@@ -249,7 +243,20 @@ CREATE TABLE IF NOT EXISTS early_access (
 
   // ── Landing page ──────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden" style={{ color: '#1A1A2E' }}>
+    <>
+      {/* Fixed grid — stays put while content scrolls over */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'fixed', top: 0, left: 0,
+          width: '100vw', height: '100vh',
+          zIndex: 0, pointerEvents: 'none',
+          backgroundColor: 'white',
+          backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }}
+      />
+    <div className="min-h-screen overflow-x-hidden" style={{ position: 'relative', zIndex: 1, color: '#1A1A2E' }}>
       <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} defaultView={modalView} />
 
       {/* ── NAVBAR ─────────────────────────────────────────────────────────── */}
@@ -283,7 +290,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </nav>
 
       {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <section className="bg-white" style={gridBg}>
+      <section>
         <div className="max-w-4xl mx-auto px-6 pt-[120px] pb-[100px] text-center">
           <motion.div
             variants={fadeInUp} initial="hidden" animate="visible"
@@ -389,7 +396,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── CHIFFRES CLÉS ──────────────────────────────────────────────────── */}
-      <section className="bg-white border-t border-b border-[#E5E7EB] py-10">
+      <section className="border-t border-b border-[#E5E7EB] py-10">
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-3">
             {[
@@ -416,7 +423,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── PROBLÈMES ──────────────────────────────────────────────────────── */}
-      <section className="bg-white py-[100px]" style={gridBg}>
+      <section className="py-[100px]">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
@@ -478,7 +485,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── COMMENT ÇA MARCHE ──────────────────────────────────────────────── */}
-      <section id="how" className="bg-white py-[100px]" style={gridBg}>
+      <section id="how" className="py-[100px]">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
@@ -548,7 +555,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── PRICING ────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="bg-white py-[100px]" style={gridBg}>
+      <section id="pricing" className="py-[100px]">
         <div className="max-w-5xl mx-auto px-6">
           {/* Header */}
           <div className="text-center mb-12">
@@ -756,7 +763,7 @@ CREATE TABLE IF NOT EXISTS early_access (
       </section>
 
       {/* ── FOOTER ─────────────────────────────────────────────────────────── */}
-      <footer className="bg-white border-t border-[#E5E7EB] px-6 py-10">
+      <footer className="border-t border-[#E5E7EB] px-6 py-10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Image src="/logo.png" alt="Maimoo" height={24} width={90} style={{ height: 24, width: 'auto' }} />
@@ -770,5 +777,6 @@ CREATE TABLE IF NOT EXISTS early_access (
         </div>
       </footer>
     </div>
+    </>
   )
 }
