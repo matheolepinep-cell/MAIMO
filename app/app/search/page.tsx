@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, Upload, Sparkles, Mic, MicOff, ArrowUp, FileText, MessageCircle } from 'lucide-react'
+import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -59,46 +59,74 @@ function fmt(d?: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(d))
 }
 
-function parseAIContent(content: string): React.ReactNode {
-  const lines = content.split('\n')
-  const items: string[] = []
-  let current = ''
+// ── Markdown renderer ──
 
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (trimmed.startsWith('- ') || trimmed.startsWith('– ')) {
-      if (current) items.push(current.trim())
-      current = trimmed.slice(2)
-    } else if (trimmed && current) {
-      current += ' ' + trimmed
-    } else if (!trimmed && current) {
-      items.push(current.trim())
-      current = ''
-    }
-  }
-  if (current) items.push(current.trim())
-
-  if (items.length <= 1) {
-    return <p style={{ lineHeight: 1.7, margin: 0, fontSize: 14, color: '#1A1A2E' }}>{content}</p>
-  }
-
-  return (
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-      {items.map((item, i) => (
-        <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: i < items.length - 1 ? 10 : 0 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4C6EF5', flexShrink: 0, marginTop: 7 }} />
-          <span style={{ lineHeight: 1.7, fontSize: 14, color: '#1A1A2E' }}>{item}</span>
-        </li>
-      ))}
-    </ul>
-  )
+function parseInline(text: string): string {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  return escaped
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
 }
+
+function renderMarkdown(content: string): React.ReactNode {
+  const lines = content.split('\n')
+  const elements: React.ReactNode[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    if (!trimmed) { i++; continue }
+
+    if (/^[-*•–]\s/.test(trimmed)) {
+      const listItems: string[] = []
+      while (i < lines.length && /^[-*•–]\s/.test(lines[i].trim())) {
+        listItems.push(lines[i].trim().replace(/^[-*•–]\s/, ''))
+        i++
+      }
+      elements.push(
+        <ul key={elements.length} style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
+          {listItems.map((item, j) => (
+            <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: j < listItems.length - 1 ? 8 : 0 }}>
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#4C6EF5', flexShrink: 0, marginTop: 10 }} />
+              <span
+                style={{ lineHeight: 1.8, fontSize: 15, color: '#1A1A2E' }}
+                dangerouslySetInnerHTML={{ __html: parseInline(item) }}
+              />
+            </li>
+          ))}
+        </ul>
+      )
+      continue
+    }
+
+    const paraLines: string[] = []
+    while (i < lines.length && lines[i].trim() && !/^[-*•–]\s/.test(lines[i].trim())) {
+      paraLines.push(lines[i])
+      i++
+    }
+    elements.push(
+      <p key={elements.length}
+        style={{ margin: '0 0 12px', lineHeight: 1.8, fontSize: 15, color: '#1A1A2E' }}
+        dangerouslySetInnerHTML={{ __html: paraLines.map(l => parseInline(l.trim())).join('<br />') }}
+      />
+    )
+  }
+
+  return <div>{elements}</div>
+}
+
+// ── Sources pills ──
 
 function SourcesList({ sources }: { sources: SearchSource[] }) {
   const [expanded, setExpanded] = useState(false)
   const router = useRouter()
-  const visible = expanded ? sources : sources.slice(0, 5)
-  const extra = sources.length - 5
+  const visible = expanded ? sources : sources.slice(0, 4)
+  const extra = sources.length - 4
 
   const handleClick = async (s: SearchSource) => {
     if (s.type === 'note' && s.account_id) {
@@ -114,49 +142,68 @@ function SourcesList({ sources }: { sources: SearchSource[] }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-      {visible.map((s, si) => (
-        <button
-          key={si}
-          onClick={() => handleClick(s)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '3px 10px', borderRadius: 20,
-            background: 'white', border: '0.5px solid #E5E7EB',
-            fontSize: 11, color: '#8899BB', cursor: 'pointer',
-            transition: 'background 0.12s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#F0F4FF')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
-        >
-          <FileText style={{ width: 11, height: 11, flexShrink: 0 }} />
-          {s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')}
-        </button>
-      ))}
-      {!expanded && extra > 0 && (
-        <button
-          onClick={() => setExpanded(true)}
-          style={{
-            padding: '3px 10px', borderRadius: 20,
-            background: 'white', border: '0.5px solid #E5E7EB',
-            fontSize: 11, color: '#4C6EF5', cursor: 'pointer',
-            transition: 'background 0.12s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#F0F4FF')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
-        >
-          + {extra} autre{extra > 1 ? 's' : ''}
-        </button>
-      )}
+    <div style={{ marginTop: 12 }}>
+      <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 6px' }}>Sources</p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {visible.map((s, si) => (
+          <button
+            key={si}
+            onClick={() => handleClick(s)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '4px 12px', borderRadius: 20,
+              background: '#F3F4F6', border: 'none',
+              fontSize: 12, color: '#6B7280', cursor: 'pointer',
+              transition: 'background 0.12s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#E5E7EB')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+          >
+            <FileText style={{ width: 11, height: 11, flexShrink: 0 }} />
+            {s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')}
+          </button>
+        ))}
+        {!expanded && extra > 0 && (
+          <button
+            onClick={() => setExpanded(true)}
+            style={{
+              padding: '4px 12px', borderRadius: 20,
+              background: '#F3F4F6', border: 'none',
+              fontSize: 12, color: '#4C6EF5', cursor: 'pointer',
+              transition: 'background 0.12s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#E5E7EB')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+          >
+            + {extra} autre{extra > 1 ? 's' : ''}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
+
+// ── Auto-resize helper ──
+
+function autoResize(el: HTMLTextAreaElement | null) {
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+}
+
+// ── Hardcoded suggestion cards ──
+
+const SUGGESTIONS = [
+  'Résume les dernières notes de la semaine',
+  "Quels clients n'ont pas été contactés ce mois ?",
+  'Prépare-moi un brief avant un RDV',
+]
 
 function SearchPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
-  const { wsId } = useWorkspace()
+  const { wsId, currentWorkspace } = useWorkspace()
 
   const [activeTab, setActiveTab] = useState<SearchTab>('global')
   const [portfolioAccounts, setPortfolioAccounts] = useState<{ id: string; name: string }[]>([])
@@ -169,7 +216,6 @@ function SearchPageContent() {
   const [conversation, setConversation] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [inputFocused, setInputFocused] = useState(false)
 
   const [conversations, setConversations] = useState<ConvRow[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
@@ -178,10 +224,9 @@ function SearchPageContent() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const [isRecording, setIsRecording] = useState(false)
-  const mobileInputRef = useRef<HTMLInputElement>(null)
-  const desktopInputRef = useRef<HTMLInputElement>(null)
+  const mobileTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const desktopTextareaRef = useRef<HTMLTextAreaElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
-
   const bottomRef = useRef<HTMLDivElement>(null)
   const didAutoSearch = useRef(false)
 
@@ -218,7 +263,6 @@ function SearchPageContent() {
   useEffect(() => {
     if (profileLoading || !profile) return
     fetch('/api/search/cleanup').catch(() => {})
-
     const supabase = createClient()
     let q = supabase
       .from('search_conversations')
@@ -226,22 +270,14 @@ function SearchPageContent() {
       .eq('user_id', profile.id)
       .gt('expires_at', new Date().toISOString())
       .order('updated_at', { ascending: false })
-
-    if (wsId) {
-      q = q.eq('workspace_id', wsId)
-    } else {
-      q = q.is('workspace_id', null)
-    }
-
+    if (wsId) { q = q.eq('workspace_id', wsId) } else { q = q.is('workspace_id', null) }
     q.then(({ data }) => {
       const rows = ((data ?? []) as unknown[]).map((r) => {
         const row = r as Record<string, unknown>
         return {
-          id: row.id as string,
-          title: row.title as string | null,
+          id: row.id as string, title: row.title as string | null,
           messages: (row.messages as Message[]) ?? [],
-          updated_at: row.updated_at as string,
-          expires_at: row.expires_at as string,
+          updated_at: row.updated_at as string, expires_at: row.expires_at as string,
           created_at: row.created_at as string,
         } satisfies ConvRow
       })
@@ -272,33 +308,20 @@ function SearchPageContent() {
     const convWithUser = [...conversation, userMsg]
     setConversation(convWithUser)
     setInput('')
+    setTimeout(() => { autoResize(mobileTextareaRef.current); autoResize(desktopTextareaRef.current) }, 0)
 
     const supabase = createClient()
     let convId = activeConversationId
-
     if (!convId) {
       const { data: newConv } = await supabase
         .from('search_conversations')
-        .insert({
-          user_id: profile.id,
-          workspace_id: wsId ?? null,
-          title: q.slice(0, 40).trim(),
-          messages: [],
-        })
-        .select('id, expires_at, updated_at, created_at')
-        .single()
+        .insert({ user_id: profile.id, workspace_id: wsId ?? null, title: q.slice(0, 40).trim(), messages: [] })
+        .select('id, expires_at, updated_at, created_at').single()
       if (newConv) {
         const nc = newConv as { id: string; expires_at: string; updated_at: string; created_at: string }
         convId = nc.id
         setActiveConversationId(convId)
-        setConversations(prev => [{
-          id: nc.id,
-          title: q.slice(0, 40).trim(),
-          messages: [],
-          updated_at: nc.updated_at,
-          expires_at: nc.expires_at,
-          created_at: nc.created_at,
-        }, ...prev])
+        setConversations(prev => [{ id: nc.id, title: q.slice(0, 40).trim(), messages: [], updated_at: nc.updated_at, expires_at: nc.expires_at, created_at: nc.created_at }, ...prev])
       }
     }
 
@@ -306,8 +329,7 @@ function SearchPageContent() {
       const body: Record<string, unknown> = {
         query: q, company_id: profile.company_id,
         workspace_id: wsId ?? undefined, status: statusFilter,
-        city: city.trim() || undefined, history,
-        previousChunks,
+        city: city.trim() || undefined, history, previousChunks,
       }
       if (activeTab === 'portfolio') {
         body[selectedAccountId ? 'account_id' : 'account_ids'] = selectedAccountId || portfolioAccounts.map((a) => a.id)
@@ -316,37 +338,18 @@ function SearchPageContent() {
       }
       const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json()
-
       const chunks = (data.chunksUsed ?? []) as ChunkUsed[]
-      const assistantMsg: Message = {
-        role: 'assistant',
-        content: data.answer ?? '',
-        sources: data.sources ?? [],
-        chunks,
-        timestamp: new Date().toISOString(),
-      }
-
+      const assistantMsg: Message = { role: 'assistant', content: data.answer ?? '', sources: data.sources ?? [], chunks, timestamp: new Date().toISOString() }
       const finalConv = [...convWithUser, assistantMsg]
       setConversation(finalConv)
       setPreviousChunks(chunks)
-
       if (convId) {
         const now = new Date().toISOString()
-        await supabase
-          .from('search_conversations')
-          .update({ messages: finalConv, updated_at: now })
-          .eq('id', convId)
-        setConversations(prev => prev.map(c =>
-          c.id === convId ? { ...c, messages: finalConv, updated_at: now } : c
-        ))
+        await supabase.from('search_conversations').update({ messages: finalConv, updated_at: now }).eq('id', convId)
+        setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: finalConv, updated_at: now } : c))
       }
     } catch {
-      setConversation(prev => [...prev, {
-        role: 'assistant',
-        content: 'Une erreur est survenue. Veuillez réessayer.',
-        sources: [],
-        timestamp: new Date().toISOString(),
-      }])
+      setConversation(prev => [...prev, { role: 'assistant', content: 'Une erreur est survenue. Veuillez réessayer.', sources: [], timestamp: new Date().toISOString() }])
     }
     setLoading(false)
   }, [profile, wsId, conversation, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city, activeConversationId, previousChunks])
@@ -404,7 +407,12 @@ function SearchPageContent() {
     setConfirmDeleteId(null)
   }
 
-  const handleSubmit = () => { const q = input.trim(); if (!q || loading) return; setQuery(q); doSearch(q) }
+  const handleSubmit = () => {
+    const q = input.trim()
+    if (!q || loading) return
+    setQuery(q)
+    doSearch(q)
+  }
 
   const startVoice = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -419,309 +427,377 @@ function SearchPageContent() {
   }, [])
   const stopVoice = () => { recognitionRef.current?.stop(); setIsRecording(false) }
 
-  // ── Input bars ──
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    autoResize(e.target)
+  }
 
-  const inputBarSmall = (inputRef: React.RefObject<HTMLInputElement | null>) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+  // ── Input area (shared render function) ──
+  const inputArea = (textareaRef: React.RefObject<HTMLTextAreaElement | null>, isMobile: boolean) => (
+    <div>
       <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-        background: '#F5F7FA', border: inputFocused ? '1.5px solid #4C6EF5' : '1.5px solid #E5E7EB',
-        borderRadius: 14, height: 52, padding: '0 14px',
-        boxShadow: inputFocused ? '0 0 0 3px rgba(76,110,245,0.10)' : 'none',
+        background: '#F9FAFB',
+        border: '1px solid #E5E7EB',
+        borderRadius: 16,
+        display: 'flex',
+        alignItems: 'flex-end',
+        padding: '12px 16px',
+        gap: 8,
         transition: 'border-color 0.15s, box-shadow 0.15s',
-      }}>
-        <input
-          ref={inputRef} type="text"
-          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#1A1A2E' }}
-          placeholder="Poser une question..."
+      }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = '#1E2761'
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,39,97,0.08)'
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = '#E5E7EB'
+          e.currentTarget.style.boxShadow = 'none'
+        }}
+      >
+        <textarea
+          ref={textareaRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onFocus={() => setInputFocused(true)}
-          onBlur={() => setInputFocused(false)}
+          onChange={handleTextareaChange}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
+          placeholder="Envoyer un message..."
+          rows={1}
+          style={{
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            resize: 'none',
+            fontSize: isMobile ? 15 : 15,
+            color: '#1A1A2E',
+            lineHeight: 1.5,
+            minHeight: 24,
+            maxHeight: 200,
+            overflowY: 'auto',
+            fontFamily: 'inherit',
+          }}
         />
-        <button
-          onClick={isRecording ? stopVoice : startVoice}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <button
+            onClick={isRecording ? stopVoice : startVoice}
+            style={{
+              width: 34, height: 34, borderRadius: '50%',
+              border: 'none', background: 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', transition: 'background 0.12s',
+              color: isRecording ? '#EF4444' : '#6B7280',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            {isRecording
+              ? <MicOff style={{ width: 18, height: 18 }} />
+              : <Mic style={{ width: 18, height: 18 }} />}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            style={{
+              width: 34, height: 34, borderRadius: '50%',
+              border: 'none',
+              background: input.trim() && !loading ? '#1E2761' : '#E5E7EB',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: input.trim() && !loading ? 'pointer' : 'default',
+              transition: 'background 0.15s',
+            }}
+          >
+            <ArrowUp style={{ width: 18, height: 18, color: input.trim() && !loading ? 'white' : '#9CA3AF' }} />
+          </button>
+        </div>
+      </div>
+      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 8 }}>
+        Maimoo peut faire des erreurs. Vérifiez les informations importantes.
+      </p>
+    </div>
+  )
+
+  // ── Tabs + filters bar ──
+  const tabsBar = (
+    <div style={{
+      flexShrink: 0,
+      background: '#F9FAFB',
+      borderBottom: '1px solid #E5E7EB',
+      padding: '8px 24px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 0,
+    }}>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 20, flex: 1 }}>
+        {([
+          { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
+          { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
+        ]).map(({ value, label, icon: Icon }) => (
+          <button
+            key={value}
+            onClick={() => setActiveTab(value)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '4px 0',
+              border: 'none', background: 'none', cursor: 'pointer',
+              fontSize: 13,
+              color: activeTab === value ? '#1E2761' : '#6B7280',
+              fontWeight: activeTab === value ? 500 : 400,
+              borderBottom: activeTab === value ? '2px solid #1E2761' : '2px solid transparent',
+              transition: 'all 0.15s',
+            }}
+          >
+            <Icon style={{ width: 13, height: 13 }} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {(['all', 'client', 'prospect'] as const).map((f) => (
+          <button key={f} onClick={() => setStatusFilter(f)}
+            style={{
+              padding: '4px 12px', borderRadius: 20, border: '1px solid #E5E7EB',
+              background: statusFilter === f ? '#1E2761' : 'transparent',
+              color: statusFilter === f ? 'white' : '#6B7280',
+              fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
+            }}>
+            {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
+          </button>
+        ))}
+        <input type="text" value={city} onChange={(e) => setCity(e.target.value)}
+          placeholder="Ville..."
           style={{
-            width: 36, height: 36, borderRadius: '50%', border: 'none',
-            background: isRecording ? '#EF4444' : '#4C6EF5',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
-          }}>
-          {isRecording ? <MicOff style={{ width: 16, height: 16, color: 'white' }} /> : <Mic style={{ width: 16, height: 16, color: 'white' }} />}
-        </button>
-        <button
-          onClick={handleSubmit} disabled={loading}
-          style={{
-            width: 36, height: 36, borderRadius: '50%', border: 'none',
-            background: input.trim() && !loading ? '#1E2761' : '#CBD5E1',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
-            transition: 'background 0.15s',
-          }}>
-          <ArrowUp style={{ width: 16, height: 16, color: 'white' }} />
-        </button>
+            padding: '4px 10px', borderRadius: 20, border: '1px solid #E5E7EB',
+            fontSize: 12, color: '#374151', width: 72, background: 'transparent',
+            outline: 'none',
+          }} />
       </div>
     </div>
   )
 
-  const inputBarLarge = (inputRef: React.RefObject<HTMLInputElement | null>) => (
+  // ── Portfolio dropdown ──
+  const portfolioDropdown = activeTab === 'portfolio' ? (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      background: 'white', border: '1.5px solid #4C6EF5',
-      borderRadius: 16, height: 56, padding: '0 16px',
-      boxShadow: '0 0 0 4px rgba(76,110,245,0.08)',
+      flexShrink: 0, padding: '8px 24px',
+      borderBottom: '0.5px solid #E5E7EB', background: 'white',
+      position: 'relative',
     }}>
-      <input
-        ref={inputRef} type="text"
-        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 15, color: '#1A1A2E' }}
-        placeholder="Posez votre question..."
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
-      />
-      <button
-        onClick={isRecording ? stopVoice : startVoice}
+      <Building2 style={{
+        position: 'absolute', left: 34, top: '50%', transform: 'translateY(-50%)',
+        width: 14, height: 14, color: '#9CA3AF', pointerEvents: 'none',
+      }} />
+      <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}
         style={{
-          width: 36, height: 36, borderRadius: '50%', border: 'none',
-          background: isRecording ? '#EF4444' : '#4C6EF5',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+          width: '100%', paddingLeft: 28, paddingRight: 12, paddingTop: 7, paddingBottom: 7,
+          borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 13, color: '#374151',
+          background: 'white', outline: 'none', cursor: 'pointer',
         }}>
-        {isRecording ? <MicOff style={{ width: 17, height: 17, color: 'white' }} /> : <Mic style={{ width: 17, height: 17, color: 'white' }} />}
-      </button>
-      <button
-        onClick={handleSubmit} disabled={loading}
-        style={{
-          width: 36, height: 36, borderRadius: '50%', border: 'none',
-          background: input.trim() && !loading ? '#1E2761' : '#CBD5E1',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
-          transition: 'background 0.15s',
-        }}>
-        <ArrowUp style={{ width: 17, height: 17, color: 'white' }} />
-      </button>
+        <option value="">Toutes mes entreprises</option>
+        {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+      </select>
     </div>
-  )
+  ) : null
 
-  // ── Suggestions ──
-  const firstAccount = portfolioAccounts[0]?.name
-  const suggestions = [
-    firstAccount ? `Dernier contact avec ${firstAccount} ?` : 'Quand ai-je contacté ce client pour la dernière fois ?',
-    "Quels clients n'ont pas été contactés ce mois ?",
-    'Résume les notes de la semaine',
-  ]
-
-  // ── Pill tabs (desktop) ──
-  const pillTabs = (
-    <div style={{ display: 'inline-flex', background: '#F0F4FF', borderRadius: 10, padding: 3, gap: 2 }}>
-      {([
-        { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
-        { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
-      ]).map(({ value, label, icon: Icon }) => (
-        <button
-          key={value}
-          onClick={() => setActiveTab(value)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
-            fontSize: 13, fontWeight: activeTab === value ? 500 : 400,
-            background: activeTab === value ? 'white' : 'transparent',
-            color: activeTab === value ? '#1E2761' : '#8899BB',
-            boxShadow: activeTab === value ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-            transition: 'all 0.15s',
-          }}
-        >
-          <Icon style={{ width: 13, height: 13 }} />
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-
-  // ── Status filters ──
-  const statusFilters = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {(['all', 'client', 'prospect'] as const).map((f) => (
-        <button
-          key={f}
-          onClick={() => setStatusFilter(f)}
-          style={{
-            padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-            fontSize: 12, fontWeight: 400,
-            background: statusFilter === f ? '#1E2761' : 'transparent',
-            color: statusFilter === f ? 'white' : '#8899BB',
-            outline: statusFilter === f ? 'none' : '1px solid #E5E7EB',
-            transition: 'all 0.15s',
-          }}
-        >
-          {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
-        </button>
-      ))}
-      <input
-        type="text" value={city} onChange={(e) => setCity(e.target.value)}
-        placeholder="Ville..."
-        style={{
-          padding: '6px 10px', borderRadius: 8,
-          border: '1px solid #E5E7EB', fontSize: 12, color: '#374151',
-          width: 76, background: 'white', outline: 'none',
-        }}
-      />
-    </div>
-  )
-
-  // ── Messages ──
-  const conversationMessages = (
+  // ── Messages list ──
+  const messagesList = (
     <>
       {conversation.map((msg, i) => {
         if (msg.role === 'user') return (
-          <div key={i} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
             <div style={{
               background: '#1E2761', color: 'white',
-              borderRadius: '16px 16px 4px 16px',
-              padding: '12px 18px', maxWidth: '70%',
-              fontSize: 14, lineHeight: 1.6,
+              borderRadius: '18px 18px 4px 18px',
+              padding: '12px 18px', maxWidth: '65%',
+              fontSize: 15, lineHeight: 1.5,
             }}>
               {msg.content}
             </div>
           </div>
         )
         return (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '80%' }}>
-            <div style={{ fontSize: 14, color: '#1A1A2E', lineHeight: 1.7 }}>
-              {parseAIContent(msg.content)}
+          <div key={i} style={{ marginBottom: 24 }}>
+            <div style={{ maxWidth: '100%' }}>
+              {renderMarkdown(msg.content)}
+              {msg.sources && msg.sources.length > 0 && <SourcesList sources={msg.sources} />}
             </div>
-            {msg.sources && msg.sources.length > 0 && (
-              <SourcesList sources={msg.sources} />
-            )}
           </div>
         )
       })}
       {loading && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '80%', gap: 8 }}>
-          <div style={{ height: 14, background: '#E8ECFF', borderRadius: 6, width: 140, animation: 'pulse 1.5s ease-in-out infinite' }} />
-          <div style={{ height: 14, background: '#E8ECFF', borderRadius: 6, width: 200, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.15s' }} />
-          <div style={{ height: 14, background: '#E8ECFF', borderRadius: 6, width: 165, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.3s' }} />
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ height: 14, background: '#F3F4F6', borderRadius: 6, width: 200, animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div style={{ height: 14, background: '#F3F4F6', borderRadius: 6, width: 280, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.15s' }} />
+            <div style={{ height: 14, background: '#F3F4F6', borderRadius: 6, width: 240, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.3s' }} />
+          </div>
         </div>
       )}
       <div ref={bottomRef} />
     </>
   )
 
+  // ── Empty state ──
+  const emptyState = (isMobile: boolean) => (
+    <div style={{
+      flex: 1,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: isMobile ? '32px 20px' : '48px 32px',
+      gap: 0,
+    }}>
+      {/* Logo */}
+      <img src="/logo.png" alt="Maimoo" style={{ height: 36, width: 'auto', marginBottom: 24 }} />
+
+      <h2 style={{
+        fontSize: isMobile ? 22 : 28,
+        fontWeight: 600, color: '#1A1A2E',
+        textAlign: 'center', margin: '0 0 8px',
+      }}>
+        Comment puis-je vous aider ?
+      </h2>
+      <p style={{
+        fontSize: 15, color: '#6B7280',
+        textAlign: 'center', margin: '0 0 32px',
+        maxWidth: 440, lineHeight: 1.5,
+      }}>
+        Posez une question sur vos clients, notes ou documents.
+      </p>
+
+      {/* Suggestion cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+        gap: 12,
+        width: '100%',
+        maxWidth: 680,
+      }}>
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s}
+            onClick={() => doSearch(s)}
+            style={{
+              background: '#F9FAFB',
+              border: '1px solid #E5E7EB',
+              borderRadius: 12,
+              padding: '16px',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontSize: 13, color: '#374151',
+              lineHeight: 1.5,
+              transition: 'background 0.15s, border-color 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#F3F4F6'
+              e.currentTarget.style.borderColor = '#D1D5DB'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#F9FAFB'
+              e.currentTarget.style.borderColor = '#E5E7EB'
+            }}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
     <>
       {/* ── MOBILE ── */}
-      <div className="md:hidden flex flex-col" style={{ height: '100dvh', background: '#F8F9FF' }}>
+      <div className="md:hidden flex flex-col" style={{ height: '100dvh', background: 'white' }}>
 
         {/* Mobile header */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '12px 16px 12px 68px',
-          background: 'white',
-          borderBottom: '0.5px solid #E5E7EB',
           flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 16px 12px 16px',
+          background: 'white', borderBottom: '1px solid #E5E7EB',
         }}>
-          <span style={{ flex: 1, fontSize: 17, fontWeight: 700, color: '#1E2761' }}>Recherche IA</span>
           <button
             onClick={() => setMobileSidebarOpen(true)}
             style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: '#F0F4FF', border: 'none', cursor: 'pointer',
+              width: 36, height: 36, borderRadius: 8,
+              background: 'transparent', border: '1px solid #E5E7EB',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
             }}
           >
-            <MessageCircle style={{ width: 16, height: 16, color: '#4C6EF5' }} />
+            <Menu style={{ width: 18, height: 18, color: '#374151' }} />
           </button>
-          <button
-            onClick={() => router.push('/app/import')}
+          <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: '#1A1A2E', textAlign: 'center' }}>
+            Recherche IA
+          </span>
+          <button onClick={() => router.push('/app/import')}
             style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: '#F0F4FF', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Upload style={{ width: 15, height: 15, color: '#4C6EF5' }} />
+              width: 36, height: 36, borderRadius: 8,
+              background: 'transparent', border: '1px solid #E5E7EB',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}>
+            <Upload style={{ width: 16, height: 16, color: '#6B7280' }} />
           </button>
         </div>
 
         {/* Mobile tabs */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 0,
-          padding: '10px 16px',
-          background: 'white', borderBottom: '0.5px solid #E5E7EB', flexShrink: 0,
+          flexShrink: 0,
+          background: '#F9FAFB',
+          borderBottom: '1px solid #E5E7EB',
+          padding: '8px 16px',
+          display: 'flex', alignItems: 'center', gap: 16,
         }}>
-          <div style={{ display: 'inline-flex', background: '#F0F4FF', borderRadius: 8, padding: 2, gap: 1 }}>
-            {(['portfolio', 'global'] as const).map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
+          {(['portfolio', 'global'] as const).map((tab) => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer',
+                fontSize: 13,
+                color: activeTab === tab ? '#1E2761' : '#6B7280',
+                fontWeight: activeTab === tab ? 500 : 400,
+                borderBottom: activeTab === tab ? '2px solid #1E2761' : '2px solid transparent',
+                transition: 'all 0.15s',
+              }}>
+              {tab === 'portfolio' ? 'Mon portefeuille' : 'Portefeuille global'}
+            </button>
+          ))}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            {(['all', 'client', 'prospect'] as const).map((f) => (
+              <button key={f} onClick={() => setStatusFilter(f)}
                 style={{
-                  padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                  fontSize: 12, fontWeight: activeTab === tab ? 500 : 400,
-                  background: activeTab === tab ? 'white' : 'transparent',
-                  color: activeTab === tab ? '#1E2761' : '#8899BB',
-                  boxShadow: activeTab === tab ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                  transition: 'all 0.15s',
+                  padding: '3px 10px', borderRadius: 20, border: '1px solid #E5E7EB',
+                  background: statusFilter === f ? '#1E2761' : 'transparent',
+                  color: statusFilter === f ? 'white' : '#6B7280',
+                  fontSize: 11, cursor: 'pointer',
                 }}>
-                {tab === 'portfolio' ? 'Mon portefeuille' : 'Portefeuille global'}
+                {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
               </button>
             ))}
           </div>
         </div>
 
-        {inConversation ? (
-          <>
-            <div style={{
-              flex: 1, overflowY: 'auto', minHeight: 0,
-              padding: '20px 16px',
-              display: 'flex', flexDirection: 'column', gap: 16,
-            }}>
-              {conversationMessages}
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {inConversation ? (
+            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column' }}>
+              {messagesList}
             </div>
-            <div style={{
-              flexShrink: 0, background: 'white', padding: '12px 16px',
-              borderTop: '0.5px solid #E5E7EB',
-              paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom, 0px) + 20px))',
-            }}>
-              {inputBarSmall(mobileInputRef)}
-            </div>
-          </>
-        ) : (
-          <div style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            padding: '32px 24px', gap: 24,
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: 56, height: 56, borderRadius: '50%',
-                background: 'rgba(76,110,245,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}>
-                <Sparkles style={{ width: 28, height: 28, color: '#4C6EF5' }} />
-              </div>
-              <p style={{ fontSize: 19, fontWeight: 700, color: '#1E2761', margin: '0 0 8px' }}>
-                Que voulez-vous savoir ?
-              </p>
-              <p style={{ fontSize: 13, color: '#8899BB', margin: 0, lineHeight: 1.6 }}>
-                Posez une question sur n'importe quel client, note ou document.
-              </p>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
-              {suggestions.map((s) => (
-                <button key={s} onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
-                  style={{
-                    padding: '8px 16px', background: 'white',
-                    border: '1px solid #E5E7EB', borderRadius: 24,
-                    fontSize: 12, color: '#374151', cursor: 'pointer',
-                  }}>
-                  {s}
-                </button>
-              ))}
-            </div>
-            <div style={{ width: '100%' }}>
-              {inputBarLarge(mobileInputRef)}
-            </div>
-          </div>
-        )}
+          ) : (
+            emptyState(true)
+          )}
+        </div>
+
+        {/* Mobile input */}
+        <div style={{
+          flexShrink: 0, background: 'white',
+          borderTop: '1px solid #E5E7EB',
+          padding: '12px 16px',
+          paddingBottom: 'max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px))',
+        }}>
+          {inputArea(mobileTextareaRef, true)}
+        </div>
       </div>
 
-      {/* Mobile conversations overlay */}
+      {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <div
           className="md:hidden fixed inset-0 z-[60]"
@@ -729,12 +805,13 @@ function SearchPageContent() {
           onClick={() => setMobileSidebarOpen(false)}
         >
           <div
-            style={{ width: 280, height: '100%', background: '#0A1628' }}
+            style={{ width: 280, height: '100%' }}
             onClick={(e) => e.stopPropagation()}
           >
             <ConversationsSidebar
               conversations={conversations}
               activeId={activeConversationId}
+              workspaceName={currentWorkspace?.name}
               onNew={() => { handleNewConversation(); setMobileSidebarOpen(false) }}
               onSelect={(id) => { handleSelectConversation(id); setMobileSidebarOpen(false) }}
               onDelete={(id) => { setConfirmDeleteId(id); setMobileSidebarOpen(false) }}
@@ -746,10 +823,11 @@ function SearchPageContent() {
       {/* ── DESKTOP ── */}
       <div className="hidden md:flex flex-1 overflow-hidden">
 
-        {/* Conversations sidebar */}
+        {/* Sidebar */}
         <ConversationsSidebar
           conversations={conversations}
           activeId={activeConversationId}
+          workspaceName={currentWorkspace?.name}
           onNew={handleNewConversation}
           onSelect={handleSelectConversation}
           onDelete={(id) => setConfirmDeleteId(id)}
@@ -758,129 +836,32 @@ function SearchPageContent() {
         {/* Main area */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'white' }}>
 
-          {/* Header */}
-          <div style={{
-            flexShrink: 0,
-            padding: '14px 24px',
-            background: 'white',
-            borderBottom: '0.5px solid #E5E7EB',
-          }}>
-            {/* Breadcrumb */}
-            <div style={{ fontSize: 11, color: '#8899BB', marginBottom: 6 }}>
-              <span>MAIMOO</span>
-              <span style={{ margin: '0 5px', color: '#CBD5E1' }}>/</span>
-              <span>Recherche IA</span>
-            </div>
+          {/* Tabs + filters bar */}
+          {tabsBar}
+          {portfolioDropdown}
 
-            {/* Title */}
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1E2761', margin: '0 0 12px' }}>
-              Recherche IA
-            </h1>
-
-            {/* Tabs + filters row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {pillTabs}
-              <div style={{ flex: 1 }} />
-              {statusFilters}
-            </div>
-
-            {/* Portfolio dropdown */}
-            {activeTab === 'portfolio' && (
-              <div style={{ marginTop: 10, position: 'relative' }}>
-                <Building2 style={{
-                  position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-                  width: 14, height: 14, color: '#94A3B8', pointerEvents: 'none',
-                }} />
-                <select
-                  value={selectedAccountId}
-                  onChange={(e) => setSelectedAccountId(e.target.value)}
-                  style={{
-                    width: '100%', paddingLeft: 30, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
-                    borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 13, color: '#374151',
-                    background: 'white', outline: 'none', cursor: 'pointer',
-                  }}
-                >
-                  <option value="">Toutes mes entreprises</option>
-                  {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
+          {/* Content */}
+          <div style={{ flex: 1, overflowY: 'auto', background: 'white' }}>
+            {inConversation ? (
+              <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px' }}>
+                {messagesList}
               </div>
+            ) : (
+              emptyState(false)
             )}
           </div>
 
-          {/* Conversation / Empty state */}
-          {inConversation ? (
-            <>
-              <div style={{
-                flex: 1, overflowY: 'auto',
-                padding: '24px',
-                background: '#F8F9FF',
-              }}>
-                <div style={{
-                  maxWidth: 760, margin: '0 auto',
-                  display: 'flex', flexDirection: 'column', gap: 20,
-                }}>
-                  {conversationMessages}
-                </div>
-              </div>
-              <div style={{
-                flexShrink: 0,
-                background: 'white',
-                borderTop: '0.5px solid #E5E7EB',
-                padding: '16px 24px',
-              }}>
-                <div style={{ maxWidth: 760, margin: '0 auto' }}>
-                  {inputBarSmall(desktopInputRef)}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div style={{
-              flex: 1, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center',
-              padding: '48px 32px', gap: 32,
-              background: '#F8F9FF',
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  background: 'rgba(76,110,245,0.10)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 20px',
-                }}>
-                  <Sparkles style={{ width: 32, height: 32, color: '#4C6EF5' }} />
-                </div>
-                <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1E2761', margin: '0 0 10px' }}>
-                  Que voulez-vous savoir ?
-                </h2>
-                <p style={{ fontSize: 14, color: '#8899BB', margin: 0, lineHeight: 1.6, maxWidth: 440 }}>
-                  Posez une question sur n'importe quel client, note ou document de votre équipe.
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
-                {suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
-                    style={{
-                      padding: '9px 18px', background: 'white',
-                      border: '1px solid #E5E7EB', borderRadius: 24,
-                      fontSize: 13, color: '#374151', cursor: 'pointer',
-                      transition: 'border-color 0.15s, background 0.15s',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#4C6EF5'; e.currentTarget.style.background = '#F8F9FF' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.background = 'white' }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ width: '100%', maxWidth: 680 }}>
-                {inputBarLarge(desktopInputRef)}
-              </div>
+          {/* Input bar */}
+          <div style={{
+            flexShrink: 0,
+            background: 'white',
+            borderTop: '1px solid #E5E7EB',
+            padding: '16px 24px',
+          }}>
+            <div style={{ maxWidth: 720, margin: '0 auto' }}>
+              {inputArea(desktopTextareaRef, false)}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
