@@ -47,15 +47,15 @@ function DonePageContent({ id }: { id: string }) {
         <div className="grid grid-cols-2 gap-3 mb-8">
           <div
             className="rounded-2xl p-5 flex flex-col gap-1"
-            style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 2px 8px rgba(30,39,97,0.06)' }}
+            style={{ background: 'white', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
-            <span className="text-3xl font-bold text-[#1E2761]">{created}</span>
+            <span className="text-3xl font-bold text-[#0A0A0A]">{created}</span>
             <span className="text-xs text-slate-500 font-medium">Entreprises créées</span>
           </div>
 
           <div
             className="rounded-2xl p-5 flex flex-col gap-1"
-            style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 2px 8px rgba(30,39,97,0.06)' }}
+            style={{ background: 'white', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             <div className="flex items-center gap-2 mb-0.5">
               <GitMerge className="w-4 h-4 text-amber-500" />
@@ -66,7 +66,7 @@ function DonePageContent({ id }: { id: string }) {
 
           <div
             className="rounded-2xl p-5 flex flex-col gap-1"
-            style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 2px 8px rgba(30,39,97,0.06)' }}
+            style={{ background: 'white', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             <span className="text-3xl font-bold text-slate-400">{skipped}</span>
             <span className="text-xs text-slate-500 font-medium">Ignorées (nom manquant)</span>
@@ -74,22 +74,22 @@ function DonePageContent({ id }: { id: string }) {
 
           <div
             className="rounded-2xl p-5 flex flex-col gap-1"
-            style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 2px 8px rgba(30,39,97,0.06)' }}
+            style={{ background: 'white', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             <div className="flex items-center gap-2 mb-0.5">
-              <Users className="w-4 h-4 text-[#4C6EF5]" />
-              <span className="text-3xl font-bold text-[#1E2761]">{contacts}</span>
+              <Users className="w-4 h-4 text-[#0A0A0A]" />
+              <span className="text-3xl font-bold text-[#0A0A0A]">{contacts}</span>
             </div>
             <span className="text-xs text-slate-500 font-medium">Contacts créés</span>
           </div>
 
           <div
             className="rounded-2xl p-5 flex flex-col gap-1"
-            style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 2px 8px rgba(30,39,97,0.06)' }}
+            style={{ background: 'white', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
           >
             <div className="flex items-center gap-2 mb-0.5">
-              <FileText className="w-4 h-4 text-[#4C6EF5]" />
-              <span className="text-3xl font-bold text-[#1E2761]">{notes}</span>
+              <FileText className="w-4 h-4 text-[#0A0A0A]" />
+              <span className="text-3xl font-bold text-[#0A0A0A]">{notes}</span>
             </div>
             <span className="text-xs text-slate-500 font-medium">Notes générées</span>
           </div>

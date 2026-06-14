@@ -131,7 +131,7 @@ export default function NotesPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F0F4FF]">
+    <div className="flex flex-col min-h-full bg-[#F5F5F5]">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
         <button onClick={() => router.push('/app/dashboard')} className="p-2 rounded-xl text-[#64748B] hover:bg-gray-100 transition-all">
@@ -161,7 +161,7 @@ export default function NotesPage() {
         {/* Client filter */}
         <div className="relative">
           {clientFilter ? (
-            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-[#EEF2FF] rounded-lg text-xs font-medium text-[#1E2761]">
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-[#F5F5F5] rounded-lg text-xs font-medium text-[#0A0A0A]">
               {clientFilter.name}
               <button onClick={() => { setClientFilter(null); setClientQuery(''); setPage(0) }} className="ml-1 hover:text-red-500"><X className="w-3 h-3" /></button>
             </div>
@@ -180,7 +180,7 @@ export default function NotesPage() {
                 <div className="absolute z-40 mt-1 left-0 w-52 bg-white rounded-xl border border-gray-100 shadow-xl overflow-hidden">
                   {clientResults.map((acc) => (
                     <button key={acc.id} onMouseDown={() => { setClientFilter(acc); setClientQuery(''); setShowClientDrop(false); setPage(0) }}
-                      className="w-full px-3 py-2 text-left text-xs hover:bg-[#F0F4FF] transition-colors">{acc.name}</button>
+                      className="w-full px-3 py-2 text-left text-xs hover:bg-[#F5F5F5] transition-colors">{acc.name}</button>
                   ))}
                 </div>
               )}
@@ -202,7 +202,7 @@ export default function NotesPage() {
         {/* Reset */}
         {hasFilters && (
           <button onClick={() => { setPortfolio('all'); setClientFilter(null); setClientQuery(''); setSortOrder('desc'); setPage(0) }}
-            className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors">
+            className="text-xs text-[#64748B] hover:text-[#0A0A0A] underline transition-colors">
             Réinitialiser
           </button>
         )}
@@ -232,7 +232,7 @@ export default function NotesPage() {
                 {note.account_id && (
                   <button
                     onClick={(e) => { e.stopPropagation(); router.push(`/app/accounts/${note.account_id}`) }}
-                    className="text-[11px] text-[#8899BB] hover:underline mb-1 block"
+                    className="text-[11px] text-[#6B6B6B] hover:underline mb-1 block"
                   >
                     {note.account_name}
                   </button>
@@ -288,7 +288,7 @@ export default function NotesPage() {
                 {drawerNote.account_id && (
                   <button
                     onClick={() => router.push(`/app/accounts/${drawerNote.account_id}`)}
-                    className="text-[11px] text-[#8899BB] hover:underline mb-1 block"
+                    className="text-[11px] text-[#6B6B6B] hover:underline mb-1 block"
                   >
                     {drawerNote.account_name}
                   </button>
@@ -314,7 +314,7 @@ export default function NotesPage() {
             {drawerNote.account_id && (
               <button
                 onClick={() => router.push(`/app/accounts/${drawerNote.account_id}`)}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#4C6EF5] hover:underline"
+                className="flex items-center gap-1.5 text-xs font-medium text-[#0A0A0A] hover:underline"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 Aller à la fiche client →

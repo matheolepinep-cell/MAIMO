@@ -27,13 +27,13 @@ export default function ProfilePage() {
 
         <Card>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-[#1E2761] rounded-2xl flex items-center justify-center">
+            <div className="w-14 h-14 bg-[#0A0A0A] rounded-2xl flex items-center justify-center">
               <User className="w-7 h-7 text-white" />
             </div>
             <div>
               <p className="font-semibold text-[#1E293B]">{profile?.full_name}</p>
               <p className="text-sm text-[#64748B]">{profile?.email}</p>
-              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#1E2761]/10 text-[#1E2761]">
+              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#0A0A0A]/10 text-[#0A0A0A]">
                 {profile?.role === 'admin' ? 'Administrateur' : 'Collaborateur'}
               </span>
             </div>

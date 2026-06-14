@@ -92,7 +92,7 @@ function renderMarkdown(content: string): React.ReactNode {
         <ul key={elements.length} style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
           {listItems.map((item, j) => (
             <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: j < listItems.length - 1 ? 8 : 0 }}>
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#4C6EF5', flexShrink: 0, marginTop: 10 }} />
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#0A0A0A', flexShrink: 0, marginTop: 10 }} />
               <span
                 style={{ lineHeight: 1.8, fontSize: 15, color: '#1A1A2E' }}
                 dangerouslySetInnerHTML={{ __html: parseInline(item) }}
@@ -169,7 +169,7 @@ function SourcesList({ sources }: { sources: SearchSource[] }) {
             style={{
               padding: '4px 12px', borderRadius: 20,
               background: '#F3F4F6', border: 'none',
-              fontSize: 12, color: '#4C6EF5', cursor: 'pointer',
+              fontSize: 12, color: '#0A0A0A', cursor: 'pointer',
               transition: 'background 0.12s',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = '#E5E7EB')}
@@ -446,8 +446,8 @@ function SearchPageContent() {
         transition: 'border-color 0.15s, box-shadow 0.15s',
       }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = '#1E2761'
-          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,39,97,0.08)'
+          e.currentTarget.style.borderColor = '#0A0A0A'
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.08)'
         }}
         onBlur={(e) => {
           e.currentTarget.style.borderColor = '#E5E7EB'
@@ -499,7 +499,7 @@ function SearchPageContent() {
             style={{
               width: 34, height: 34, borderRadius: '50%',
               border: 'none',
-              background: input.trim() && !loading ? '#1E2761' : '#E5E7EB',
+              background: input.trim() && !loading ? '#0A0A0A' : '#E5E7EB',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: input.trim() && !loading ? 'pointer' : 'default',
               transition: 'background 0.15s',
@@ -540,9 +540,9 @@ function SearchPageContent() {
               padding: '4px 0',
               border: 'none', background: 'none', cursor: 'pointer',
               fontSize: 13,
-              color: activeTab === value ? '#1E2761' : '#6B7280',
+              color: activeTab === value ? '#0A0A0A' : '#6B7280',
               fontWeight: activeTab === value ? 500 : 400,
-              borderBottom: activeTab === value ? '2px solid #1E2761' : '2px solid transparent',
+              borderBottom: activeTab === value ? '2px solid #0A0A0A' : '2px solid transparent',
               transition: 'all 0.15s',
             }}
           >
@@ -558,7 +558,7 @@ function SearchPageContent() {
           <button key={f} onClick={() => setStatusFilter(f)}
             style={{
               padding: '4px 12px', borderRadius: 20, border: '1px solid #E5E7EB',
-              background: statusFilter === f ? '#1E2761' : 'transparent',
+              background: statusFilter === f ? '#0A0A0A' : 'transparent',
               color: statusFilter === f ? 'white' : '#6B7280',
               fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
             }}>
@@ -606,7 +606,7 @@ function SearchPageContent() {
         if (msg.role === 'user') return (
           <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
             <div style={{
-              background: '#1E2761', color: 'white',
+              background: '#0A0A0A', color: 'white',
               borderRadius: '18px 18px 4px 18px',
               padding: '12px 18px', maxWidth: '65%',
               fontSize: 15, lineHeight: 1.5,
@@ -752,9 +752,9 @@ function SearchPageContent() {
               style={{
                 padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer',
                 fontSize: 13,
-                color: activeTab === tab ? '#1E2761' : '#6B7280',
+                color: activeTab === tab ? '#0A0A0A' : '#6B7280',
                 fontWeight: activeTab === tab ? 500 : 400,
-                borderBottom: activeTab === tab ? '2px solid #1E2761' : '2px solid transparent',
+                borderBottom: activeTab === tab ? '2px solid #0A0A0A' : '2px solid transparent',
                 transition: 'all 0.15s',
               }}>
               {tab === 'portfolio' ? 'Mon portefeuille' : 'Portefeuille global'}
@@ -765,7 +765,7 @@ function SearchPageContent() {
               <button key={f} onClick={() => setStatusFilter(f)}
                 style={{
                   padding: '3px 10px', borderRadius: 20, border: '1px solid #E5E7EB',
-                  background: statusFilter === f ? '#1E2761' : 'transparent',
+                  background: statusFilter === f ? '#0A0A0A' : 'transparent',
                   color: statusFilter === f ? 'white' : '#6B7280',
                   fontSize: 11, cursor: 'pointer',
                 }}>

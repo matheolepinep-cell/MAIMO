@@ -7,7 +7,7 @@ export default function AuthConfirmPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-6"
-      style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 100%)' }}
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5 mb-12">
@@ -70,7 +70,7 @@ export default function AuthConfirmPage() {
 
         <Link
           href="/"
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold text-[#1E2761] transition-all duration-200 hover:opacity-90 hover:shadow-lg"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold text-[#0A0A0A] transition-all duration-200 hover:opacity-90 hover:shadow-lg"
           style={{ background: 'white' }}
         >
           Accéder à Maimoo

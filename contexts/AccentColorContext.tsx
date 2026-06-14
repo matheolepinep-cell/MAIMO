@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 
-const DEFAULT_COLOR = '#4C6EF5'
+const DEFAULT_COLOR = '#0A0A0A'
 const LS_KEY = 'maimoo_accent_color'
 
 type AccentColorContextValue = {

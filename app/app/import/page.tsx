@@ -243,7 +243,7 @@ export default function ImportPage() {
           onClick={() => !file && inputRef.current?.click()}
           className="relative rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer mb-6"
           style={{
-            borderColor: isDragging ? '#4C6EF5' : file ? 'rgba(16,185,129,0.4)' : 'rgba(30,39,97,0.2)',
+            borderColor: isDragging ? '#0A0A0A' : file ? 'rgba(16,185,129,0.4)' : 'rgba(30,39,97,0.2)',
             background: isDragging ? 'rgba(76,110,245,0.04)' : file ? 'rgba(16,185,129,0.03)' : 'rgba(240,244,255,0.5)',
           }}
         >
@@ -258,8 +258,8 @@ export default function ImportPage() {
           {!file ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-                style={{ background: 'rgba(76,110,245,0.1)' }}>
-                <Upload className="w-8 h-8 text-[#4C6EF5]" />
+                style={{ background: 'rgba(0,0,0,0.06)' }}>
+                <Upload className="w-8 h-8 text-[#0A0A0A]" />
               </div>
               <p className="font-semibold text-[#0F172A] mb-1">Glissez votre fichier ici</p>
               <p className="text-sm text-slate-400 mb-3">ou cliquez pour parcourir</p>
@@ -301,8 +301,8 @@ export default function ImportPage() {
         {busy && (
           <div className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
             style={{ background: 'rgba(76,110,245,0.06)', border: '1px solid rgba(76,110,245,0.12)' }}>
-            <Loader2 className="w-4 h-4 text-[#4C6EF5] animate-spin shrink-0" />
-            <p className="text-sm text-[#1E2761] font-medium">{stepLabel}</p>
+            <Loader2 className="w-4 h-4 text-[#0A0A0A] animate-spin shrink-0" />
+            <p className="text-sm text-[#0A0A0A] font-medium">{stepLabel}</p>
           </div>
         )}
 
@@ -314,13 +314,13 @@ export default function ImportPage() {
         {/* Columns hint (spreadsheet only) */}
         {(!file || fileCategory(file.name) === 'spreadsheet') && (
           <div className="mt-8 rounded-2xl p-5"
-            style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.08)' }}>
+            style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(0,0,0,0.08)' }}>
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">
               Colonnes reconnues automatiquement (Excel/CSV)
             </p>
             <div className="flex flex-wrap gap-2">
               {DETECTABLE_COLUMNS.map((col) => (
-                <span key={col} className="px-2.5 py-1 rounded-xl text-xs font-medium text-[#1E2761]"
+                <span key={col} className="px-2.5 py-1 rounded-xl text-xs font-medium text-[#0A0A0A]"
                   style={{ background: 'rgba(76,110,245,0.08)' }}>
                   {col}
                 </span>
@@ -343,7 +343,7 @@ export default function ImportPage() {
 
             {/* Header */}
             <div className="px-7 pt-7 pb-5"
-              style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}>
+              style={{ background: 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 100%)' }}>
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
                   <Check className="w-5 h-5 text-white" />
@@ -361,7 +361,7 @@ export default function ImportPage() {
               {analysisResult.companiesCreated.length > 0 && (
                 <div className="rounded-xl p-4 flex items-start gap-3"
                   style={{ background: 'rgba(76,110,245,0.06)', border: '1px solid rgba(76,110,245,0.12)' }}>
-                  <Building2 className="w-4 h-4 text-[#4C6EF5] shrink-0 mt-0.5" />
+                  <Building2 className="w-4 h-4 text-[#0A0A0A] shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-semibold text-[#0F172A]">
                       {analysisResult.companiesCreated.length} fiche{analysisResult.companiesCreated.length > 1 ? 's' : ''} entreprise créée{analysisResult.companiesCreated.length > 1 ? 's' : ''}

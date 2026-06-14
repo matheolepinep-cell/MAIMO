@@ -76,8 +76,8 @@ export function SearchBar({
         )}
         style={{
           background: 'rgba(240,244,255,0.9)',
-          border: '1px solid rgba(30,39,97,0.12)',
-          boxShadow: '0 1px 3px rgba(30,39,97,0.04)',
+          border: '1px solid rgba(0,0,0,0.12)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <input
@@ -101,7 +101,7 @@ export function SearchBar({
           <button
             onClick={handleSubmit}
             className="shrink-0 transition-all duration-200 hover:-translate-y-px"
-            style={{ color: '#4C6EF5' }}
+            style={{ color: '#0A0A0A' }}
           >
             <Send className={large ? 'w-5 h-5' : 'w-4 h-4'} />
           </button>
@@ -110,7 +110,7 @@ export function SearchBar({
           onClick={isRecording ? stopVoice : startVoice}
           className={clsx(
             'shrink-0 transition-all duration-200',
-            isRecording ? 'text-red-500 animate-pulse' : 'text-slate-400 hover:text-[#4C6EF5]'
+            isRecording ? 'text-red-500 animate-pulse' : 'text-slate-400 hover:text-[#0A0A0A]'
           )}
         >
           {isRecording

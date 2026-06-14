@@ -85,7 +85,7 @@ export function AlphaList({ items, renderItem, emptyState }: AlphaListProps) {
             {/* Section header */}
             <div
               className="sticky top-0 z-10 px-4 py-1 mb-2 text-xs font-bold"
-              style={{ background: '#F0F4FF', color: '#1E2761', borderRadius: 6 }}
+              style={{ background: '#F5F5F5', color: '#0A0A0A', borderRadius: 6 }}
             >
               {letter}
             </div>
@@ -108,7 +108,7 @@ export function AlphaList({ items, renderItem, emptyState }: AlphaListProps) {
               disabled={!present}
               className="w-5 text-center text-[11px] leading-[1.4] transition-colors"
               style={{
-                color: isActive ? '#1E2761' : present ? '#8899BB' : '#CBD5E1',
+                color: isActive ? '#0A0A0A' : present ? '#6B6B6B' : '#CBD5E1',
                 fontWeight: isActive ? 500 : present ? 400 : 400,
                 cursor: present ? 'pointer' : 'default',
               }}
@@ -132,7 +132,7 @@ export function AlphaList({ items, renderItem, emptyState }: AlphaListProps) {
               className="w-4 text-center leading-[1.3] transition-colors"
               style={{
                 fontSize: 10,
-                color: isActive ? '#1E2761' : present ? '#8899BB' : '#CBD5E1',
+                color: isActive ? '#0A0A0A' : present ? '#6B6B6B' : '#CBD5E1',
                 fontWeight: isActive ? 500 : 400,
                 cursor: present ? 'pointer' : 'default',
               }}

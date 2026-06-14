@@ -90,19 +90,19 @@ function RegisterContent() {
   if (phase === 'confirm') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4"
-        style={{ background: '#1E2761' }}>
+        style={{ background: '#0A0A0A' }}>
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
           <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-[#1E2761] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 bg-[#0A0A0A] rounded-2xl flex items-center justify-center mx-auto mb-4">
               <span className="text-white font-bold text-xl">M</span>
             </div>
-            <h1 className="text-2xl font-bold tracking-widest text-[#1E2761]">MAIMOO</h1>
+            <h1 className="text-2xl font-bold tracking-widest text-[#0A0A0A]">MAIMOO</h1>
           </div>
 
           <div className="flex flex-col items-center text-center gap-4">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-              style={{ background: 'rgba(76,110,245,0.1)' }}>
-              <MailCheck className="w-8 h-8" style={{ color: '#4C6EF5' }} />
+              style={{ background: 'rgba(0,0,0,0.06)' }}>
+              <MailCheck className="w-8 h-8" style={{ color: '#0A0A0A' }} />
             </div>
             <div>
               <h2 className="text-xl font-bold text-[#0F172A] mb-2">Vérifiez votre boîte mail</h2>
@@ -147,13 +147,13 @@ function RegisterContent() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: '#1E2761' }}>
+      style={{ background: '#0A0A0A' }}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
         <div className="text-center mb-6">
-          <div className="w-14 h-14 bg-[#1E2761] rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-14 h-14 bg-[#0A0A0A] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-xl">M</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-widest text-[#1E2761]">MAIMOO</h1>
+          <h1 className="text-2xl font-bold tracking-widest text-[#0A0A0A]">MAIMOO</h1>
           <p className="text-[#64748B] text-sm mt-1">Créez votre espace</p>
         </div>
 

@@ -721,8 +721,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Header */}
       <div className="bg-white px-4 pl-16 md:pl-4 py-3 flex items-center gap-3 sticky top-0 z-30"
-        style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
-        <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-[#F0F4FF] transition-all duration-200 shrink-0">
+        style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+        <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-[#F5F5F5] transition-all duration-200 shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold text-white"
@@ -736,12 +736,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
               onClick={handleStatusToggle}
               className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-200 border"
               style={account.status === 'prospect' ? {
-                background: 'rgba(30,39,97,0.05)',
+                background: 'rgba(0,0,0,0.05)',
                 color: 'rgba(30,39,97,0.5)',
                 borderColor: 'rgba(30,39,97,0.1)',
               } : {
-                background: 'rgba(30,39,97,0.12)',
-                color: '#1E2761',
+                background: 'rgba(0,0,0,0.12)',
+                color: '#0A0A0A',
                 borderColor: 'rgba(30,39,97,0.2)',
               }}
             >
@@ -776,7 +776,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             <div className="relative md:hidden">
               <button
                 onClick={() => setMoreMenuOpen((v) => !v)}
-                className="p-2 rounded-xl text-slate-400 hover:bg-[#F0F4FF] transition-all duration-200 shrink-0"
+                className="p-2 rounded-xl text-slate-400 hover:bg-[#F5F5F5] transition-all duration-200 shrink-0"
               >
                 <MoreVertical className="w-5 h-5" />
               </button>
@@ -810,7 +810,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             key={value}
             onClick={() => { setMobileTab(value); if (value !== 'info') setTab(value as Tab) }}
             className={`flex-1 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-              mobileTab === value ? 'bg-[#1E2761] text-white' : 'text-[#64748B] bg-[#F0F4FF]'
+              mobileTab === value ? 'bg-[#0A0A0A] text-white' : 'text-[#64748B] bg-[#F5F5F5]'
             }`}
           >
             {label}
@@ -861,11 +861,11 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   <div key={key}>
                     <p className="text-xs text-[#94A3B8] mb-0.5">{label}</p>
                     {key === 'email'
-                      ? <a href={`mailto:${account[key] as string}`} className="text-sm text-[#4C6EF5] hover:underline">{account[key] as string}</a>
+                      ? <a href={`mailto:${account[key] as string}`} className="text-sm text-[#0A0A0A] hover:underline">{account[key] as string}</a>
                       : key === 'phone'
-                      ? <a href={`tel:${(account[key] as string).replace(/\s/g, '')}`} className="text-sm text-[#1E293B] hover:text-[#4C6EF5] transition-colors">{account[key] as string}</a>
+                      ? <a href={`tel:${(account[key] as string).replace(/\s/g, '')}`} className="text-sm text-[#1E293B] hover:text-[#0A0A0A] transition-colors">{account[key] as string}</a>
                       : key === 'website'
-                      ? <a href={(account[key] as string).startsWith('http') ? account[key] as string : `https://${account[key] as string}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-[#4C6EF5] hover:underline">{account[key] as string}<ExternalLink className="w-3 h-3 shrink-0 ml-0.5" /></a>
+                      ? <a href={(account[key] as string).startsWith('http') ? account[key] as string : `https://${account[key] as string}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-[#0A0A0A] hover:underline">{account[key] as string}<ExternalLink className="w-3 h-3 shrink-0 ml-0.5" /></a>
                       : <p className="text-sm text-[#1E293B]">{account[key] as string}</p>
                     }
                   </div>
@@ -900,7 +900,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-[#1E293B]">Interlocuteurs</h2>
               <div className="flex items-center gap-2">
-                <select value={contactSort} onChange={(e) => setContactSort(e.target.value as 'az' | 'za' | 'recent')} className="text-[11px] text-[#8899BB] bg-transparent border-none focus:outline-none cursor-pointer">
+                <select value={contactSort} onChange={(e) => setContactSort(e.target.value as 'az' | 'za' | 'recent')} className="text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                   <option value="az">A → Z</option>
                   <option value="za">Z → A</option>
                   <option value="recent">Date d'ajout</option>
@@ -917,13 +917,13 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
               <div className="space-y-2">
                 {sortedContacts.map((c) => (
                   <div key={c.id}
-                    className="bg-white rounded-xl border border-gray-100 p-3 cursor-pointer hover:border-[#C5D0F0] hover:bg-[#F8FAFF] transition-all duration-150"
+                    className="bg-white rounded-xl border border-gray-100 p-3 cursor-pointer hover:border-[#E5E5E5] hover:bg-[#F8FAFF] transition-all duration-150"
                     onClick={() => setSelectedContact(c)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(76,110,245,0.1)' }}>
-                          <span className="text-xs font-bold" style={{ color: '#4C6EF5' }}>{getInitials(`${c.first_name} ${c.last_name}`)}</span>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(0,0,0,0.06)' }}>
+                          <span className="text-xs font-bold" style={{ color: '#0A0A0A' }}>{getInitials(`${c.first_name} ${c.last_name}`)}</span>
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
@@ -934,7 +934,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                               </span>
                             )}
                           </div>
-                          {c.phone && <a href={`tel:${c.phone.replace(/\s/g, '')}`} onClick={(e) => e.stopPropagation()} className="text-xs text-[#64748B] hover:text-[#4C6EF5] transition-colors block">{c.phone}</a>}
+                          {c.phone && <a href={`tel:${c.phone.replace(/\s/g, '')}`} onClick={(e) => e.stopPropagation()} className="text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors block">{c.phone}</a>}
                           {c.email && <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} className="text-xs text-[#3B82F6] hover:underline block">{c.email}</a>}
                           {c.role && <p className="text-xs text-slate-500 italic mt-0.5">{c.role}</p>}
                         </div>
@@ -956,15 +956,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-[#1E293B]">Documents ({documents.length})</h2>
               <div className="flex items-center gap-2">
-                <select value={docSort} onChange={(e) => setDocSort(e.target.value as 'recent' | 'oldest' | 'az' | 'type')} className="text-[11px] text-[#8899BB] bg-transparent border-none focus:outline-none cursor-pointer">
+                <select value={docSort} onChange={(e) => setDocSort(e.target.value as 'recent' | 'oldest' | 'az' | 'type')} className="text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                   <option value="recent">Date (récent)</option>
                   <option value="oldest">Date (ancien)</option>
                   <option value="az">A → Z</option>
                   <option value="type">Type</option>
                 </select>
-                <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#4C6EF5] bg-[#F0F4FF] hover:bg-[#E8EEFF] cursor-pointer transition-all duration-150">
+                <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#0A0A0A] bg-[#F5F5F5] hover:bg-[#E8EEFF] cursor-pointer transition-all duration-150">
                   {docUploading
-                    ? <span className="w-3 h-3 border-2 border-[#4C6EF5] border-t-transparent rounded-full animate-spin" />
+                    ? <span className="w-3 h-3 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
                     : <><Upload className="w-3 h-3 mr-0.5" />Ajouter</>
                   }
                   <input type="file" multiple className="hidden" onChange={handleStandaloneDocUpload} disabled={docUploading} />
@@ -998,8 +998,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   onClick={() => { setDocTypeFilter(t); setDocPage(1) }}
                   className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-150"
                   style={docTypeFilter === t
-                    ? { background: '#1E2761', color: 'white' }
-                    : { background: '#F0F4FF', color: '#8899BB' }
+                    ? { background: '#0A0A0A', color: 'white' }
+                    : { background: '#F5F5F5', color: '#6B6B6B' }
                   }
                 >
                   {t === 'all' ? 'Tous' : t === 'pdf' ? 'PDF' : t === 'docx' ? 'Word' : t === 'xlsx' ? 'Excel' : 'Images'}
@@ -1051,7 +1051,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       <div className="flex items-center gap-0.5 pr-1.5 shrink-0">
                         <button
                           onClick={() => { setInitialShareOpen(true); handleOpenDocument(doc) }}
-                          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#4C6EF5] hover:bg-[#F0F4FF] transition-all duration-150"
+                          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0A0A0A] hover:bg-[#F5F5F5] transition-all duration-150"
                           title="Partager"
                         >
                           <Share2 className="w-3.5 h-3.5" />
@@ -1077,15 +1077,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                     <button
                       onClick={() => setDocPage((p) => Math.max(1, p - 1))}
                       disabled={docPage === 1}
-                      className="p-0.5 rounded text-[#8899BB] disabled:opacity-30 hover:text-[#1E2761] transition-colors"
+                      className="p-0.5 rounded text-[#6B6B6B] disabled:opacity-30 hover:text-[#0A0A0A] transition-colors"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
                     </button>
-                    <span className="text-[11px] text-[#8899BB]">Page {docPage} / {docsTotalPages}</span>
+                    <span className="text-[11px] text-[#6B6B6B]">Page {docPage} / {docsTotalPages}</span>
                     <button
                       onClick={() => setDocPage((p) => Math.min(docsTotalPages, p + 1))}
                       disabled={docPage === docsTotalPages}
-                      className="p-0.5 rounded text-[#8899BB] disabled:opacity-30 hover:text-[#1E2761] transition-colors"
+                      className="p-0.5 rounded text-[#6B6B6B] disabled:opacity-30 hover:text-[#0A0A0A] transition-colors"
                     >
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
@@ -1111,16 +1111,16 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                     disabled={savingAccess}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-150 text-left ${
                       visibility === value
-                        ? 'border-[#1E2761] bg-[#1E2761]/5'
+                        ? 'border-[#0A0A0A] bg-[#0A0A0A]/5'
                         : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 shrink-0 ${visibility === value ? 'text-[#1E2761]' : 'text-[#64748B]'}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${visibility === value ? 'text-[#0A0A0A]' : 'text-[#64748B]'}`} />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${visibility === value ? 'text-[#1E2761]' : 'text-[#1E293B]'}`}>{label}</p>
+                      <p className={`text-sm font-medium ${visibility === value ? 'text-[#0A0A0A]' : 'text-[#1E293B]'}`}>{label}</p>
                       <p className="text-xs text-[#64748B]">{desc}</p>
                     </div>
-                    {visibility === value && <div className="w-2 h-2 rounded-full bg-[#1E2761] shrink-0" />}
+                    {visibility === value && <div className="w-2 h-2 rounded-full bg-[#0A0A0A] shrink-0" />}
                   </button>
                 ))}
               </div>
@@ -1159,7 +1159,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
               <button
                 key={value}
                 onClick={() => setTab(value)}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${tab === value ? 'bg-[#1E2761] text-white' : 'text-[#64748B] bg-[#F0F4FF]'}`}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${tab === value ? 'bg-[#0A0A0A] text-white' : 'text-[#64748B] bg-[#F5F5F5]'}`}
               >
                 <Icon className="w-3.5 h-3.5" />{label}
               </button>
@@ -1176,7 +1176,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   <div className="flex gap-2">
                     {(['text', 'vocal'] as const).map((m) => (
                       <button key={m} onClick={() => setNoteMode(m)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${noteMode === m ? 'bg-[#1E2761] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}>
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${noteMode === m ? 'bg-[#0A0A0A] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}>
                         {m === 'text' ? <><Type className="w-3.5 h-3.5" />Texte</> : <><Mic className="w-3.5 h-3.5" />Vocal</>}
                       </button>
                     ))}
@@ -1243,7 +1243,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       )}
                       {(notePhase === 'analyzing' || notePhase === 'executing') && (
                         <div className="flex items-center gap-2 py-1">
-                          <span className="w-4 h-4 border-2 border-[#1E2761] border-t-transparent rounded-full animate-spin shrink-0" />
+                          <span className="w-4 h-4 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin shrink-0" />
                           <span className="text-xs text-[#64748B]">{notePhase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}</span>
                         </div>
                       )}
@@ -1261,7 +1261,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                           onClick={() => processVocalNote(noteText)}
                           disabled={savingNote}
                           className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all disabled:opacity-50"
-                          style={{ background: '#1E2761', borderRadius: 10, height: 44 }}
+                          style={{ background: '#0A0A0A', borderRadius: 10, height: 44 }}
                         >
                           {savingNote
                             ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1314,7 +1314,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   <>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs text-[#94A3B8]">{notes.length} note{notes.length !== 1 ? 's' : ''}</p>
-                      <select value={noteSort} onChange={(e) => { setNoteSort(e.target.value as 'recent' | 'oldest' | 'az'); setNotePage(1) }} className="text-[11px] text-[#8899BB] bg-transparent border-none focus:outline-none cursor-pointer">
+                      <select value={noteSort} onChange={(e) => { setNoteSort(e.target.value as 'recent' | 'oldest' | 'az'); setNotePage(1) }} className="text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                         <option value="recent">Date (récent)</option>
                         <option value="oldest">Date (ancien)</option>
                         <option value="az">A → Z</option>
@@ -1342,15 +1342,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                         <button
                           onClick={() => setNotePage((p) => Math.max(1, p - 1))}
                           disabled={notePage === 1}
-                          className="p-0.5 rounded text-[#8899BB] disabled:opacity-30 hover:text-[#1E2761] transition-colors"
+                          className="p-0.5 rounded text-[#6B6B6B] disabled:opacity-30 hover:text-[#0A0A0A] transition-colors"
                         >
                           <ChevronLeft className="w-3.5 h-3.5" />
                         </button>
-                        <span className="text-[11px] text-[#8899BB]">Page {notePage} / {notesTotalPages}</span>
+                        <span className="text-[11px] text-[#6B6B6B]">Page {notePage} / {notesTotalPages}</span>
                         <button
                           onClick={() => setNotePage((p) => Math.min(notesTotalPages, p + 1))}
                           disabled={notePage === notesTotalPages}
-                          className="p-0.5 rounded text-[#8899BB] disabled:opacity-30 hover:text-[#1E2761] transition-colors"
+                          className="p-0.5 rounded text-[#6B6B6B] disabled:opacity-30 hover:text-[#0A0A0A] transition-colors"
                         >
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
@@ -1398,7 +1398,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       <div key={i} className="space-y-2">
                         {/* User message */}
                         <div className="flex justify-end">
-                          <div className="max-w-[85%] bg-[#1E2761]/8 rounded-2xl rounded-tr-sm px-3 py-2 text-sm text-[#1E293B]">
+                          <div className="max-w-[85%] bg-[#0A0A0A]/8 rounded-2xl rounded-tr-sm px-3 py-2 text-sm text-[#1E293B]">
                             {turn.userMessage}
                           </div>
                         </div>
@@ -1420,7 +1420,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                                       if (src.type === 'document' && src.url) window.open(src.url, '_blank')
                                       else setExpandedSource(expandedSource === src.id ? null : src.id)
                                     }}
-                                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#1E2761]/5 text-xs font-medium text-[#1E2761] hover:bg-[#1E2761]/10 transition-all duration-150"
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#0A0A0A]/5 text-xs font-medium text-[#0A0A0A] hover:bg-[#0A0A0A]/10 transition-all duration-150"
                                   >
                                     {src.type === 'document' ? <ExternalLink className="w-2.5 h-2.5" /> : <FileText className="w-2.5 h-2.5" />}
                                     <span className="truncate max-w-[120px]">{src.title}</span>
@@ -1620,7 +1620,7 @@ function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
+        <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
           <h3 className="text-sm font-semibold text-[#1E293B]">Fiche contact</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
             <X className="w-4 h-4" />
@@ -1631,7 +1631,7 @@ function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
           {/* Avatar + Name */}
           <div className="flex flex-col items-center gap-3 pt-2">
             <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
-              style={{ background: '#4C6EF5' }}>
+              style={{ background: '#0A0A0A' }}>
               {initials}
             </div>
             <div className="text-center">
@@ -1649,17 +1649,17 @@ function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
             <div className="space-y-2">
               {contact.phone && (
                 <a href={`tel:${contact.phone.replace(/\s/g, '')}`}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F0F4FF] hover:bg-[#E8EEFF] transition-all"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F5F5F5] hover:bg-[#E8EEFF] transition-all"
                 >
-                  <Phone className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
+                  <Phone className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
                   <span className="text-sm text-[#1E293B]">{contact.phone}</span>
                 </a>
               )}
               {contact.email && (
                 <a href={`mailto:${contact.email}`}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F0F4FF] hover:bg-[#E8EEFF] transition-all"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F5F5F5] hover:bg-[#E8EEFF] transition-all"
                 >
-                  <Mail className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
+                  <Mail className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
                   <span className="text-sm text-[#1E293B]">{contact.email}</span>
                 </a>
               )}
@@ -1667,15 +1667,15 @@ function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
                 <p className="text-sm text-[#94A3B8] text-center py-2">Aucune coordonnée renseignée</p>
               )}
               {contact.notes && (
-                <div className="px-3 py-2.5 rounded-xl bg-[#F0F4FF]">
+                <div className="px-3 py-2.5 rounded-xl bg-[#F5F5F5]">
                   <p className="text-xs text-[#94A3B8] mb-1">Notes</p>
                   <p className="text-sm text-[#1E293B]">{contact.notes}</p>
                 </div>
               )}
               <button
                 onClick={() => setEditing(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-all hover:bg-[#EEF2FF]"
-                style={{ border: '1.5px dashed #C5D0F0', color: '#4C6EF5' }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-all hover:bg-[#F5F5F5]"
+                style={{ border: '1.5px dashed #E5E5E5', color: '#0A0A0A' }}
               >
                 <Edit2 className="w-3.5 h-3.5" />Modifier les informations
               </button>
@@ -1695,7 +1695,7 @@ function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
                   value={form.notes}
                   onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
                   rows={2}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] resize-none focus:outline-none focus:ring-2 focus:ring-[#4C6EF5] focus:border-transparent"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1E293B] resize-none focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] focus:border-transparent"
                 />
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -1716,7 +1716,7 @@ function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
               <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#94A3B8' }}>Notes liées</p>
               <div className="space-y-2">
                 {relatedNotes.map((n) => (
-                  <div key={n.id} className="px-3 py-2.5 rounded-xl bg-[#F0F4FF]">
+                  <div key={n.id} className="px-3 py-2.5 rounded-xl bg-[#F5F5F5]">
                     {n.title && <p className="text-xs font-semibold text-[#1E293B] mb-1">{n.title}</p>}
                     <p className="text-xs text-[#64748B] line-clamp-2">{n.content}</p>
                     <p className="text-[10px] mt-1" style={{ color: '#94A3B8' }}>{fmtDay(n.created_at)}</p>
@@ -1727,7 +1727,7 @@ function ContactPanel({ contact, notes, onClose, onUpdate, onDelete }: {
           )}
         </div>
 
-        <div className="px-5 py-4 shrink-0" style={{ borderTop: '1px solid rgba(30,39,97,0.08)' }}>
+        <div className="px-5 py-4 shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}>
           <button
             onClick={() => { onDelete(contact.id); onClose() }}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all"

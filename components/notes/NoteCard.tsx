@@ -192,7 +192,7 @@ export function NoteCard({
               <button
                 onClick={startEdit}
                 className="p-1.5 rounded-lg transition-all duration-150 md:opacity-0 md:group-hover:opacity-100"
-                style={{ color: '#8899BB' }}
+                style={{ color: '#6B6B6B' }}
                 title="Modifier"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -234,8 +234,8 @@ export function NoteCard({
               <button
                 key={doc.id}
                 onClick={() => onOpenDoc?.(doc)}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all hover:bg-[#F0F4FF]"
-                style={{ background: 'rgba(76,110,245,0.06)', color: '#4C6EF5', border: '1px solid rgba(76,110,245,0.12)' }}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all hover:bg-[#F5F5F5]"
+                style={{ background: 'rgba(76,110,245,0.06)', color: '#0A0A0A', border: '1px solid rgba(76,110,245,0.12)' }}
               >
                 {doc.file_type === 'image' ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
                 <span className="truncate max-w-[120px]">{doc.title ?? doc.file_name}</span>
@@ -249,7 +249,7 @@ export function NoteCard({
 
   // ── EDIT MODE ────────────────────────────────────────────────────────────────
   return (
-    <div className="bg-white rounded-xl border border-[#4C6EF5]/30 shadow-sm p-4 space-y-3"
+    <div className="bg-white rounded-xl border border-[#0A0A0A]/30 shadow-sm p-4 space-y-3"
       style={{ boxShadow: '0 0 0 3px rgba(76,110,245,0.08)' }}>
 
       {/* Title input */}
@@ -284,7 +284,7 @@ export function NoteCard({
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all"
               style={removedDocIds.has(doc.id)
                 ? { background: 'rgba(239,68,68,0.06)', color: '#94A3B8', textDecoration: 'line-through', border: '1px solid rgba(239,68,68,0.2)' }
-                : { background: 'rgba(76,110,245,0.06)', color: '#4C6EF5', border: '1px solid rgba(76,110,245,0.12)' }
+                : { background: 'rgba(76,110,245,0.06)', color: '#0A0A0A', border: '1px solid rgba(76,110,245,0.12)' }
               }
             >
               <FileText className="w-3 h-3 shrink-0" />
@@ -338,7 +338,7 @@ export function NoteCard({
           onClick={handleSave}
           disabled={saving || !editContent.trim()}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
-          style={{ background: '#1E2761', borderRadius: 10, height: 44 }}
+          style={{ background: '#0A0A0A', borderRadius: 10, height: 44 }}
         >
           {saving
             ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -349,7 +349,7 @@ export function NoteCard({
         <button
           onClick={cancelEdit}
           disabled={saving}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold text-[#1E2761] border-2 border-[#1E2761]/20 hover:border-[#1E2761]/40 transition-all disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold text-[#0A0A0A] border-2 border-[#0A0A0A]/20 hover:border-[#0A0A0A]/40 transition-all disabled:opacity-50"
           style={{ borderRadius: 10, height: 44 }}
         >
           <X className="w-4 h-4" />

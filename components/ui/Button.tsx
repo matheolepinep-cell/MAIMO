@@ -11,8 +11,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, disabled, style, children, ...props }, ref) => {
-    const gradientStyle = variant === 'primary' ? {
-      background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
+    const primaryStyle = variant === 'primary' ? {
+      background: '#0A0A0A',
       ...style,
     } : style
 
@@ -20,14 +20,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || loading}
-        style={gradientStyle}
+        style={primaryStyle}
         className={clsx(
           'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed',
           {
-            'text-white hover:brightness-110 hover:-translate-y-px active:scale-[0.98] shadow-sm': variant === 'primary',
-            'bg-white text-[#1E293B] border border-[rgba(30,39,97,0.12)] hover:bg-[#F0F4FF] active:scale-[0.98]': variant === 'secondary',
-            'text-[#64748B] hover:text-[#1E293B] hover:bg-[rgba(240,244,255,0.8)] active:scale-[0.98]': variant === 'ghost',
-            'bg-red-500 text-white hover:bg-red-600 active:scale-[0.98]': variant === 'danger',
+            'text-white hover:opacity-90 active:scale-[0.98]': variant === 'primary',
+            'bg-white text-[#0A0A0A] border border-[#E5E5E5] hover:bg-[#F5F5F5] active:scale-[0.98]': variant === 'secondary',
+            'text-[#6B6B6B] hover:text-[#0A0A0A] hover:bg-[#F5F5F5] active:scale-[0.98]': variant === 'ghost',
+            'bg-[#DC2626] text-white hover:bg-[#B91C1C] active:scale-[0.98]': variant === 'danger',
           },
           {
             'px-3 py-1.5 text-sm': size === 'sm',

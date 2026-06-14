@@ -180,8 +180,8 @@ export default function NotificationsPage() {
                     <button
                       key={n.id}
                       onClick={() => handleNotifClick(n)}
-                      className="flex items-start gap-3 px-4 py-3 rounded-xl border border-gray-100 text-left w-full cursor-pointer transition-colors duration-150 hover:bg-[#F0F4FF]"
-                      style={{ background: n.read ? '#fff' : '#F0F4FF' }}
+                      className="flex items-start gap-3 px-4 py-3 rounded-xl border border-gray-100 text-left w-full cursor-pointer transition-colors duration-150 hover:bg-[#F5F5F5]"
+                      style={{ background: n.read ? '#fff' : '#F5F5F5' }}
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gray-50 mt-0.5">
                         {notifIcon(n.type)}

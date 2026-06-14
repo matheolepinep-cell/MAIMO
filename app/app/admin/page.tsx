@@ -134,7 +134,7 @@ export default function AdminPage() {
           <button
             onClick={() => setTab('users')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
-              tab === 'users' ? 'bg-[#1E2761] text-white' : 'bg-white text-[#64748B] border border-gray-200 hover:bg-gray-50'
+              tab === 'users' ? 'bg-[#0A0A0A] text-white' : 'bg-white text-[#64748B] border border-gray-200 hover:bg-gray-50'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -143,7 +143,7 @@ export default function AdminPage() {
           <button
             onClick={() => setTab('permissions')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
-              tab === 'permissions' ? 'bg-[#1E2761] text-white' : 'bg-white text-[#64748B] border border-gray-200 hover:bg-gray-50'
+              tab === 'permissions' ? 'bg-[#0A0A0A] text-white' : 'bg-white text-[#64748B] border border-gray-200 hover:bg-gray-50'
             }`}
           >
             <Lock className="w-4 h-4" />
@@ -162,8 +162,8 @@ export default function AdminPage() {
 
             {users.map((u) => (
               <Card key={u.id} className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-[#1E2761]/10 rounded-xl flex items-center justify-center shrink-0">
-                  <span className="text-[#1E2761] font-bold text-sm">
+                <div className="w-10 h-10 bg-[#0A0A0A]/10 rounded-xl flex items-center justify-center shrink-0">
+                  <span className="text-[#0A0A0A] font-bold text-sm">
                     {u.full_name.charAt(0).toUpperCase()}
                   </span>
                 </div>

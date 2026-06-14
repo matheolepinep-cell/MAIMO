@@ -15,7 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <NotificationProvider>
             <UnreadMessagesProvider>
               <WorkspaceProvider>
-                <div className="min-h-screen bg-[#F0F4FF]">
+                <div className="min-h-screen bg-[#F5F5F5]">
                   <MobileSidebar />
                   <Sidebar />
                   <main className="md:ml-[200px] min-h-screen overflow-y-auto overflow-x-hidden flex flex-col">

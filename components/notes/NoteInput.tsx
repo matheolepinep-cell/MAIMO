@@ -62,16 +62,16 @@ function actionLabel(type: ActionType) {
 }
 
 function ActionTypeIcon({ type }: { type: ActionType }) {
-  if (type === 'create_company') return <Building2 className="w-3.5 h-3.5 shrink-0" style={{ color: '#4C6EF5' }} />
-  if (type === 'create_contact') return <UserPlus className="w-3.5 h-3.5 shrink-0" style={{ color: '#4C6EF5' }} />
-  return <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#4C6EF5' }} />
+  if (type === 'create_company') return <Building2 className="w-3.5 h-3.5 shrink-0" style={{ color: '#0A0A0A' }} />
+  if (type === 'create_contact') return <UserPlus className="w-3.5 h-3.5 shrink-0" style={{ color: '#0A0A0A' }} />
+  return <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#0A0A0A' }} />
 }
 
 function ResultIcon({ type, created }: { type: string; created: boolean }) {
-  if (!created) return <Info className="w-4 h-4 shrink-0" style={{ color: '#8899BB' }} />
-  if (type === 'create_company') return <Building2 className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
-  if (type === 'create_contact') return <UserPlus className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
-  return <FileText className="w-4 h-4 shrink-0" style={{ color: '#4C6EF5' }} />
+  if (!created) return <Info className="w-4 h-4 shrink-0" style={{ color: '#6B6B6B' }} />
+  if (type === 'create_company') return <Building2 className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
+  if (type === 'create_contact') return <UserPlus className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
+  return <FileText className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
 }
 
 /* ─── Editable action card ─── */
@@ -110,7 +110,7 @@ export function ActionCard({ action, companiesForSelect, onUpdate, onRemove }: A
             {(['prospect', 'client'] as const).map((s) => (
               <button key={s} type="button" onClick={() => onUpdate(action.id, { status: s })}
                 className="px-3 py-1 rounded-full text-xs font-medium transition-all"
-                style={action.status === s ? { background: '#1E2761', color: '#fff' } : { background: '#F1F5F9', color: '#64748B' }}>
+                style={action.status === s ? { background: '#0A0A0A', color: '#fff' } : { background: '#F1F5F9', color: '#64748B' }}>
                 {s === 'client' ? 'Client' : 'Prospect'}
               </button>
             ))}
@@ -169,7 +169,7 @@ export function AddActionMenu({ show, onToggle, onAdd }: AddActionMenuProps) {
   return (
     <div className="relative">
       <button onClick={onToggle}
-        className="flex items-center gap-1.5 text-xs font-medium text-[#8899BB] hover:text-[#4C6EF5] transition-colors py-1">
+        className="flex items-center gap-1.5 text-xs font-medium text-[#6B6B6B] hover:text-[#0A0A0A] transition-colors py-1">
         <Plus className="w-3.5 h-3.5" />Ajouter une action<ChevronDown className="w-3 h-3" />
       </button>
       {show && (
@@ -180,8 +180,8 @@ export function AddActionMenu({ show, onToggle, onAdd }: AddActionMenuProps) {
             { type: 'create_note' as ActionType, label: 'Note', Icon: FileText },
           ]).map(({ type, label, Icon }) => (
             <button key={type} onClick={() => onAdd(type)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#F0F4FF] transition-colors whitespace-nowrap">
-              <Icon className="w-3.5 h-3.5" style={{ color: '#4C6EF5' }} />
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#F5F5F5] transition-colors whitespace-nowrap">
+              <Icon className="w-3.5 h-3.5" style={{ color: '#0A0A0A' }} />
               {label}
             </button>
           ))}
@@ -328,13 +328,13 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
         <div className="flex gap-2 pt-1">
           {createdCompany?.companyId && (
             <button onClick={() => router.push(`/app/accounts/${createdCompany.companyId}`)}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: '#1E2761' }}>
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: '#0A0A0A' }}>
               Voir la fiche →
             </button>
           )}
           <button onClick={handleReset}
-            className={clsx('py-2.5 rounded-xl text-sm font-semibold transition-all', createdCompany?.companyId ? 'flex-1 border border-gray-200 text-[#64748B] hover:bg-gray-50' : 'w-full text-[#1E2761]')}
-            style={createdCompany?.companyId ? {} : { background: '#EEF2FF' }}>
+            className={clsx('py-2.5 rounded-xl text-sm font-semibold transition-all', createdCompany?.companyId ? 'flex-1 border border-gray-200 text-[#64748B] hover:bg-gray-50' : 'w-full text-[#0A0A0A]')}
+            style={createdCompany?.companyId ? {} : { background: '#F5F5F5' }}>
             Nouvelle note
           </button>
         </div>
@@ -346,7 +346,7 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
   if (phase === 'analyzing' || phase === 'executing') {
     return (
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-        <span className="w-5 h-5 border-2 border-[#1E2761] border-t-transparent rounded-full animate-spin shrink-0" />
+        <span className="w-5 h-5 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin shrink-0" />
         <p className="text-sm text-[#64748B]">
           {phase === 'analyzing' ? 'Analyse du texte en cours…' : 'Exécution des actions…'}
         </p>
@@ -360,7 +360,7 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
         <div>
           <p className="text-[15px] font-bold text-[#1E293B]">Vérifier les actions</p>
-          <p className="text-[12px] text-[#8899BB] mt-0.5">L&apos;IA a détecté ces actions — modifiez si nécessaire</p>
+          <p className="text-[12px] text-[#6B6B6B] mt-0.5">L&apos;IA a détecté ces actions — modifiez si nécessaire</p>
         </div>
 
         <div className="space-y-3">
@@ -377,7 +377,7 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
         <div className="space-y-2 pt-1">
           <button onClick={handleExecute}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-            style={{ background: '#1E2761' }}>
+            style={{ background: '#0A0A0A' }}>
             Confirmer et enregistrer
           </button>
           <button onClick={handleCancel}
@@ -395,7 +395,7 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
       <div className="flex gap-2 mb-3">
         {(['text', 'vocal'] as const).map((m) => (
           <button key={m} onClick={() => setMode(m)}
-            className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150', mode === m ? 'bg-[#1E2761] text-white' : 'text-[#64748B] hover:bg-gray-100')}>
+            className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150', mode === m ? 'bg-[#0A0A0A] text-white' : 'text-[#64748B] hover:bg-gray-100')}>
             {m === 'text' ? <><Type className="w-3.5 h-3.5" />Texte</> : <><Mic className="w-3.5 h-3.5" />Vocal</>}
           </button>
         ))}
@@ -408,7 +408,7 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
             className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150" />
           <button type="submit" disabled={!text.trim()}
             className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
-            style={{ background: '#1E2761' }}>
+            style={{ background: '#0A0A0A' }}>
             <Send className="w-3.5 h-3.5" />Enregistrer
           </button>
         </form>
@@ -431,7 +431,7 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
           {text.trim() && !recording && (
             <button onClick={() => handleSave(text, 'vocal')}
               className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all"
-              style={{ background: '#1E2761', borderRadius: 10, height: 44 }}>
+              style={{ background: '#0A0A0A', borderRadius: 10, height: 44 }}>
               <Save className="w-4 h-4" />Enregistrer la note
             </button>
           )}

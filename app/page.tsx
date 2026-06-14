@@ -13,7 +13,7 @@ import { fadeInUp, staggerContainer } from '@/lib/animations'
 
 type ModalView = 'login' | 'register'
 
-const navyGradient = 'linear-gradient(135deg, #0A1628 0%, #1E2761 60%, #2D3F8F 100%)'
+const navyGradient = 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 60%, #1A1A1A 100%)'
 
 const serifItalic: React.CSSProperties = {
   fontFamily: 'Georgia, serif',
@@ -207,26 +207,26 @@ CREATE TABLE IF NOT EXISTS early_access (
               <p className="text-sm text-center py-4 text-[#6B7280]">{inviteError || 'Vérification du lien…'}</p>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-[#1E2761] mb-1">Bienvenue sur Maimoo</h2>
+                <h2 className="text-xl font-bold text-[#0A0A0A] mb-1">Bienvenue sur Maimoo</h2>
                 <p className="text-sm text-[#6B7280] mb-5">Créez votre accès</p>
                 <form onSubmit={handleInviteSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Prénom</label>
-                      <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="Jean" value={inviteFirstName} onChange={(e) => setInviteFirstName(e.target.value)} />
+                      <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0A0A0A]" placeholder="Jean" value={inviteFirstName} onChange={(e) => setInviteFirstName(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Nom</label>
-                      <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="Dupont" value={inviteLastName} onChange={(e) => setInviteLastName(e.target.value)} />
+                      <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0A0A0A]" placeholder="Dupont" value={inviteLastName} onChange={(e) => setInviteLastName(e.target.value)} />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Mot de passe</label>
-                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="••••••••" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} />
+                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0A0A0A]" placeholder="••••••••" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Confirmer</label>
-                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4C6EF5]" placeholder="••••••••" value={inviteConfirm} onChange={(e) => setInviteConfirm(e.target.value)} />
+                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0A0A0A]" placeholder="••••••••" value={inviteConfirm} onChange={(e) => setInviteConfirm(e.target.value)} />
                   </div>
                   {inviteError && <FormMessage type="error" message={inviteError} />}
                   <button type="submit" disabled={inviteLoading} className="w-full py-3 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60" style={{ background: navyGradient }}>
@@ -256,9 +256,9 @@ CREATE TABLE IF NOT EXISTS early_access (
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Image src="/logo.png" alt="Maimoo" height={32} width={120} style={{ height: 32, width: 'auto' }} />
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-[#6B7280] hover:text-[#1E2761] transition-colors">Fonctionnalités</a>
-            <a href="#pricing" className="text-sm text-[#6B7280] hover:text-[#1E2761] transition-colors">Tarifs</a>
-            <button onClick={openLogin} className="text-sm text-[#6B7280] hover:text-[#1E2761] transition-colors">
+            <a href="#features" className="text-sm text-[#6B7280] hover:text-[#0A0A0A] transition-colors">Fonctionnalités</a>
+            <a href="#pricing" className="text-sm text-[#6B7280] hover:text-[#0A0A0A] transition-colors">Tarifs</a>
+            <button onClick={openLogin} className="text-sm text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
               Se connecter
             </button>
             <button
@@ -284,7 +284,7 @@ CREATE TABLE IF NOT EXISTS early_access (
           <motion.div
             variants={fadeInUp} initial="hidden" animate="visible"
             className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium mb-8"
-            style={{ backgroundColor: '#EEF2FF', color: '#4C6EF5' }}
+            style={{ backgroundColor: '#F5F5F5', color: '#0A0A0A' }}
           >
             Knowledge management commercial
           </motion.div>
@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS early_access (
           <motion.h1
             variants={fadeInUp} initial="hidden" animate="visible" transition={{ delay: 0.1 }}
             className="font-black leading-tight"
-            style={{ fontSize: 'clamp(36px, 6vw, 64px)', color: '#1E2761', letterSpacing: '-0.02em', maxWidth: 700, margin: '0 auto 24px' }}
+            style={{ fontSize: 'clamp(36px, 6vw, 64px)', color: '#0A0A0A', letterSpacing: '-0.02em', maxWidth: 700, margin: '0 auto 24px' }}
           >
             La mémoire de votre équipe commerciale
           </motion.h1>
@@ -318,7 +318,7 @@ CREATE TABLE IF NOT EXISTS early_access (
             <button
               onClick={openLogin}
               className="w-full sm:w-auto px-7 py-3.5 rounded-lg text-base font-semibold transition-transform duration-150 hover:scale-[1.02] border"
-              style={{ borderColor: '#1E2761', color: '#1E2761' }}
+              style={{ borderColor: '#0A0A0A', color: '#0A0A0A' }}
             >
               Se connecter
             </button>
@@ -372,8 +372,8 @@ CREATE TABLE IF NOT EXISTS early_access (
                     style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.2)', transform: 'translateY(-4px)' }}
                   >
                     <div className="flex items-center gap-1.5">
-                      <FileText style={{ width: 12, height: 12, color: '#4C6EF5', flexShrink: 0 }} />
-                      <span className="text-[11px] font-bold text-[#1E2761] truncate">{label}</span>
+                      <FileText style={{ width: 12, height: 12, color: '#0A0A0A', flexShrink: 0 }} />
+                      <span className="text-[11px] font-bold text-[#0A0A0A] truncate">{label}</span>
                     </div>
                     <span className="text-[10px] text-[#6B7280] truncate">{snippet}</span>
                   </motion.div>
@@ -399,7 +399,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 className="flex flex-col items-center justify-center text-center py-6 relative"
               >
                 {i > 0 && <span className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-px bg-[#E5E7EB]" style={{ height: 48 }} />}
-                <span className="font-extrabold block mb-1" style={{ fontSize: 48, lineHeight: 1, color: '#1E2761' }}>
+                <span className="font-extrabold block mb-1" style={{ fontSize: 48, lineHeight: 1, color: '#0A0A0A' }}>
                   {animated ? value : (
                     <motion.span variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>{value}</motion.span>
                   )}
@@ -416,11 +416,11 @@ CREATE TABLE IF NOT EXISTS early_access (
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#4C6EF5] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
+              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
               Vous reconnaissez-vous ?
             </motion.p>
             <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#1E2761', letterSpacing: '-0.01em' }}>
+              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
               Ce que vivent vos équipes au quotidien
             </motion.h2>
           </div>
@@ -432,8 +432,8 @@ CREATE TABLE IF NOT EXISTS early_access (
               { num: '03', title: 'Le CRM ne capture pas tout', desc: "Il est fait pour les données formelles, pas pour les infos du quotidien. Une remarque en réunion, un document reçu, une impression après un appel : tout disparait. Et sur le terrain, personne n'ouvre son CRM entre deux rendez-vous." },
             ].map(({ num, title, desc }) => (
               <motion.div key={num} variants={fadeInUp} className="bg-white border border-[#E5E7EB] rounded-xl p-7">
-                <div className="font-black mb-5 select-none" style={{ fontSize: 48, color: '#F0F4FF', lineHeight: 1 }}>{num}</div>
-                <h3 className="font-bold text-[#1E2761] mb-3" style={{ fontSize: 18 }}>{title}</h3>
+                <div className="font-black mb-5 select-none" style={{ fontSize: 48, color: '#F5F5F5', lineHeight: 1 }}>{num}</div>
+                <h3 className="font-bold text-[#0A0A0A] mb-3" style={{ fontSize: 18 }}>{title}</h3>
                 <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>{desc}</p>
               </motion.div>
             ))}
@@ -446,11 +446,11 @@ CREATE TABLE IF NOT EXISTS early_access (
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#4C6EF5] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
+              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
               Avec Maimoo
             </motion.p>
             <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#1E2761', letterSpacing: '-0.01em' }}>
+              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
               Tout reste. Tout se retrouve. Partout.
             </motion.h2>
           </div>
@@ -463,9 +463,9 @@ CREATE TABLE IF NOT EXISTS early_access (
             ].map(({ stat, title, desc, Icon }) => (
               <motion.div key={stat} variants={fadeInUp} className="bg-white flex flex-col p-9"
                 style={{ border: '1.5px solid #E5E7EB', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-                <div className="font-black select-none mb-4 leading-none" style={{ fontSize: 80, color: '#EEF2FF', lineHeight: 1 }}>{stat}</div>
-                <Icon style={{ width: 28, height: 28, color: '#4C6EF5', marginBottom: 16 }} />
-                <h3 className="font-bold mb-3" style={{ fontSize: 18, color: '#1E2761' }}>{title}</h3>
+                <div className="font-black select-none mb-4 leading-none" style={{ fontSize: 80, color: '#F5F5F5', lineHeight: 1 }}>{stat}</div>
+                <Icon style={{ width: 28, height: 28, color: '#0A0A0A', marginBottom: 16 }} />
+                <h3 className="font-bold mb-3" style={{ fontSize: 18, color: '#0A0A0A' }}>{title}</h3>
                 <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>{desc}</p>
               </motion.div>
             ))}
@@ -478,11 +478,11 @@ CREATE TABLE IF NOT EXISTS early_access (
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#4C6EF5] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
+              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
               En 3 étapes
             </motion.p>
             <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#1E2761', letterSpacing: '-0.01em' }}>
+              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
               Simple comme un appel téléphonique
             </motion.h2>
           </div>
@@ -497,9 +497,9 @@ CREATE TABLE IF NOT EXISTS early_access (
               ].map(({ num, title, text, Icon }) => (
                 <motion.div key={num} variants={fadeInUp} className="flex flex-col items-center text-center relative z-10">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base mb-6 shrink-0" style={{ background: navyGradient }}>{num}</div>
-                  <h3 className="font-bold mb-3" style={{ fontSize: 18, color: '#1E2761' }}>{title}</h3>
+                  <h3 className="font-bold mb-3" style={{ fontSize: 18, color: '#0A0A0A' }}>{title}</h3>
                   <p className="mb-5" style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>{text}</p>
-                  <Icon style={{ width: 24, height: 24, color: '#4C6EF5' }} />
+                  <Icon style={{ width: 24, height: 24, color: '#0A0A0A' }} />
                 </motion.div>
               ))}
             </div>
@@ -512,11 +512,11 @@ CREATE TABLE IF NOT EXISTS early_access (
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#4C6EF5] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
+              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
               Ils nous font confiance
             </motion.p>
             <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#1E2761', letterSpacing: '-0.01em' }}>
+              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
               Des équipes qui n'oublient plus rien
             </motion.h2>
           </div>
@@ -528,7 +528,7 @@ CREATE TABLE IF NOT EXISTS early_access (
               { quote: "Notre CRM on l'adore mais il ne capturait pas les infos informelles. Maimoo comble exactement ce manque.", name: 'Pierre L.', role: 'Directeur des ventes, distribution', initials: 'PL' },
             ].map(({ quote, name, role, initials }) => (
               <motion.div key={name} variants={fadeInUp} className="bg-white border border-[#E5E7EB] rounded-xl p-7 flex flex-col">
-                <div className="font-black mb-4 select-none leading-none" style={{ fontSize: 48, color: '#EEF2FF' }}>&ldquo;</div>
+                <div className="font-black mb-4 select-none leading-none" style={{ fontSize: 48, color: '#F5F5F5' }}>&ldquo;</div>
                 <p className="flex-1 text-[#1A1A2E] mb-6" style={{ fontSize: 15, lineHeight: 1.7, fontStyle: 'italic' }}>{quote}</p>
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: navyGradient }}>{initials}</div>
@@ -549,11 +549,11 @@ CREATE TABLE IF NOT EXISTS early_access (
           {/* Header */}
           <div className="text-center mb-12">
             <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#4C6EF5] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
+              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
               Tarifs
             </motion.p>
             <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#1E2761', letterSpacing: '-0.01em' }}>
+              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
               Simple. Transparent. Sans surprise.
             </motion.h2>
           </div>
@@ -568,7 +568,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 onClick={() => setBilling('monthly')}
                 className="px-5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
                 style={billing === 'monthly'
-                  ? { background: '#fff', color: '#1E2761', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
+                  ? { background: '#fff', color: '#0A0A0A', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
                   : { color: '#6B7280' }}
               >
                 Mensuel
@@ -577,7 +577,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 onClick={() => setBilling('annual')}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
                 style={billing === 'annual'
-                  ? { background: '#fff', color: '#1E2761', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
+                  ? { background: '#fff', color: '#0A0A0A', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
                   : { color: '#6B7280' }}
               >
                 Annuel
@@ -598,12 +598,12 @@ CREATE TABLE IF NOT EXISTS early_access (
               style={{ border: '1px solid #E5E7EB', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
             >
               <div className="mb-6">
-                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#1E2761' }}>Solo</h3>
+                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#0A0A0A' }}>Solo</h3>
                 <p style={{ fontSize: 14, color: '#6B7280' }}>Pour le commercial indépendant</p>
               </div>
               <div className="mb-6">
                 <motion.span key={`solo-${billing}`} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}
-                  className="font-black" style={{ fontSize: 40, color: '#1E2761', lineHeight: 1 }}>
+                  className="font-black" style={{ fontSize: 40, color: '#0A0A0A', lineHeight: 1 }}>
                   {billing === 'monthly' ? '19€' : '15€'}
                 </motion.span>
                 <span className="ml-2" style={{ fontSize: 13, color: '#6B7280' }}>
@@ -615,7 +615,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 {['1 utilisateur', '1 espace', 'Portefeuille illimité', 'Notes texte et vocales illimitées', 'Recherche IA illimitée', '10 imports de documents par mois', "Import Excel jusqu'à 200 lignes par fichier", '5 Go de stockage', 'Support email'].map(f => <FeatureItem key={f} text={f} />)}
               </ul>
               <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
-                style={{ height: 44, borderRadius: 8, border: '1.5px solid #1E2761', color: '#1E2761', fontSize: 14, marginTop: 'auto' }}>
+                style={{ height: 44, borderRadius: 8, border: '1.5px solid #0A0A0A', color: '#0A0A0A', fontSize: 14, marginTop: 'auto' }}>
                 Commencer
               </button>
             </motion.div>
@@ -627,16 +627,16 @@ CREATE TABLE IF NOT EXISTS early_access (
               style={{ border: '1px solid #E5E7EB', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
             >
               <span className="absolute top-4 right-4 text-white text-[11px] font-semibold px-3 py-1"
-                style={{ background: '#4C6EF5', borderRadius: 20 }}>
+                style={{ background: '#0A0A0A', borderRadius: 20 }}>
                 Populaire
               </span>
               <div className="mb-6">
-                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#1E2761' }}>Team</h3>
+                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#0A0A0A' }}>Team</h3>
                 <p style={{ fontSize: 14, color: '#6B7280' }}>Pour les équipes commerciales</p>
               </div>
               <div className="mb-6">
                 <motion.span key={`team-${billing}`} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}
-                  className="font-black" style={{ fontSize: 40, color: '#1E2761', lineHeight: 1 }}>
+                  className="font-black" style={{ fontSize: 40, color: '#0A0A0A', lineHeight: 1 }}>
                   {billing === 'monthly' ? '39€' : '31€'}
                 </motion.span>
                 <span className="ml-2" style={{ fontSize: 13, color: '#6B7280' }}>
@@ -648,7 +648,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 {["Jusqu'à 25 utilisateurs", '3 espaces internes', 'Tout Solo inclus', 'Portefeuille partagé (perso + global)', 'Messagerie interne temps réel', "Notifications et activité équipe", 'Carte clients interactive', 'Détection de conflits IA', '50 imports de documents par mois par espace', "Import Excel illimité jusqu'à 1000 lignes", '50 Go de stockage', 'Support prioritaire'].map(f => <FeatureItem key={f} text={f} />)}
               </ul>
               <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
-                style={{ height: 44, borderRadius: 8, border: '1.5px solid #1E2761', color: '#1E2761', fontSize: 14, marginTop: 'auto' }}>
+                style={{ height: 44, borderRadius: 8, border: '1.5px solid #0A0A0A', color: '#0A0A0A', fontSize: 14, marginTop: 'auto' }}>
                 Commencer
               </button>
             </motion.div>
@@ -660,12 +660,12 @@ CREATE TABLE IF NOT EXISTS early_access (
               style={{ border: '1px solid #E5E7EB', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
             >
               <div className="mb-6">
-                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#1E2761' }}>Business</h3>
+                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#0A0A0A' }}>Business</h3>
                 <p style={{ fontSize: 14, color: '#6B7280' }}>Pour les organisations multi-entités</p>
               </div>
               <div className="mb-6">
                 <motion.span key={`biz-${billing}`} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}
-                  className="font-black" style={{ fontSize: 40, color: '#1E2761', lineHeight: 1 }}>
+                  className="font-black" style={{ fontSize: 40, color: '#0A0A0A', lineHeight: 1 }}>
                   {billing === 'monthly' ? '59€' : '47€'}
                 </motion.span>
                 <span className="ml-2" style={{ fontSize: 13, color: '#6B7280' }}>
@@ -677,7 +677,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 {['Utilisateurs illimités', '5 espaces internes isolés', 'Tout Team inclus', 'Super Admin tous accès', 'Imports de documents illimités', 'Import Excel illimité sans limite de lignes', 'Fiche entreprise IA personnalisée', "Statistiques et rapports d'activité", 'Stockage illimité', 'Intégrations CRM (à venir)', "Support dédié + session d'onboarding"].map(f => <FeatureItem key={f} text={f} />)}
               </ul>
               <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
-                style={{ height: 44, borderRadius: 8, border: '1.5px solid #1E2761', color: '#1E2761', fontSize: 14, marginTop: 'auto' }}>
+                style={{ height: 44, borderRadius: 8, border: '1.5px solid #0A0A0A', color: '#0A0A0A', fontSize: 14, marginTop: 'auto' }}>
                 Commencer
               </button>
             </motion.div>
@@ -693,7 +693,7 @@ CREATE TABLE IF NOT EXISTS early_access (
               style={{ background: navyGradient, borderRadius: 20 }}>
               ACCÈS ANTICIPÉ
             </span>
-            <h3 className="font-bold mb-3" style={{ fontSize: 24, color: '#1E2761' }}>Testez Maimoo gratuitement</h3>
+            <h3 className="font-bold mb-3" style={{ fontSize: 24, color: '#0A0A0A' }}>Testez Maimoo gratuitement</h3>
             <p className="mb-7" style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.7 }}>
               Nous sélectionnons un nombre limité d'équipes pour accéder à Maimoo en avant-première. Laissez votre email, nous reviendrons vers vous sous 48h.
             </p>
@@ -709,7 +709,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                   placeholder="votre@email.com"
                   value={earlyEmail}
                   onChange={(e) => setEarlyEmail(e.target.value)}
-                  className="flex-1 focus:outline-none focus:border-[#4C6EF5]"
+                  className="flex-1 focus:outline-none focus:border-[#0A0A0A]"
                   style={{ border: '1px solid #E5E7EB', borderRadius: 8, padding: '12px 16px', fontSize: 14, backgroundColor: '#fff' }}
                 />
                 <button
@@ -744,7 +744,7 @@ CREATE TABLE IF NOT EXISTS early_access (
             Créez votre espace gratuitement en 2 minutes.
           </motion.p>
           <motion.div variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-            <button onClick={openRegister} className="px-8 py-4 rounded-lg text-base font-bold bg-white transition-transform duration-150 hover:scale-[1.02]" style={{ color: '#1E2761' }}>
+            <button onClick={openRegister} className="px-8 py-4 rounded-lg text-base font-bold bg-white transition-transform duration-150 hover:scale-[1.02]" style={{ color: '#0A0A0A' }}>
               Commencer gratuitement
             </button>
           </motion.div>
@@ -759,9 +759,9 @@ CREATE TABLE IF NOT EXISTS early_access (
             <span style={{ fontSize: 13, color: '#6B7280' }}>© 2026 Maimoo</span>
           </div>
           <div className="flex items-center gap-6">
-            <Link href="/mentions-legales" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#1E2761] transition-colors">Mentions légales</Link>
-            <Link href="/confidentialite" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#1E2761] transition-colors">Confidentialité</Link>
-            <Link href="/contact" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#1E2761] transition-colors">Contact</Link>
+            <Link href="/mentions-legales" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#0A0A0A] transition-colors">Mentions légales</Link>
+            <Link href="/confidentialite" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#0A0A0A] transition-colors">Confidentialité</Link>
+            <Link href="/contact" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#0A0A0A] transition-colors">Contact</Link>
           </div>
         </div>
       </footer>

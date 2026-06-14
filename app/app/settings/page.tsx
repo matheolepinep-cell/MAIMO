@@ -178,16 +178,16 @@ export default function SettingsPage() {
                 <textarea id="ws_company_description" rows={2} value={wsProfile.company_description}
                   onChange={(e) => setWsProfile(p => ({ ...p, company_description: e.target.value }))}
                   placeholder="Nous aidons les PME industrielles à réduire leurs arrêts machine"
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
-                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
+                  style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="ws_company_services" className="text-sm font-medium text-[#0F172A]">Produits et services proposés</label>
                 <textarea id="ws_company_services" rows={2} value={wsProfile.company_services}
                   onChange={(e) => setWsProfile(p => ({ ...p, company_services: e.target.value }))}
                   placeholder="Contrats de maintenance préventive, interventions curatives, formation opérateurs"
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
-                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
+                  style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               <Input id="ws_company_zone" label="Zone géographique principale" value={wsProfile.company_zone}
                 onChange={(e) => setWsProfile(p => ({ ...p, company_zone: e.target.value }))}
@@ -200,16 +200,16 @@ export default function SettingsPage() {
                 <textarea id="ws_company_values" rows={2} value={wsProfile.company_values}
                   onChange={(e) => setWsProfile(p => ({ ...p, company_values: e.target.value }))}
                   placeholder="Ex: Proximité client, réactivité, expertise technique, engagement qualité..."
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
-                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
+                  style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="ws_company_differentiator" className="text-sm font-medium text-[#0F172A]">Argument différenciateur clé</label>
                 <textarea id="ws_company_differentiator" rows={2} value={wsProfile.company_differentiator}
                   onChange={(e) => setWsProfile(p => ({ ...p, company_differentiator: e.target.value }))}
                   placeholder="Intervention garantie en moins de 4h, techniciens certifiés constructeur"
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(76,110,245,0.15)] focus:border-[#4C6EF5] transition-all duration-150"
-                  style={{ borderColor: 'rgba(30,39,97,0.12)', background: 'rgba(240,244,255,0.8)' }} />
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
+                  style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               {wsMsg && <FormMessage type={wsMsgType} message={wsMsg} />}
               <Button type="submit" loading={savingWs} size="sm">Sauvegarder</Button>
@@ -370,7 +370,7 @@ export default function SettingsPage() {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex gap-2 flex-wrap">
-              {['#4C6EF5', '#7C3AED', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#1E2761'].map((c) => (
+              {['#0A0A0A', '#7C3AED', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#0A0A0A'].map((c) => (
                 <button
                   key={c}
                   onClick={() => setAccentColor(c)}
@@ -398,9 +398,9 @@ export default function SettingsPage() {
             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0"
               style={{ background: accentColor }}>AB</div>
             <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
-              style={{ background: 'rgba(30,39,97,0.12)', color: '#1E2761', borderColor: 'rgba(30,39,97,0.2)' }}>Client</span>
+              style={{ background: 'rgba(0,0,0,0.12)', color: '#0A0A0A', borderColor: 'rgba(30,39,97,0.2)' }}>Client</span>
             <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
-              style={{ background: 'rgba(30,39,97,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)' }}>Prospect</span>
+              style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)' }}>Prospect</span>
             <span className="text-xs text-[#94A3B8] ml-1">Aperçu</span>
           </div>
         </Card>

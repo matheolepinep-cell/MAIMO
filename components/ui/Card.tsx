@@ -15,16 +15,14 @@ export function Card({ children, className, onClick }: CardProps) {
         className
       )}
       style={{
-        borderColor: 'rgba(30,39,97,0.08)',
-        boxShadow: onClick
-          ? '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.06)'
-          : '0 1px 3px rgba(30,39,97,0.06)',
+        borderColor: '#E5E5E5',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}
       onMouseEnter={onClick ? (e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 12px rgba(30,39,97,0.10), 0 8px 24px rgba(30,39,97,0.08)'
+        (e.currentTarget as HTMLDivElement).style.borderColor = '#0A0A0A'
       } : undefined}
       onMouseLeave={onClick ? (e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.06)'
+        (e.currentTarget as HTMLDivElement).style.borderColor = '#E5E5E5'
       } : undefined}
       onClick={onClick}
     >

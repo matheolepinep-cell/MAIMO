@@ -65,7 +65,7 @@ function ProgressCard({
   const pct = total > 0 ? Math.round((current / total) * 100) : 0
   return (
     <div className="rounded-2xl p-6 text-center"
-      style={{ background: 'white', border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 4px 24px rgba(30,39,97,0.08)' }}>
+      style={{ background: 'white', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
       {error ? (
         <>
           <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
@@ -79,15 +79,15 @@ function ProgressCard({
         </>
       ) : (
         <>
-          <Loader2 className="w-10 h-10 text-[#4C6EF5] animate-spin mx-auto mb-4" />
+          <Loader2 className="w-10 h-10 text-[#0A0A0A] animate-spin mx-auto mb-4" />
           <p className="text-sm font-semibold text-[#0F172A] mb-1">{title}</p>
           {subtitle && <p className="text-xs text-slate-400 mb-2">{subtitle}</p>}
-          <p className="text-2xl font-bold text-[#1E2761] my-3">
+          <p className="text-2xl font-bold text-[#0A0A0A] my-3">
             {current} <span className="text-slate-400 text-base font-normal">/ {total}</span>
           </p>
-          <div className="w-full rounded-full h-2 mb-2 overflow-hidden" style={{ background: 'rgba(76,110,245,0.1)' }}>
+          <div className="w-full rounded-full h-2 mb-2 overflow-hidden" style={{ background: 'rgba(0,0,0,0.06)' }}>
             <div className="h-2 rounded-full transition-all duration-500"
-              style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #1E2761, #4C6EF5)' }} />
+              style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #0A0A0A, #0A0A0A)' }} />
           </div>
           <p className="text-xs text-slate-400">{pct}%</p>
         </>
@@ -332,7 +332,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
       <div className="flex flex-col min-h-full">
         <Header title="Validation" />
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-[#4C6EF5] animate-spin" />
+          <Loader2 className="w-8 h-8 text-[#0A0A0A] animate-spin" />
         </div>
       </div>
     )
@@ -346,7 +346,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
           <div>
             <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
             <p className="text-[#0F172A] font-medium">{loadError || 'Données introuvables.'}</p>
-            <button onClick={() => router.push('/app/import')} className="mt-4 text-sm text-[#4C6EF5] hover:underline">
+            <button onClick={() => router.push('/app/import')} className="mt-4 text-sm text-[#0A0A0A] hover:underline">
               Recommencer →
             </button>
           </div>
@@ -439,8 +439,8 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
             <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">Validation de l'import</h1>
             <p className="text-slate-500 text-sm mt-1 truncate">{importRecord.file_name}</p>
             <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full text-[#1E2761]"
-                style={{ background: 'rgba(76,110,245,0.1)' }}>
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full text-[#0A0A0A]"
+                style={{ background: 'rgba(0,0,0,0.06)' }}>
                 {rows.length} entreprise{rows.length !== 1 ? 's' : ''} détectée{rows.length !== 1 ? 's' : ''}
               </span>
               {contactCount > 0 && (
@@ -468,16 +468,16 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
 
           {/* Mapping */}
           <div className="rounded-2xl mb-5 overflow-hidden"
-            style={{ border: '1px solid rgba(30,39,97,0.08)', background: 'white' }}>
+            style={{ border: '1px solid rgba(0,0,0,0.08)', background: 'white' }}>
             <button
               onClick={() => setMappingOpen((v) => !v)}
-              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[#F0F4FF] transition-colors duration-150"
+              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[#F5F5F5] transition-colors duration-150"
             >
               <span className="text-sm font-semibold text-[#0F172A]">Mapping des colonnes</span>
               {mappingOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </button>
             {mappingOpen && (
-              <div className="px-5 pb-5 border-t border-[rgba(30,39,97,0.06)]">
+              <div className="px-5 pb-5 border-t border-[rgba(0,0,0,0.06)]">
                 <div className="space-y-2 mt-4">
                   {MAIMO_FIELDS.map((field) => (
                     <div key={field} className="flex items-center gap-3">
@@ -486,7 +486,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
                         value={mapping[field] ?? ''}
                         onChange={(e) => setMapping((prev) => ({ ...prev, [field]: e.target.value || null }))}
                         className="flex-1 px-3 py-1.5 rounded-lg text-xs text-[#0F172A] focus:outline-none"
-                        style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }}
+                        style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(0,0,0,0.12)' }}
                       >
                         <option value="">— Non mappé —</option>
                         {allColumns.map((col) => <option key={col} value={col}>{col}</option>)}
@@ -503,7 +503,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
               Aperçu des fiches ({selectedIndices.size}/{rows.length} sélectionnées)
             </p>
-            <button onClick={toggleAll} className="text-xs text-[#4C6EF5] hover:underline font-medium">
+            <button onClick={toggleAll} className="text-xs text-[#0A0A0A] hover:underline font-medium">
               {selectedIndices.size === rows.length ? 'Tout désélectionner' : 'Tout sélectionner'}
             </button>
           </div>
@@ -517,8 +517,8 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
               return (
                 <div key={idx} className="rounded-2xl transition-all duration-150" style={{
                   background: 'white',
-                  border: `1px solid ${selected ? (isDuplicate ? 'rgba(245,158,11,0.3)' : 'rgba(76,110,245,0.25)') : 'rgba(30,39,97,0.08)'}`,
-                  boxShadow: selected ? `0 0 0 3px ${isDuplicate ? 'rgba(245,158,11,0.08)' : 'rgba(76,110,245,0.08)'}` : '0 1px 3px rgba(30,39,97,0.05)',
+                  border: `1px solid ${selected ? (isDuplicate ? 'rgba(245,158,11,0.3)' : 'rgba(76,110,245,0.25)') : 'rgba(0,0,0,0.08)'}`,
+                  boxShadow: selected ? `0 0 0 3px ${isDuplicate ? 'rgba(245,158,11,0.08)' : 'rgba(76,110,245,0.08)'}` : '0 1px 3px rgba(0,0,0,0.05)',
                   opacity: selected ? 1 : 0.6,
                 }}>
                   <div className="flex items-start gap-3 p-4">
@@ -526,7 +526,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
                       onClick={() => toggleRow(idx)}
                       className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all duration-150"
                       style={{
-                        background: selected ? 'linear-gradient(135deg, #1E2761, #3B5BDB)' : 'white',
+                        background: selected ? 'linear-gradient(135deg, #0A0A0A, #0A0A0A)' : 'white',
                         borderColor: selected ? 'transparent' : 'rgba(30,39,97,0.2)',
                       }}
                     >
@@ -550,7 +550,7 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
                         </span>
                         {row.industry && (
                           <span className="text-xs px-2 py-0.5 rounded-full"
-                            style={{ background: 'rgba(76,110,245,0.08)', color: '#1E2761' }}>
+                            style={{ background: 'rgba(76,110,245,0.08)', color: '#0A0A0A' }}>
                             {row.industry}
                           </span>
                         )}
@@ -584,10 +584,10 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
                       )}
 
                       <div className="mt-3 rounded-xl p-3"
-                        style={{ background: 'rgba(240,244,255,0.6)', border: '1px solid rgba(30,39,97,0.06)' }}>
+                        style={{ background: 'rgba(240,244,255,0.6)', border: '1px solid rgba(0,0,0,0.06)' }}>
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <FileText className="w-3 h-3 text-[#4C6EF5]" />
-                          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#4C6EF5]">Note générée</span>
+                          <FileText className="w-3 h-3 text-[#0A0A0A]" />
+                          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#0A0A0A]">Note générée</span>
                         </div>
                         <textarea
                           value={note}
@@ -612,8 +612,8 @@ export default function ImportValidatePage({ params }: { params: Promise<{ id: s
         style={{
           background: 'rgba(255,255,255,0.95)',
           backdropFilter: 'blur(20px)',
-          borderTop: '1px solid rgba(30,39,97,0.08)',
-          boxShadow: '0 -4px 24px rgba(30,39,97,0.08)',
+          borderTop: '1px solid rgba(0,0,0,0.08)',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.08)',
         }}>
         <div className="max-w-3xl mx-auto px-4 md:px-8 py-3 flex items-center justify-between gap-4">
           <p className="text-sm font-semibold text-[#0F172A]">

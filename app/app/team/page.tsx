@@ -161,8 +161,8 @@ export default function TeamPage() {
                   className="flex items-center gap-4"
                   onClick={() => handleViewPortfolio(member)}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#1E2761]/10 flex items-center justify-center shrink-0">
-                    <span className="text-sm font-bold text-[#1E2761]">{member.full_name.charAt(0).toUpperCase()}</span>
+                  <div className="w-10 h-10 rounded-xl bg-[#0A0A0A]/10 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-[#0A0A0A]">{member.full_name.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -170,7 +170,7 @@ export default function TeamPage() {
                       {member.role === 'admin' && <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <a href={`mailto:${member.email}`} className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#4C6EF5] transition-colors">
+                      <a href={`mailto:${member.email}`} className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors">
                         <Mail className="w-3 h-3" />{member.email}
                       </a>
                       {pubCount > 0 && (
@@ -231,8 +231,8 @@ export default function TeamPage() {
                   onClick={() => { setViewingMember(null); router.push(`/app/accounts/${entry.account_id}`) }}
                   className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all duration-150 text-left"
                 >
-                  <div className="w-8 h-8 bg-[#1E2761]/10 rounded-lg flex items-center justify-center shrink-0">
-                    <Building2 className="w-4 h-4 text-[#1E2761]" />
+                  <div className="w-8 h-8 bg-[#0A0A0A]/10 rounded-lg flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4 text-[#0A0A0A]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[#1E293B] truncate">{acc.name}</p>

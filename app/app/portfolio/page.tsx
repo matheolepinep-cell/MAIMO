@@ -171,22 +171,22 @@ export default function PortfolioPage() {
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 pl-16 py-3 bg-white shrink-0"
-          style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
         >
-          <span className="text-[16px] font-bold text-[#0A1628]">Portefeuille</span>
+          <span className="text-[16px] font-bold text-[#0A0A0A]">Portefeuille</span>
           <button
             onClick={() => setCreateOpen(true)}
             className="flex items-center justify-center"
-            style={{ background: '#F0F4FF', borderRadius: 8, width: 34, height: 34 }}
+            style={{ background: '#F5F5F5', borderRadius: 8, width: 34, height: 34 }}
           >
-            <Plus className="text-[#4C6EF5]" style={{ width: 18, height: 18 }} />
+            <Plus className="text-[#0A0A0A]" style={{ width: 18, height: 18 }} />
           </button>
         </div>
 
         {/* Tabs + sort */}
         <div
           className="flex shrink-0 items-center px-4 py-3 bg-white gap-2"
-          style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}
         >
           {(['perso', 'global'] as const).map((tab) => (
             <button
@@ -194,8 +194,8 @@ export default function PortfolioPage() {
               onClick={() => setMobileTab(tab)}
               className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-all"
               style={mobileTab === tab
-                ? { background: '#1E2761', color: 'white' }
-                : { background: '#F0F4FF', color: '#8899BB' }}
+                ? { background: '#0A0A0A', color: 'white' }
+                : { background: '#F5F5F5', color: '#6B6B6B' }}
             >
               {tab === 'perso' ? 'Perso' : 'Global'}
             </button>
@@ -203,7 +203,7 @@ export default function PortfolioPage() {
           <select
             value={portfolioSort}
             onChange={(e) => setPortfolioSort(e.target.value as 'az' | 'za' | 'recent' | 'oldest')}
-            className="ml-auto text-[11px] text-[#8899BB] bg-transparent border-none focus:outline-none cursor-pointer"
+            className="ml-auto text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer"
           >
             <option value="az">A → Z</option>
             <option value="za">Z → A</option>
@@ -218,7 +218,7 @@ export default function PortfolioPage() {
             <div className="space-y-[8px]">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-[52px] bg-white rounded-2xl animate-pulse"
-                  style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
+                  style={{ border: '1px solid rgba(0,0,0,0.06)' }} />
               ))}
             </div>
           ) : (
@@ -240,7 +240,7 @@ export default function PortfolioPage() {
                     key={acc.id}
                     onClick={() => router.push(`/app/accounts/${acc.id}`)}
                     className="w-full flex items-center gap-3 bg-white rounded-2xl px-[12px] py-[10px] text-left transition-all duration-150 hover:-translate-y-0.5"
-                    style={{ border: '1px solid rgba(30,39,97,0.07)', boxShadow: '0 1px 3px rgba(30,39,97,0.04)' }}
+                    style={{ border: '1px solid rgba(30,39,97,0.07)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
                   >
                     <div
                       className="rounded-full shrink-0"
@@ -253,14 +253,14 @@ export default function PortfolioPage() {
                       {getInitials(acc.name)}
                     </div>
                     <div className="flex-1 min-w-0 text-left">
-                      <p className="text-[13px] font-bold text-[#0A1628] truncate">{acc.name}</p>
+                      <p className="text-[13px] font-bold text-[#0A0A0A] truncate">{acc.name}</p>
                       {(acc.city || acc.industry) && (
-                        <p className="text-[11px] text-[#8899BB] truncate">
+                        <p className="text-[11px] text-[#6B6B6B] truncate">
                           {[acc.city, acc.industry].filter(Boolean).join(' · ')}
                         </p>
                       )}
                     </div>
-                    <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#C5D0F0' }} />
+                    <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#E5E5E5' }} />
                   </button>
                 )
               }}
@@ -287,7 +287,7 @@ export default function PortfolioPage() {
               <select
                 value={portfolioSort}
                 onChange={(e) => setPortfolioSort(e.target.value as 'az' | 'za' | 'recent' | 'oldest')}
-                className="text-[11px] text-[#8899BB] bg-transparent border-none focus:outline-none cursor-pointer"
+                className="text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer"
               >
                 <option value="az">A → Z</option>
                 <option value="za">Z → A</option>
@@ -311,13 +311,13 @@ export default function PortfolioPage() {
               </span>
               {clientCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
-                  style={{ background: 'rgba(30,39,97,0.12)', color: '#1E2761', borderColor: 'rgba(30,39,97,0.2)' }}>
+                  style={{ background: 'rgba(0,0,0,0.12)', color: '#0A0A0A', borderColor: 'rgba(30,39,97,0.2)' }}>
                   {clientCount} client{clientCount !== 1 ? 's' : ''}
                 </span>
               )}
               {prospectCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
-                  style={{ background: 'rgba(30,39,97,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)' }}>
+                  style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)' }}>
                   {prospectCount} prospect{prospectCount !== 1 ? 's' : ''}
                 </span>
               )}
@@ -333,12 +333,12 @@ export default function PortfolioPage() {
               onClick={() => setFilter(value)}
               className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
               style={filter === value ? {
-                background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
+                background: 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 100%)',
                 color: 'white',
               } : {
                 background: 'white',
                 color: '#64748B',
-                border: '1px solid rgba(30,39,97,0.12)',
+                border: '1px solid rgba(0,0,0,0.12)',
               }}
             >
               {label}
@@ -350,7 +350,7 @@ export default function PortfolioPage() {
         {loading ? (
           <div className="space-y-3">{[...Array(4)].map((_, i) => (
             <div key={i} className="h-20 bg-white rounded-2xl animate-pulse"
-              style={{ border: '1px solid rgba(30,39,97,0.06)' }} />
+              style={{ border: '1px solid rgba(0,0,0,0.06)' }} />
           ))}</div>
         ) : (
           <AlphaList
@@ -359,7 +359,7 @@ export default function PortfolioPage() {
               <div className="text-center py-16">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
                   style={{ background: 'rgba(76,110,245,0.08)' }}>
-                  <Briefcase className="w-6 h-6 text-[#4C6EF5]" />
+                  <Briefcase className="w-6 h-6 text-[#0A0A0A]" />
                 </div>
                 <p className="text-slate-500 text-sm mb-4">
                   {filter !== 'all' ? 'Aucune entreprise dans ce filtre.' : 'Votre portefeuille est vide.'}
@@ -409,7 +409,7 @@ export default function PortfolioPage() {
           <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={newIndustry} onChange={(e) => setNewIndustry(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-[#0F172A] mb-1.5">Statut</label>
-            <div className="flex rounded-xl bg-[#F0F4FF] p-1">
+            <div className="flex rounded-xl bg-[#F5F5F5] p-1">
               <button type="button" onClick={() => setNewStatus('client')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${newStatus === 'client' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Client</button>
               <button type="button" onClick={() => setNewStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${newStatus === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
             </div>

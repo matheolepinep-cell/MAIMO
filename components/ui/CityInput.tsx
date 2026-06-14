@@ -117,7 +117,7 @@ export function CityInput({ value, onChange, label, placeholder = 'Lyon', id, cl
       {open && (
         <div
           className="absolute z-50 mt-1 w-full bg-white rounded-lg overflow-hidden"
-          style={{ border: '0.5px solid var(--color-border-tertiary, #E2E8F0)', boxShadow: '0 4px 16px rgba(30,39,97,0.10)' }}
+          style={{ border: '0.5px solid var(--color-border-tertiary, #E2E8F0)', boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}
         >
           {options.length === 0 ? (
             <p className="px-3 py-2.5 text-xs text-[#94A3B8]">Aucune ville trouvée</p>
@@ -127,7 +127,7 @@ export function CityInput({ value, onChange, label, placeholder = 'Lyon', id, cl
                 key={i}
                 type="button"
                 onMouseDown={() => handleSelect(opt)}
-                className="w-full text-left px-3 py-2 hover:bg-[#F0F4FF] transition-colors duration-100"
+                className="w-full text-left px-3 py-2 hover:bg-[#F5F5F5] transition-colors duration-100"
               >
                 <p className="text-[13px] font-semibold text-[#0F172A] leading-snug">{opt.cityName}</p>
                 {opt.subtitle && (

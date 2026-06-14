@@ -38,14 +38,14 @@ export function WorkspaceSelector({ onCreateClick }: Props) {
         <span className="flex-1 text-sm font-medium truncate text-white text-left">
           {currentWorkspace.name}
         </span>
-        <ChevronsUpDown className="w-3.5 h-3.5 shrink-0" style={{ color: '#8899BB' }} />
+        <ChevronsUpDown className="w-3.5 h-3.5 shrink-0" style={{ color: '#6B6B6B' }} />
       </button>
 
       {open && (
         <div
           className="absolute left-2 right-2 top-full mt-1 rounded-xl py-1 z-50"
           style={{
-            background: '#0F1F38',
+            background: '#0A0A0A',
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
           }}
@@ -65,12 +65,12 @@ export function WorkspaceSelector({ onCreateClick }: Props) {
               />
               <span
                 className="flex-1 text-sm truncate text-left"
-                style={{ color: ws.id === currentWorkspace.id ? 'white' : '#8899BB' }}
+                style={{ color: ws.id === currentWorkspace.id ? 'white' : '#6B6B6B' }}
               >
                 {ws.name}
               </span>
               {ws.id === currentWorkspace.id && (
-                <Check className="w-3.5 h-3.5 shrink-0" style={{ color: '#60A5FA' }} />
+                <Check className="w-3.5 h-3.5 shrink-0" style={{ color: 'white' }} />
               )}
             </button>
           ))}
@@ -86,8 +86,8 @@ export function WorkspaceSelector({ onCreateClick }: Props) {
             }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
           >
-            <Plus className="w-3.5 h-3.5 shrink-0" style={{ color: '#8899BB' }} />
-            <span className="text-sm" style={{ color: '#8899BB' }}>
+            <Plus className="w-3.5 h-3.5 shrink-0" style={{ color: '#6B6B6B' }} />
+            <span className="text-sm" style={{ color: '#6B6B6B' }}>
               {userWorkspaces.length >= 5 ? 'Maximum 5 espaces' : 'Créer un espace'}
             </span>
           </button>

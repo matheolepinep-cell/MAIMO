@@ -153,11 +153,11 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
         <div className="flex items-center gap-2 mb-6">
           <div
             className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-sm"
-            style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}
+            style={{ background: 'linear-gradient(135deg, #0A0A0A, #0A0A0A)' }}
           >
             M
           </div>
-          <span className="font-bold text-[#1E2761] text-lg">Maimoo</span>
+          <span className="font-bold text-[#0A0A0A] text-lg">Maimoo</span>
         </div>
 
         {view === 'login' ? (
@@ -212,8 +212,8 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
           /* Email confirmation screen */
           <div className="flex flex-col items-center text-center gap-4 py-2">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-              style={{ background: 'rgba(76,110,245,0.1)' }}>
-              <MailCheck className="w-8 h-8" style={{ color: '#4C6EF5' }} />
+              style={{ background: 'rgba(0,0,0,0.06)' }}>
+              <MailCheck className="w-8 h-8" style={{ color: '#0A0A0A' }} />
             </div>
             <div>
               <h2 className="text-xl font-bold text-[#0F172A] mb-2">Vérifiez votre boîte mail</h2>

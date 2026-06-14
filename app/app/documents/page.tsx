@@ -143,7 +143,7 @@ export default function DocumentsPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F0F4FF]">
+    <div className="flex flex-col min-h-full bg-[#F5F5F5]">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
         <button onClick={() => router.push('/app/dashboard')} className="p-2 rounded-xl text-[#64748B] hover:bg-gray-100 transition-all">
@@ -169,7 +169,7 @@ export default function DocumentsPage() {
         {/* Client filter */}
         <div className="relative">
           {clientFilter ? (
-            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-[#EEF2FF] rounded-lg text-xs font-medium text-[#1E2761]">
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-[#F5F5F5] rounded-lg text-xs font-medium text-[#0A0A0A]">
               {clientFilter.name}
               <button onClick={() => { setClientFilter(null); setClientQuery(''); setPage(0) }}><X className="w-3 h-3 ml-1 hover:text-red-500" /></button>
             </div>
@@ -185,7 +185,7 @@ export default function DocumentsPage() {
                 <div className="absolute z-40 mt-1 left-0 w-52 bg-white rounded-xl border border-gray-100 shadow-xl overflow-hidden">
                   {clientResults.map((acc) => (
                     <button key={acc.id} onMouseDown={() => { setClientFilter(acc); setClientQuery(''); setShowClientDrop(false); setPage(0) }}
-                      className="w-full px-3 py-2 text-left text-xs hover:bg-[#F0F4FF] transition-colors">{acc.name}</button>
+                      className="w-full px-3 py-2 text-left text-xs hover:bg-[#F5F5F5] transition-colors">{acc.name}</button>
                   ))}
                 </div>
               )}
@@ -216,7 +216,7 @@ export default function DocumentsPage() {
 
         {hasFilters && (
           <button onClick={() => { setPortfolio('all'); setClientFilter(null); setClientQuery(''); setTypeFilter('all'); setSortOrder('desc'); setNameSearch(''); setPage(0) }}
-            className="text-xs text-[#64748B] hover:text-[#1E2761] underline transition-colors">
+            className="text-xs text-[#64748B] hover:text-[#0A0A0A] underline transition-colors">
             Réinitialiser
           </button>
         )}
@@ -248,14 +248,14 @@ export default function DocumentsPage() {
                   <div className="flex-1 min-w-0">
                     <button
                       onClick={() => window.open(doc.file_url, '_blank')}
-                      className="text-sm font-medium text-[#0F172A] hover:text-[#4C6EF5] truncate block text-left transition-colors"
+                      className="text-sm font-medium text-[#0F172A] hover:text-[#0A0A0A] truncate block text-left transition-colors"
                     >
                       {doc.file_name}
                     </button>
                     <div className="flex items-center gap-2 mt-0.5">
                       {doc.account_id ? (
                         <button onClick={() => router.push(`/app/accounts/${doc.account_id}`)}
-                          className="text-[11px] text-[#8899BB] hover:underline">
+                          className="text-[11px] text-[#6B6B6B] hover:underline">
                           {doc.account_name}
                         </button>
                       ) : (
@@ -275,7 +275,7 @@ export default function DocumentsPage() {
                     {doc.account_id && (
                       <button
                         onClick={() => router.push(`/app/accounts/${doc.account_id}`)}
-                        className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#1E2761] hover:bg-gray-100 transition-colors"
+                        className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0A0A0A] hover:bg-gray-100 transition-colors"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </button>

@@ -11,7 +11,7 @@ export function BurgerButton() {
       className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg transition-opacity hover:opacity-70 shrink-0"
       aria-label="Menu"
     >
-      <Menu className="w-5 h-5 text-[#0A1628]" />
+      <Menu className="w-5 h-5 text-[#0A0A0A]" />
     </button>
   )
 }

@@ -41,15 +41,15 @@ export default function ContactPage() {
         <div className="flex items-center gap-2">
           <div
             className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-bold text-sm"
-            style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}
+            style={{ background: 'linear-gradient(135deg, #0A0A0A, #0A0A0A)' }}
           >
             M
           </div>
-          <span className="font-bold text-[#1E2761]">Maimoo</span>
+          <span className="font-bold text-[#0A0A0A]">Maimoo</span>
         </div>
         <Link
           href="/"
-          className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#1E2761] transition-colors"
+          className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#0A0A0A] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Accueil
@@ -73,7 +73,7 @@ export default function ContactPage() {
             </p>
             <Link
               href="/"
-              className="text-sm font-medium text-[#3B5BDB] hover:underline"
+              className="text-sm font-medium text-[#0A0A0A] hover:underline"
             >
               Retour à l&apos;accueil
             </Link>
@@ -90,7 +90,7 @@ export default function ContactPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Jean Dupont"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30 focus:border-[#3B5BDB] transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/30 focus:border-[#0A0A0A] transition-all"
               />
             </div>
 
@@ -105,7 +105,7 @@ export default function ContactPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 onInvalid={(e) => e.preventDefault()}
                 placeholder="vous@exemple.com"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30 focus:border-[#3B5BDB] transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/30 focus:border-[#0A0A0A] transition-all"
               />
             </div>
 
@@ -119,7 +119,7 @@ export default function ContactPage() {
                 onChange={(e) => setMessage(e.target.value)}
                 rows={6}
                 placeholder="Votre message..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30 focus:border-[#3B5BDB] transition-all resize-none"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/30 focus:border-[#0A0A0A] transition-all resize-none"
               />
             </div>
 
@@ -129,7 +129,7 @@ export default function ContactPage() {
               type="submit"
               disabled={loading}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #1E2761, #3B5BDB)' }}
+              style={{ background: 'linear-gradient(135deg, #0A0A0A, #0A0A0A)' }}
             >
               {loading ? (
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -143,7 +143,7 @@ export default function ContactPage() {
 
         <div className="mt-10 pt-8 border-t border-slate-100 text-sm text-[#64748B]">
           <p>Ou contactez-nous directement par email :</p>
-          <a href="mailto:contact@maimoo.fr" className="text-[#3B5BDB] font-medium hover:underline">
+          <a href="mailto:contact@maimoo.fr" className="text-[#0A0A0A] font-medium hover:underline">
             contact@maimoo.fr
           </a>
         </div>

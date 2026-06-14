@@ -23,14 +23,14 @@ export function AnswerCard({ answer, sources, isLoading, onSpeak, onClear, onSou
       <div
         className="bg-white rounded-2xl p-5 space-y-3"
         style={{
-          border: '1px solid rgba(30,39,97,0.08)',
-          boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
+          border: '1px solid rgba(0,0,0,0.08)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05)',
         }}
       >
-        <div className="h-3.5 bg-[#F0F4FF] rounded-lg animate-pulse w-3/4" />
-        <div className="h-3.5 bg-[#F0F4FF] rounded-lg animate-pulse w-full" />
-        <div className="h-3.5 bg-[#F0F4FF] rounded-lg animate-pulse w-5/6" />
-        <div className="h-3.5 bg-[#F0F4FF] rounded-lg animate-pulse w-2/3" />
+        <div className="h-3.5 bg-[#F5F5F5] rounded-lg animate-pulse w-3/4" />
+        <div className="h-3.5 bg-[#F5F5F5] rounded-lg animate-pulse w-full" />
+        <div className="h-3.5 bg-[#F5F5F5] rounded-lg animate-pulse w-5/6" />
+        <div className="h-3.5 bg-[#F5F5F5] rounded-lg animate-pulse w-2/3" />
       </div>
     )
   }
@@ -41,31 +41,31 @@ export function AnswerCard({ answer, sources, isLoading, onSpeak, onClear, onSou
     <div
       className="bg-white rounded-2xl overflow-hidden"
       style={{
-        border: '1px solid rgba(30,39,97,0.08)',
-        boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 8px 24px rgba(30,39,97,0.07)',
+        border: '1px solid rgba(0,0,0,0.08)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(30,39,97,0.07)',
         animation: 'fadeInUp 0.25s ease-out',
       }}
     >
       {/* Header */}
       <div
         className="flex items-center justify-between px-5 py-3"
-        style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}
+        style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}
       >
         <div className="flex items-center gap-2">
           <div
             className="w-5 h-5 rounded-md flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 100%)' }}
           >
             <span className="text-white font-bold" style={{ fontSize: 9 }}>M</span>
           </div>
-          <span className="text-xs font-extrabold tracking-widest text-[#1E2761]">MAIMOO</span>
+          <span className="text-xs font-extrabold tracking-widest text-[#0A0A0A]">MAIMOO</span>
           <span className="text-xs text-slate-400">
             {new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date())}
           </span>
         </div>
         <div className="flex items-center gap-1">
           {onSpeak && (
-            <button onClick={onSpeak} className="p-1.5 rounded-lg text-slate-400 hover:text-[#4C6EF5] hover:bg-[#F0F4FF] transition-all duration-200" title="Lire à voix haute">
+            <button onClick={onSpeak} className="p-1.5 rounded-lg text-slate-400 hover:text-[#0A0A0A] hover:bg-[#F5F5F5] transition-all duration-200" title="Lire à voix haute">
               <Volume2 className="w-4 h-4" />
             </button>
           )}
@@ -94,7 +94,7 @@ export function AnswerCard({ answer, sources, isLoading, onSpeak, onClear, onSou
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-all duration-200 ${
                   src.type === 'document'
                     ? 'bg-purple-50 text-purple-700 hover:bg-purple-100'
-                    : 'bg-[#F0F4FF] text-[#1E2761] hover:bg-[rgba(76,110,245,0.1)]'
+                    : 'bg-[#F5F5F5] text-[#0A0A0A] hover:bg-[rgba(0,0,0,0.06)]'
                 }`}
               >
                 {src.type === 'document' ? <Upload className="w-3 h-3" /> : <FileText className="w-3 h-3" />}

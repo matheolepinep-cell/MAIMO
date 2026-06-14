@@ -364,7 +364,7 @@ export default function MessagesPage() {
                   key={conv.other_user.id}
                   onClick={() => openConversation(conv)}
                   className="flex items-center gap-3 w-full px-4 py-3 border-b border-gray-50 transition-all duration-150 text-left"
-                  style={{ background: activeConv?.other_user.id === conv.other_user.id ? '#F0F4FF' : 'transparent' }}
+                  style={{ background: activeConv?.other_user.id === conv.other_user.id ? '#F5F5F5' : 'transparent' }}
                 >
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-white"
@@ -442,7 +442,7 @@ export default function MessagesPage() {
                           >
                             <div
                               className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                              style={{ background: isMine ? 'rgba(255,255,255,0.2)' : '#F0F4FF' }}
+                              style={{ background: isMine ? 'rgba(255,255,255,0.2)' : '#F5F5F5' }}
                             >
                               {msg.file_type === 'image'
                                 ? <ImageIcon className="w-4 h-4" style={{ color: isMine ? 'white' : '#3B82F6' }} />

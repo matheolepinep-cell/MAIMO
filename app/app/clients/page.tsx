@@ -120,8 +120,8 @@ export default function ClientsPage() {
                 onClick={() => router.push(`/app/clients/${client.id}`)}
                 className="flex items-center gap-4"
               >
-                <div className="w-11 h-11 bg-[#1E2761]/10 rounded-xl flex items-center justify-center shrink-0">
-                  <Building2 className="w-5 h-5 text-[#1E2761]" />
+                <div className="w-11 h-11 bg-[#0A0A0A]/10 rounded-xl flex items-center justify-center shrink-0">
+                  <Building2 className="w-5 h-5 text-[#0A0A0A]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-[#1E293B] truncate">{client.name}</p>

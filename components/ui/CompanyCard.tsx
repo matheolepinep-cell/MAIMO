@@ -26,7 +26,7 @@ export function CompanyCard({ name, city, industry, status, visibility, subtitle
   const VisIcon = visibility === 'private' ? Lock : visibility === 'custom' ? Users : Globe
   const visLabel = visibility === 'private' ? 'Privé' : visibility === 'custom' ? 'Personnalisé' : "Équipe"
 
-  const navyBase = '#1E2761'
+  const navyBase = '#0A0A0A'
 
   return (
     <div
@@ -37,8 +37,8 @@ export function CompanyCard({ name, city, industry, status, visibility, subtitle
         className
       )}
       style={{
-        border: '1px solid rgba(30,39,97,0.08)',
-        boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
+        border: '1px solid rgba(0,0,0,0.08)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05)',
       }}
     >
       {/* Avatar — accent color from user preference */}

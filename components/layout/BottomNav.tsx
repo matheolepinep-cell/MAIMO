@@ -68,11 +68,11 @@ export function BottomNav() {
       <Link href={href} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200">
         <Icon
           className="w-6 h-6 transition-all duration-200"
-          style={{ color: active ? '#1E2761' : '#CBD5E1' }}
+          style={{ color: active ? '#0A0A0A' : '#CBD5E1' }}
         />
         <span
           className="text-[10px] font-medium transition-all duration-200"
-          style={{ color: active ? '#1E2761' : '#CBD5E1' }}
+          style={{ color: active ? '#0A0A0A' : '#CBD5E1' }}
         >
           {label}
         </span>
@@ -88,8 +88,8 @@ export function BottomNav() {
           background: 'rgba(255,255,255,0.92)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderTop: '1px solid rgba(30,39,97,0.08)',
-          boxShadow: '0 -4px 24px rgba(30,39,97,0.06)',
+          borderTop: '1px solid rgba(0,0,0,0.08)',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.06)',
         }}
       >
         <div className="flex items-stretch h-16">
@@ -100,7 +100,7 @@ export function BottomNav() {
             <div
               className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg -mt-3"
               style={{
-                background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)',
+                background: 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 100%)',
                 boxShadow: '0 4px 14px rgba(30,39,97,0.35)',
               }}
             >
@@ -122,11 +122,11 @@ export function BottomNav() {
             <button
               onClick={() => setSheet('create')}
               className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200 hover:bg-[rgba(76,110,245,0.04)]"
-              style={{ border: '1px solid rgba(30,39,97,0.08)' }}
+              style={{ border: '1px solid rgba(0,0,0,0.08)' }}
             >
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(76,110,245,0.1)' }}>
-                <Building2 className="w-5 h-5 text-[#4C6EF5]" />
+                style={{ background: 'rgba(0,0,0,0.06)' }}>
+                <Building2 className="w-5 h-5 text-[#0A0A0A]" />
               </div>
               <div>
                 <p className="font-medium text-[#0F172A] text-sm">Nouvelle entreprise</p>
@@ -136,7 +136,7 @@ export function BottomNav() {
             <button
               onClick={() => { setOpen(false); setSheet('menu'); router.push('/app/import') }}
               className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200 hover:bg-[rgba(76,110,245,0.04)]"
-              style={{ border: '1px solid rgba(30,39,97,0.08)' }}
+              style={{ border: '1px solid rgba(0,0,0,0.08)' }}
             >
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: 'rgba(16,185,129,0.1)' }}>
@@ -155,7 +155,7 @@ export function BottomNav() {
             <Input id="industry" label="Secteur (optionnel)" placeholder="Charpente, toiture..." value={industry} onChange={(e) => setIndustry(e.target.value)} />
             <div>
               <label className="block text-sm font-medium text-[#0F172A] mb-1.5">Statut</label>
-              <div className="flex rounded-xl bg-[#F0F4FF] p-1">
+              <div className="flex rounded-xl bg-[#F5F5F5] p-1">
                 <button type="button" onClick={() => setStatus('client')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'client' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Client</button>
                 <button type="button" onClick={() => setStatus('prospect')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${status === 'prospect' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500'}`}>Prospect</button>
               </div>
