@@ -143,7 +143,7 @@ function SourcesList({ sources }: { sources: SearchSource[] }) {
 
   return (
     <div style={{ marginTop: 12 }}>
-      <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 6px' }}>Sources</p>
+      <p style={{ fontSize: 11, color: '#9B9B9B', margin: '0 0 6px' }}>Sources</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {visible.map((s, si) => (
           <button
@@ -152,12 +152,12 @@ function SourcesList({ sources }: { sources: SearchSource[] }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               padding: '4px 12px', borderRadius: 20,
-              background: '#F3F4F6', border: 'none',
-              fontSize: 12, color: '#6B7280', cursor: 'pointer',
+              background: '#F5F5F5', border: 'none',
+              fontSize: 12, color: '#6B6B6B', cursor: 'pointer',
               transition: 'background 0.12s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#E5E7EB')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#E5E5E5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#F5F5F5')}
           >
             <FileText style={{ width: 11, height: 11, flexShrink: 0 }} />
             {s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')}
@@ -168,12 +168,12 @@ function SourcesList({ sources }: { sources: SearchSource[] }) {
             onClick={() => setExpanded(true)}
             style={{
               padding: '4px 12px', borderRadius: 20,
-              background: '#F3F4F6', border: 'none',
+              background: '#F5F5F5', border: 'none',
               fontSize: 12, color: '#0A0A0A', cursor: 'pointer',
               transition: 'background 0.12s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#E5E7EB')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#E5E5E5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#F5F5F5')}
           >
             + {extra} autre{extra > 1 ? 's' : ''}
           </button>
@@ -437,7 +437,7 @@ function SearchPageContent() {
     <div>
       <div style={{
         background: '#F9FAFB',
-        border: '1px solid #E5E7EB',
+        border: '1px solid #E5E5E5',
         borderRadius: 16,
         display: 'flex',
         alignItems: 'flex-end',
@@ -450,7 +450,7 @@ function SearchPageContent() {
           e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.08)'
         }}
         onBlur={(e) => {
-          e.currentTarget.style.borderColor = '#E5E7EB'
+          e.currentTarget.style.borderColor = '#E5E5E5'
           e.currentTarget.style.boxShadow = 'none'
         }}
       >
@@ -484,9 +484,9 @@ function SearchPageContent() {
               border: 'none', background: 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', transition: 'background 0.12s',
-              color: isRecording ? '#EF4444' : '#6B7280',
+              color: isRecording ? '#EF4444' : '#6B6B6B',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F5F5F5')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
             {isRecording
@@ -499,17 +499,17 @@ function SearchPageContent() {
             style={{
               width: 34, height: 34, borderRadius: '50%',
               border: 'none',
-              background: input.trim() && !loading ? '#0A0A0A' : '#E5E7EB',
+              background: input.trim() && !loading ? '#0A0A0A' : '#E5E5E5',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: input.trim() && !loading ? 'pointer' : 'default',
               transition: 'background 0.15s',
             }}
           >
-            <ArrowUp style={{ width: 18, height: 18, color: input.trim() && !loading ? 'white' : '#9CA3AF' }} />
+            <ArrowUp style={{ width: 18, height: 18, color: input.trim() && !loading ? 'white' : '#9B9B9B' }} />
           </button>
         </div>
       </div>
-      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 8 }}>
+      <p style={{ fontSize: 12, color: '#9B9B9B', textAlign: 'center', marginTop: 8 }}>
         Maimoo peut faire des erreurs. Vérifiez les informations importantes.
       </p>
     </div>
@@ -520,7 +520,7 @@ function SearchPageContent() {
     <div style={{
       flexShrink: 0,
       background: '#F9FAFB',
-      borderBottom: '1px solid #E5E7EB',
+      borderBottom: '1px solid #E5E5E5',
       padding: '8px 24px',
       display: 'flex',
       alignItems: 'center',
@@ -540,7 +540,7 @@ function SearchPageContent() {
               padding: '4px 0',
               border: 'none', background: 'none', cursor: 'pointer',
               fontSize: 13,
-              color: activeTab === value ? '#0A0A0A' : '#6B7280',
+              color: activeTab === value ? '#0A0A0A' : '#6B6B6B',
               fontWeight: activeTab === value ? 500 : 400,
               borderBottom: activeTab === value ? '2px solid #0A0A0A' : '2px solid transparent',
               transition: 'all 0.15s',
@@ -557,9 +557,9 @@ function SearchPageContent() {
         {(['all', 'client', 'prospect'] as const).map((f) => (
           <button key={f} onClick={() => setStatusFilter(f)}
             style={{
-              padding: '4px 12px', borderRadius: 20, border: '1px solid #E5E7EB',
+              padding: '4px 12px', borderRadius: 20, border: '1px solid #E5E5E5',
               background: statusFilter === f ? '#0A0A0A' : 'transparent',
-              color: statusFilter === f ? 'white' : '#6B7280',
+              color: statusFilter === f ? 'white' : '#6B6B6B',
               fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
             }}>
             {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
@@ -568,8 +568,8 @@ function SearchPageContent() {
         <input type="text" value={city} onChange={(e) => setCity(e.target.value)}
           placeholder="Ville..."
           style={{
-            padding: '4px 10px', borderRadius: 20, border: '1px solid #E5E7EB',
-            fontSize: 12, color: '#374151', width: 72, background: 'transparent',
+            padding: '4px 10px', borderRadius: 20, border: '1px solid #E5E5E5',
+            fontSize: 12, color: '#0A0A0A', width: 72, background: 'transparent',
             outline: 'none',
           }} />
       </div>
@@ -580,17 +580,17 @@ function SearchPageContent() {
   const portfolioDropdown = activeTab === 'portfolio' ? (
     <div style={{
       flexShrink: 0, padding: '8px 24px',
-      borderBottom: '0.5px solid #E5E7EB', background: 'white',
+      borderBottom: '0.5px solid #E5E5E5', background: 'white',
       position: 'relative',
     }}>
       <Building2 style={{
         position: 'absolute', left: 34, top: '50%', transform: 'translateY(-50%)',
-        width: 14, height: 14, color: '#9CA3AF', pointerEvents: 'none',
+        width: 14, height: 14, color: '#9B9B9B', pointerEvents: 'none',
       }} />
       <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}
         style={{
           width: '100%', paddingLeft: 28, paddingRight: 12, paddingTop: 7, paddingBottom: 7,
-          borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 13, color: '#374151',
+          borderRadius: 8, border: '1px solid #E5E5E5', fontSize: 13, color: '#0A0A0A',
           background: 'white', outline: 'none', cursor: 'pointer',
         }}>
         <option value="">Toutes mes entreprises</option>
@@ -627,9 +627,9 @@ function SearchPageContent() {
       {loading && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ height: 14, background: '#F3F4F6', borderRadius: 6, width: 200, animation: 'pulse 1.5s ease-in-out infinite' }} />
-            <div style={{ height: 14, background: '#F3F4F6', borderRadius: 6, width: 280, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.15s' }} />
-            <div style={{ height: 14, background: '#F3F4F6', borderRadius: 6, width: 240, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.3s' }} />
+            <div style={{ height: 14, background: '#F5F5F5', borderRadius: 6, width: 200, animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div style={{ height: 14, background: '#F5F5F5', borderRadius: 6, width: 280, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.15s' }} />
+            <div style={{ height: 14, background: '#F5F5F5', borderRadius: 6, width: 240, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.3s' }} />
           </div>
         </div>
       )}
@@ -657,7 +657,7 @@ function SearchPageContent() {
         Comment puis-je vous aider ?
       </h2>
       <p style={{
-        fontSize: 15, color: '#6B7280',
+        fontSize: 15, color: '#6B6B6B',
         textAlign: 'center', margin: '0 0 32px',
         maxWidth: 440, lineHeight: 1.5,
       }}>
@@ -678,22 +678,22 @@ function SearchPageContent() {
             onClick={() => doSearch(s)}
             style={{
               background: '#F9FAFB',
-              border: '1px solid #E5E7EB',
+              border: '1px solid #E5E5E5',
               borderRadius: 12,
               padding: '16px',
               cursor: 'pointer',
               textAlign: 'left',
-              fontSize: 13, color: '#374151',
+              fontSize: 13, color: '#0A0A0A',
               lineHeight: 1.5,
               transition: 'background 0.15s, border-color 0.15s',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#F3F4F6'
+              e.currentTarget.style.background = '#F5F5F5'
               e.currentTarget.style.borderColor = '#D1D5DB'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = '#F9FAFB'
-              e.currentTarget.style.borderColor = '#E5E7EB'
+              e.currentTarget.style.borderColor = '#E5E5E5'
             }}
           >
             {s}
@@ -713,18 +713,18 @@ function SearchPageContent() {
           flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: 12,
           padding: '12px 16px 12px 16px',
-          background: 'white', borderBottom: '1px solid #E5E7EB',
+          background: 'white', borderBottom: '1px solid #E5E5E5',
         }}>
           <button
             onClick={() => setMobileSidebarOpen(true)}
             style={{
               width: 36, height: 36, borderRadius: 8,
-              background: 'transparent', border: '1px solid #E5E7EB',
+              background: 'transparent', border: '1px solid #E5E5E5',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <Menu style={{ width: 18, height: 18, color: '#374151' }} />
+            <Menu style={{ width: 18, height: 18, color: '#0A0A0A' }} />
           </button>
           <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: '#1A1A2E', textAlign: 'center' }}>
             Recherche IA
@@ -732,10 +732,10 @@ function SearchPageContent() {
           <button onClick={() => router.push('/app/import')}
             style={{
               width: 36, height: 36, borderRadius: 8,
-              background: 'transparent', border: '1px solid #E5E7EB',
+              background: 'transparent', border: '1px solid #E5E5E5',
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             }}>
-            <Upload style={{ width: 16, height: 16, color: '#6B7280' }} />
+            <Upload style={{ width: 16, height: 16, color: '#6B6B6B' }} />
           </button>
         </div>
 
@@ -743,7 +743,7 @@ function SearchPageContent() {
         <div style={{
           flexShrink: 0,
           background: '#F9FAFB',
-          borderBottom: '1px solid #E5E7EB',
+          borderBottom: '1px solid #E5E5E5',
           padding: '8px 16px',
           display: 'flex', alignItems: 'center', gap: 16,
         }}>
@@ -752,7 +752,7 @@ function SearchPageContent() {
               style={{
                 padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer',
                 fontSize: 13,
-                color: activeTab === tab ? '#0A0A0A' : '#6B7280',
+                color: activeTab === tab ? '#0A0A0A' : '#6B6B6B',
                 fontWeight: activeTab === tab ? 500 : 400,
                 borderBottom: activeTab === tab ? '2px solid #0A0A0A' : '2px solid transparent',
                 transition: 'all 0.15s',
@@ -764,9 +764,9 @@ function SearchPageContent() {
             {(['all', 'client', 'prospect'] as const).map((f) => (
               <button key={f} onClick={() => setStatusFilter(f)}
                 style={{
-                  padding: '3px 10px', borderRadius: 20, border: '1px solid #E5E7EB',
+                  padding: '3px 10px', borderRadius: 20, border: '1px solid #E5E5E5',
                   background: statusFilter === f ? '#0A0A0A' : 'transparent',
-                  color: statusFilter === f ? 'white' : '#6B7280',
+                  color: statusFilter === f ? 'white' : '#6B6B6B',
                   fontSize: 11, cursor: 'pointer',
                 }}>
                 {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
@@ -789,7 +789,7 @@ function SearchPageContent() {
         {/* Mobile input */}
         <div style={{
           flexShrink: 0, background: 'white',
-          borderTop: '1px solid #E5E7EB',
+          borderTop: '1px solid #E5E5E5',
           padding: '12px 16px',
           paddingBottom: 'max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px))',
         }}>
@@ -855,7 +855,7 @@ function SearchPageContent() {
           <div style={{
             flexShrink: 0,
             background: 'white',
-            borderTop: '1px solid #E5E7EB',
+            borderTop: '1px solid #E5E5E5',
             padding: '16px 24px',
           }}>
             <div style={{ maxWidth: 720, margin: '0 auto' }}>
@@ -892,7 +892,7 @@ function SearchPageContent() {
                 style={{
                   flex: 1, padding: '10px 0', borderRadius: 10,
                   border: '1px solid #E2E8F0', background: 'white',
-                  color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                  color: '#0A0A0A', fontSize: 14, fontWeight: 500, cursor: 'pointer',
                 }}
               >
                 Annuler

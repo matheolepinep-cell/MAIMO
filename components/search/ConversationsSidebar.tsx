@@ -58,7 +58,7 @@ export function ConversationsSidebar({
     <div style={{
       width: 260,
       flexShrink: 0,
-      background: '#0F0F0F',
+      background: '#0A0A0A',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
@@ -71,7 +71,7 @@ export function ConversationsSidebar({
         style={{
           width: '100%',
           background: 'transparent',
-          border: '1px solid rgba(255,255,255,0.15)',
+          border: '1px solid #2A2A2A',
           borderRadius: 8,
           padding: '10px 14px',
           fontSize: 14,
