@@ -22,11 +22,21 @@ function adminSupabase() {
 
 export async function getGoogleClient(userId: string): Promise<GoogAuthClient | null> {
   const supabase = adminSupabase()
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('google_access_token, google_refresh_token, google_token_expiry, google_calendar_connected')
     .eq('id', userId)
     .single()
+
+  if (profileError) {
+    console.error('[GOOGLE] getGoogleClient — erreur lecture users:', profileError.message)
+    return null
+  }
+
+  console.log('[GOOGLE] userId:', userId)
+  console.log('[GOOGLE] google_calendar_connected:', profile?.google_calendar_connected)
+  console.log('[GOOGLE] access_token présent:', !!profile?.google_access_token)
+  console.log('[GOOGLE] refresh_token présent:', !!profile?.google_refresh_token)
 
   if (!profile?.google_calendar_connected || !profile.google_access_token) return null
 
@@ -38,7 +48,14 @@ export async function getGoogleClient(userId: string): Promise<GoogAuthClient | 
 
   // Refresh if expired or expiring within 60s
   const expiry = profile.google_token_expiry ? new Date(profile.google_token_expiry).getTime() : 0
-  if (expiry < Date.now() + 60_000) {
+  const needsRefresh = expiry < Date.now() + 60_000
+  console.log('[GOOGLE] token expiré ou expirant bientôt:', needsRefresh, '— expiry:', profile.google_token_expiry)
+
+  if (needsRefresh) {
+    if (!profile.google_refresh_token) {
+      console.error('[GOOGLE] pas de refresh_token — impossible de rafraîchir')
+      return null
+    }
     try {
       const { credentials } = await client.refreshAccessToken()
       client.setCredentials(credentials)
@@ -48,7 +65,9 @@ export async function getGoogleClient(userId: string): Promise<GoogAuthClient | 
           ? new Date(credentials.expiry_date).toISOString()
           : null,
       }).eq('id', userId)
-    } catch {
+      console.log('[GOOGLE] token rafraîchi avec succès')
+    } catch (e) {
+      console.error('[GOOGLE] échec refresh token:', e)
       return null
     }
   }
@@ -72,24 +91,36 @@ export type CalendarEvent = {
 export async function syncCalendarEvents(
   userId: string,
   workspaceId: string | null
-): Promise<{ synced: number; updated: number }> {
+): Promise<{ synced: number; updated: number; error?: string }> {
+  console.log('[SYNC] démarrage pour userId:', userId, '— workspaceId:', workspaceId)
+
   const auth = await getGoogleClient(userId)
-  if (!auth) return { synced: 0, updated: 0 }
+  if (!auth) {
+    console.warn('[SYNC] pas de client Google — abandon')
+    return { synced: 0, updated: 0, error: 'no_auth' }
+  }
 
   const calendar = google.calendar({ version: 'v3', auth })
   const now = new Date()
   const in7Days = new Date(now.getTime() + 7 * 24 * 3600 * 1000)
 
-  const res = await calendar.events.list({
-    calendarId: 'primary',
-    timeMin: now.toISOString(),
-    timeMax: in7Days.toISOString(),
-    singleEvents: true,
-    orderBy: 'startTime',
-    maxResults: 50,
-  })
+  let items: { id?: string | null; summary?: string | null; start?: { dateTime?: string | null; date?: string | null } | null; end?: { dateTime?: string | null; date?: string | null } | null; attendees?: { email?: string | null; displayName?: string | null }[] | null; description?: string | null; location?: string | null }[] = []
+  try {
+    const res = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: now.toISOString(),
+      timeMax: in7Days.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 50,
+    })
+    items = res.data.items ?? []
+    console.log('[SYNC] événements Google reçus:', items.length)
+  } catch (e) {
+    console.error('[SYNC] erreur appel Google Calendar API:', e)
+    return { synced: 0, updated: 0, error: String(e) }
+  }
 
-  const items = res.data.items ?? []
   if (items.length === 0) return { synced: 0, updated: 0 }
 
   const supabase = adminSupabase()
@@ -98,18 +129,15 @@ export async function syncCalendarEvents(
   const { data: accounts } = await supabase.from('accounts').select('id, name')
 
   // Load contacts for email matching
-  const { data: contacts } = await supabase
-    .from('contacts')
-    .select('account_id, email')
+  const { data: contacts } = await supabase.from('contacts').select('account_id, email')
 
   const emailToAccount: Record<string, string> = {}
   for (const c of contacts ?? []) {
     if (c.email) emailToAccount[c.email.toLowerCase()] = c.account_id
   }
 
-  function findCompanyId(event: typeof items[0]): string | null {
-    const attendeeEmails = (event.attendees ?? [])
-      .map((a) => (a.email ?? '').toLowerCase())
+  function findCompanyId(event: (typeof items)[0]): string | null {
+    const attendeeEmails = (event.attendees ?? []).map((a: { email?: string | null }) => (a.email ?? '').toLowerCase())
     for (const email of attendeeEmails) {
       if (emailToAccount[email]) return emailToAccount[email]
     }
@@ -131,7 +159,7 @@ export async function syncCalendarEvents(
     if (!startTime || !endTime) continue
 
     const companyId = findCompanyId(item)
-    const attendees = (item.attendees ?? []).map((a) => ({
+    const attendees = (item.attendees ?? []).map((a: { email?: string | null; displayName?: string | null }) => ({
       email: a.email ?? '',
       name: a.displayName ?? '',
     }))
@@ -151,22 +179,30 @@ export async function syncCalendarEvents(
       updated_at: new Date().toISOString(),
     }
 
-    const { data: existing } = await supabase
+    const { data: existing, error: selectError } = await supabase
       .from('calendar_events')
       .select('id')
       .eq('google_event_id', item.id!)
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
+
+    if (selectError) {
+      console.error('[SYNC] erreur lecture calendar_events (table existe?):', selectError.message)
+      return { synced: 0, updated: 0, error: selectError.message }
+    }
 
     if (existing) {
-      await supabase.from('calendar_events').update(row).eq('id', existing.id)
-      updated++
+      const { error: updErr } = await supabase.from('calendar_events').update(row).eq('id', existing.id)
+      if (updErr) console.error('[SYNC] erreur update:', updErr.message)
+      else updated++
     } else {
-      await supabase.from('calendar_events').insert({ ...row, created_at: new Date().toISOString() })
-      synced++
+      const { error: insErr } = await supabase.from('calendar_events').insert({ ...row, created_at: new Date().toISOString() })
+      if (insErr) console.error('[SYNC] erreur insert:', insErr.message)
+      else synced++
     }
   }
 
+  console.log('[SYNC] terminé — synced:', synced, 'updated:', updated)
   return { synced, updated }
 }
 
@@ -220,7 +256,6 @@ export async function createGoogleEvent(
   }
 
   const { data } = await supabase.from('calendar_events').insert(row).select().single()
-
   return data as CalendarEvent
 }
 
