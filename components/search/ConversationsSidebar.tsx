@@ -1,6 +1,6 @@
 'use client'
 
-import { Plus, Trash2, MessageSquare } from 'lucide-react'
+import { Plus, MessageCircle, Trash2 } from 'lucide-react'
 
 export type SidebarConvRow = {
   id: string
@@ -43,40 +43,66 @@ export function ConversationsSidebar({
 }) {
   return (
     <div style={{
-      width: 260,
+      width: 240,
       flexShrink: 0,
-      borderRight: '1px solid rgba(30,39,97,0.08)',
-      background: '#FAFBFF',
+      background: '#0A1628',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
       overflow: 'hidden',
+      padding: 12,
     }}>
-      <div style={{ padding: '16px 12px 12px', borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
-        <button
-          onClick={onNew}
-          style={{
-            width: '100%', height: 40,
-            background: '#1E2761', color: 'white',
-            border: 'none', borderRadius: 8,
-            fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-        >
-          <Plus style={{ width: 15, height: 15 }} />
-          Nouvelle conversation
-        </button>
-      </div>
+      {/* New conversation button */}
+      <button
+        onClick={onNew}
+        style={{
+          width: '100%',
+          background: '#1E3A6E',
+          color: 'white',
+          border: 'none',
+          borderRadius: 10,
+          padding: '10px 14px',
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 16,
+          transition: 'background 0.12s',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#2D4F8F')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '#1E3A6E')}
+      >
+        <Plus style={{ width: 16, height: 16 }} />
+        Nouvelle conversation
+      </button>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+      {conversations.length > 0 && (
+        <p style={{
+          fontSize: 10,
+          color: 'rgba(255,255,255,0.4)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          marginBottom: 8,
+          marginLeft: 4,
+        }}>
+          Conversations
+        </p>
+      )}
+
+      {/* List */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {conversations.length === 0 ? (
           <p style={{
-            fontSize: 12, color: '#94A3B8', textAlign: 'center',
-            marginTop: 32, padding: '0 16px', lineHeight: 1.5,
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.3)',
+            textAlign: 'center',
+            marginTop: 24,
+            padding: '0 12px',
+            lineHeight: 1.5,
           }}>
-            Aucune conversation récente.<br />Commencez par poser une question.
+            Aucune conversation.<br />Commencez par poser une question.
           </p>
         ) : (
           conversations.map((conv) => {
@@ -91,58 +117,53 @@ export function ConversationsSidebar({
                 onClick={() => onSelect(conv.id)}
                 className="group"
                 style={{
-                  padding: '9px 10px',
-                  borderRadius: 8, marginBottom: 2, cursor: 'pointer',
-                  background: isActive ? 'rgba(76,110,245,0.08)' : 'transparent',
-                  border: `1px solid ${isActive ? 'rgba(76,110,245,0.15)' : 'transparent'}`,
-                  position: 'relative',
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  marginBottom: 2,
+                  cursor: 'pointer',
+                  background: isActive ? '#1E3A6E' : 'transparent',
+                  transition: 'background 0.12s',
                 }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <MessageSquare style={{
-                    width: 13, height: 13,
-                    color: isActive ? '#4C6EF5' : '#94A3B8',
+                  <MessageCircle style={{
+                    width: 14, height: 14,
+                    color: 'rgba(255,255,255,0.5)',
                     flexShrink: 0, marginTop: 2,
                   }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{
                       fontSize: 13,
-                      fontWeight: isActive ? 500 : 400,
-                      color: isActive ? '#1E2761' : '#374151',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      color: 'white',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                       margin: 0,
                     }}>
                       {title}
                     </p>
-                    <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '2px 0 0' }}>
                       {timeAgo(conv.updated_at)}
                     </p>
                     {exp && (
-                      <div style={{ marginTop: 3 }}>
-                        {exp.urgent && (
-                          <span style={{
-                            display: 'inline-block',
-                            background: '#FEF2F2', border: '1px solid #FECACA',
-                            borderRadius: 4, padding: '0 5px', marginRight: 4,
-                            fontSize: 9, color: '#EF4444', fontWeight: 600,
-                          }}>
-                            Expire bientôt
-                          </span>
-                        )}
-                        <span style={{ fontSize: 10, color: exp.urgent ? '#EF4444' : '#94A3B8' }}>
-                          {exp.label}
-                        </span>
-                      </div>
+                      <p style={{ fontSize: 10, margin: '2px 0 0', color: exp.urgent ? '#FCA5A5' : 'rgba(255,255,255,0.3)' }}>
+                        {exp.label}
+                      </p>
                     )}
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); onDelete(conv.id) }}
                     className="opacity-0 group-hover:opacity-100"
                     style={{
-                      padding: 4, borderRadius: 4,
+                      padding: 3, borderRadius: 4,
                       border: 'none', background: 'none',
-                      cursor: 'pointer', color: '#EF4444', flexShrink: 0,
+                      cursor: 'pointer', color: 'rgba(255,255,255,0.3)',
+                      flexShrink: 0, transition: 'color 0.12s',
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
                     title="Supprimer"
                   >
                     <Trash2 style={{ width: 13, height: 13 }} />

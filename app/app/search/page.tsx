@@ -2,12 +2,10 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, RotateCcw, Upload, Sparkles, Mic, MicOff, ArrowUp } from 'lucide-react'
+import { Briefcase, Globe, Building2, Upload, Sparkles, Mic, MicOff, ArrowUp, FileText, MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
-import { Breadcrumb } from '@/components/ui/Breadcrumb'
-import { CompanyProfileBanner } from '@/components/ui/CompanyProfileBanner'
 import { ConversationsSidebar } from '@/components/search/ConversationsSidebar'
 import type { SearchSource } from '@/types/database'
 
@@ -81,18 +79,76 @@ function parseAIContent(content: string): React.ReactNode {
   if (current) items.push(current.trim())
 
   if (items.length <= 1) {
-    return <p style={{ lineHeight: 1.6, margin: 0 }}>{content}</p>
+    return <p style={{ lineHeight: 1.7, margin: 0, fontSize: 14, color: '#1A1A2E' }}>{content}</p>
   }
 
   return (
     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
       {items.map((item, i) => (
-        <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: i < items.length - 1 ? 8 : 0 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4C6EF5', flexShrink: 0, marginTop: 5 }} />
-          <span style={{ lineHeight: 1.6 }}>{item}</span>
+        <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: i < items.length - 1 ? 10 : 0 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4C6EF5', flexShrink: 0, marginTop: 7 }} />
+          <span style={{ lineHeight: 1.7, fontSize: 14, color: '#1A1A2E' }}>{item}</span>
         </li>
       ))}
     </ul>
+  )
+}
+
+function SourcesList({ sources }: { sources: SearchSource[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const router = useRouter()
+  const visible = expanded ? sources : sources.slice(0, 5)
+  const extra = sources.length - 5
+
+  const handleClick = async (s: SearchSource) => {
+    if (s.type === 'note' && s.account_id) {
+      router.push(`/app/accounts/${s.account_id}`)
+    } else if (s.type === 'document') {
+      if (s.url) { window.open(s.url, '_blank'); return }
+      const res = await fetch(`/api/documents/${s.id}/url`).catch(() => null)
+      if (res?.ok) {
+        const { url } = await res.json()
+        if (url) window.open(url, '_blank')
+      }
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+      {visible.map((s, si) => (
+        <button
+          key={si}
+          onClick={() => handleClick(s)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '3px 10px', borderRadius: 20,
+            background: 'white', border: '0.5px solid #E5E7EB',
+            fontSize: 11, color: '#8899BB', cursor: 'pointer',
+            transition: 'background 0.12s',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#F0F4FF')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
+        >
+          <FileText style={{ width: 11, height: 11, flexShrink: 0 }} />
+          {s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')}
+        </button>
+      ))}
+      {!expanded && extra > 0 && (
+        <button
+          onClick={() => setExpanded(true)}
+          style={{
+            padding: '3px 10px', borderRadius: 20,
+            background: 'white', border: '0.5px solid #E5E7EB',
+            fontSize: 11, color: '#4C6EF5', cursor: 'pointer',
+            transition: 'background 0.12s',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#F0F4FF')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
+        >
+          + {extra} autre{extra > 1 ? 's' : ''}
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -115,11 +171,11 @@ function SearchPageContent() {
   const [loading, setLoading] = useState(false)
   const [inputFocused, setInputFocused] = useState(false)
 
-  // Conversation persistence state
   const [conversations, setConversations] = useState<ConvRow[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [previousChunks, setPreviousChunks] = useState<ChunkUsed[]>([])
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const [isRecording, setIsRecording] = useState(false)
   const mobileInputRef = useRef<HTMLInputElement>(null)
@@ -136,7 +192,6 @@ function SearchPageContent() {
     if (q) setQuery(q)
   }, [searchParams])
 
-  // Load portfolio and global accounts
   useEffect(() => {
     if (profileLoading || !profile) return
     const supabase = createClient()
@@ -160,11 +215,8 @@ function SearchPageContent() {
     }
   }, [profileLoading, profile, wsId])
 
-  // Load saved conversations from DB
   useEffect(() => {
     if (profileLoading || !profile) return
-
-    // Cleanup expired in background
     fetch('/api/search/cleanup').catch(() => {})
 
     const supabase = createClient()
@@ -194,8 +246,6 @@ function SearchPageContent() {
         } satisfies ConvRow
       })
       setConversations(rows)
-
-      // Auto-load most recent if no URL query param
       const qParam = searchParams.get('q')
       if (!qParam && rows.length > 0) {
         const first = rows[0]
@@ -226,7 +276,6 @@ function SearchPageContent() {
     const supabase = createClient()
     let convId = activeConversationId
 
-    // Create new conversation on first message
     if (!convId) {
       const { data: newConv } = await supabase
         .from('search_conversations')
@@ -281,7 +330,6 @@ function SearchPageContent() {
       setConversation(finalConv)
       setPreviousChunks(chunks)
 
-      // Persist to DB
       if (convId) {
         const now = new Date().toISOString()
         await supabase
@@ -356,7 +404,6 @@ function SearchPageContent() {
     setConfirmDeleteId(null)
   }
 
-  const handleReset = handleNewConversation
   const handleSubmit = () => { const q = input.trim(); if (!q || loading) return; setQuery(q); doSearch(q) }
 
   const startVoice = useCallback(() => {
@@ -372,83 +419,98 @@ function SearchPageContent() {
   }, [])
   const stopVoice = () => { recognitionRef.current?.stop(); setIsRecording(false) }
 
-  // Input bar — small (in conversation)
+  // ── Input bars ──
+
   const inputBarSmall = (inputRef: React.RefObject<HTMLInputElement | null>) => (
-    <div
-      className="flex items-center gap-2 transition-all duration-150"
-      style={{
-        background: '#F5F7FA', borderRadius: 14,
-        border: inputFocused ? '1.5px solid #4C6EF5' : '1.5px solid #E5EAF5',
-        boxShadow: inputFocused ? '0 0 0 3px rgba(76,110,245,0.15)' : 'none',
-        padding: '0 14px', minHeight: 48,
-      }}
-    >
-      <input
-        ref={inputRef} type="text"
-        className="flex-1 bg-transparent text-[#0F172A] placeholder-slate-400 focus:outline-none"
-        style={{ fontSize: 14 }}
-        placeholder="Poser une question..."
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onFocus={() => setInputFocused(true)}
-        onBlur={() => setInputFocused(false)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
-      />
-      <button onClick={isRecording ? stopVoice : startVoice}
-        className="rounded-full flex items-center justify-center shrink-0 transition-all"
-        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 34, height: 34 }}>
-        {isRecording ? <MicOff className="text-white" style={{ width: 16, height: 16 }} /> : <Mic className="text-white" style={{ width: 16, height: 16 }} />}
-      </button>
-      <button onClick={handleSubmit} disabled={loading}
-        className="rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
-        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 34, height: 34 }}>
-        <ArrowUp className="text-white" style={{ width: 16, height: 16 }} />
-      </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+      <div style={{
+        flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+        background: '#F5F7FA', border: inputFocused ? '1.5px solid #4C6EF5' : '1.5px solid #E5E7EB',
+        borderRadius: 14, height: 52, padding: '0 14px',
+        boxShadow: inputFocused ? '0 0 0 3px rgba(76,110,245,0.10)' : 'none',
+        transition: 'border-color 0.15s, box-shadow 0.15s',
+      }}>
+        <input
+          ref={inputRef} type="text"
+          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#1A1A2E' }}
+          placeholder="Poser une question..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
+        />
+        <button
+          onClick={isRecording ? stopVoice : startVoice}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none',
+            background: isRecording ? '#EF4444' : '#4C6EF5',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+          }}>
+          {isRecording ? <MicOff style={{ width: 16, height: 16, color: 'white' }} /> : <Mic style={{ width: 16, height: 16, color: 'white' }} />}
+        </button>
+        <button
+          onClick={handleSubmit} disabled={loading}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none',
+            background: input.trim() && !loading ? '#1E2761' : '#CBD5E1',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+            transition: 'background 0.15s',
+          }}>
+          <ArrowUp style={{ width: 16, height: 16, color: 'white' }} />
+        </button>
+      </div>
     </div>
   )
 
-  // Input bar — large (empty state)
   const inputBarLarge = (inputRef: React.RefObject<HTMLInputElement | null>) => (
-    <div
-      className="flex items-center gap-3 transition-all duration-150"
-      style={{
-        background: 'white', borderRadius: 16,
-        border: '1.5px solid #4C6EF5',
-        boxShadow: '0 0 0 4px rgba(76,110,245,0.08)',
-        padding: '0 16px', height: 56,
-      }}
-    >
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      background: 'white', border: '1.5px solid #4C6EF5',
+      borderRadius: 16, height: 56, padding: '0 16px',
+      boxShadow: '0 0 0 4px rgba(76,110,245,0.08)',
+    }}>
       <input
         ref={inputRef} type="text"
-        className="flex-1 bg-transparent text-[#0F172A] placeholder-slate-400 focus:outline-none"
-        style={{ fontSize: 15 }}
+        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 15, color: '#1A1A2E' }}
         placeholder="Posez votre question..."
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
       />
-      <button onClick={isRecording ? stopVoice : startVoice}
-        className="rounded-full flex items-center justify-center shrink-0 transition-all"
-        style={{ background: isRecording ? '#EF4444' : '#4C6EF5', width: 36, height: 36 }}>
-        {isRecording ? <MicOff className="text-white" style={{ width: 17, height: 17 }} /> : <Mic className="text-white" style={{ width: 17, height: 17 }} />}
+      <button
+        onClick={isRecording ? stopVoice : startVoice}
+        style={{
+          width: 36, height: 36, borderRadius: '50%', border: 'none',
+          background: isRecording ? '#EF4444' : '#4C6EF5',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+        }}>
+        {isRecording ? <MicOff style={{ width: 17, height: 17, color: 'white' }} /> : <Mic style={{ width: 17, height: 17, color: 'white' }} />}
       </button>
-      <button onClick={handleSubmit} disabled={loading}
-        className="rounded-full flex items-center justify-center shrink-0 transition-all duration-150"
-        style={{ background: input.trim() && !loading ? '#4C6EF5' : '#CBD5E1', width: 36, height: 36 }}>
-        <ArrowUp className="text-white" style={{ width: 17, height: 17 }} />
+      <button
+        onClick={handleSubmit} disabled={loading}
+        style={{
+          width: 36, height: 36, borderRadius: '50%', border: 'none',
+          background: input.trim() && !loading ? '#1E2761' : '#CBD5E1',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+          transition: 'background 0.15s',
+        }}>
+        <ArrowUp style={{ width: 17, height: 17, color: 'white' }} />
       </button>
     </div>
   )
 
+  // ── Suggestions ──
   const firstAccount = portfolioAccounts[0]?.name
   const suggestions = [
     firstAccount ? `Dernier contact avec ${firstAccount} ?` : 'Quand ai-je contacté ce client pour la dernière fois ?',
-    'Quels clients n\'ont pas été contactés ce mois ?',
+    "Quels clients n'ont pas été contactés ce mois ?",
     'Résume les notes de la semaine',
   ]
 
-  const desktopTabs = (
-    <div className="flex gap-6" style={{ borderBottom: '1px solid rgba(30,39,97,0.10)' }}>
+  // ── Pill tabs (desktop) ──
+  const pillTabs = (
+    <div style={{ display: 'inline-flex', background: '#F0F4FF', borderRadius: 10, padding: 3, gap: 2 }}>
       {([
         { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
         { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
@@ -456,79 +518,86 @@ function SearchPageContent() {
         <button
           key={value}
           onClick={() => setActiveTab(value)}
-          className="flex items-center gap-1.5 pb-2.5 text-sm transition-all duration-200 border-b-2 -mb-px"
-          style={activeTab === value
-            ? { borderBottomColor: '#4C6EF5', color: '#1E2761', fontWeight: 500 }
-            : { borderBottomColor: 'transparent', color: '#94A3B8', fontWeight: 400 }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            fontSize: 13, fontWeight: activeTab === value ? 500 : 400,
+            background: activeTab === value ? 'white' : 'transparent',
+            color: activeTab === value ? '#1E2761' : '#8899BB',
+            boxShadow: activeTab === value ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+            transition: 'all 0.15s',
+          }}
         >
-          <Icon className="w-3.5 h-3.5" />{label}
+          <Icon style={{ width: 13, height: 13 }} />
+          {label}
         </button>
       ))}
     </div>
   )
 
+  // ── Status filters ──
+  const statusFilters = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {(['all', 'client', 'prospect'] as const).map((f) => (
+        <button
+          key={f}
+          onClick={() => setStatusFilter(f)}
+          style={{
+            padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            fontSize: 12, fontWeight: 400,
+            background: statusFilter === f ? '#1E2761' : 'transparent',
+            color: statusFilter === f ? 'white' : '#8899BB',
+            outline: statusFilter === f ? 'none' : '1px solid #E5E7EB',
+            transition: 'all 0.15s',
+          }}
+        >
+          {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
+        </button>
+      ))}
+      <input
+        type="text" value={city} onChange={(e) => setCity(e.target.value)}
+        placeholder="Ville..."
+        style={{
+          padding: '6px 10px', borderRadius: 8,
+          border: '1px solid #E5E7EB', fontSize: 12, color: '#374151',
+          width: 76, background: 'white', outline: 'none',
+        }}
+      />
+    </div>
+  )
+
+  // ── Messages ──
   const conversationMessages = (
     <>
-      {inConversation && (
-        <div className="flex justify-center mb-1">
-          <button onClick={handleReset}
-            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-[#1E2761] transition-colors">
-            <RotateCcw className="w-3 h-3" />Nouvelle recherche
-          </button>
-        </div>
-      )}
       {conversation.map((msg, i) => {
         if (msg.role === 'user') return (
-          <div key={i} className="flex justify-end">
-            <div className="max-w-[85%] px-4 py-2.5 leading-relaxed"
-              style={{ background: '#4C6EF5', borderRadius: '12px 12px 4px 12px', fontSize: 13, color: 'white' }}>
+          <div key={i} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{
+              background: '#1E2761', color: 'white',
+              borderRadius: '16px 16px 4px 16px',
+              padding: '12px 18px', maxWidth: '70%',
+              fontSize: 14, lineHeight: 1.6,
+            }}>
               {msg.content}
             </div>
           </div>
         )
         return (
-          <div key={i} className="flex flex-col gap-1 items-start">
-            <div className="px-4 py-3"
-              style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', fontSize: 13, color: '#2D3A5A', maxWidth: 680, lineHeight: 1.6 }}>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '80%' }}>
+            <div style={{ fontSize: 14, color: '#1A1A2E', lineHeight: 1.7 }}>
               {parseAIContent(msg.content)}
             </div>
             {msg.sources && msg.sources.length > 0 && (
-              <div className="flex flex-wrap gap-x-1 gap-y-0.5 px-1 items-center">
-                <span className="text-[10px] text-[#8899BB]">Sources :</span>
-                {msg.sources.map((s, si) => (
-                  <button
-                    key={si}
-                    onClick={async () => {
-                      if (s.type === 'note' && s.account_id) {
-                        router.push(`/app/accounts/${s.account_id}`)
-                      } else if (s.type === 'document') {
-                        if (s.url) { window.open(s.url, '_blank'); return }
-                        const res = await fetch(`/api/documents/${s.id}/url`).catch(() => null)
-                        if (res?.ok) {
-                          const { url } = await res.json()
-                          if (url) window.open(url, '_blank')
-                        }
-                      }
-                    }}
-                    className="text-[10px] text-[#4C6EF5] hover:underline transition-colors"
-                  >
-                    {s.title ?? (s.type === 'note' ? `note du ${fmt(s.date)}` : s.file_name ?? 'doc')}
-                    {si < msg.sources!.length - 1 && <span className="text-[#8899BB] ml-1">·</span>}
-                  </button>
-                ))}
-              </div>
+              <SourcesList sources={msg.sources} />
             )}
           </div>
         )
       })}
       {loading && (
-        <div className="flex flex-col gap-1 items-start">
-          <div className="px-4 py-3 space-y-2"
-            style={{ background: '#F5F7FF', borderRadius: '12px 12px 12px 4px', minWidth: 120 }}>
-            <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-32" />
-            <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-48" />
-            <div className="h-2.5 bg-[#E8ECFF] rounded animate-pulse w-40" />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '80%', gap: 8 }}>
+          <div style={{ height: 14, background: '#E8ECFF', borderRadius: 6, width: 140, animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <div style={{ height: 14, background: '#E8ECFF', borderRadius: 6, width: 200, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.15s' }} />
+          <div style={{ height: 14, background: '#E8ECFF', borderRadius: 6, width: 165, animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.3s' }} />
         </div>
       )}
       <div ref={bottomRef} />
@@ -538,68 +607,141 @@ function SearchPageContent() {
   return (
     <>
       {/* ── MOBILE ── */}
-      <div className="md:hidden flex flex-col" style={{ height: '100dvh' }}>
-        <div className="flex items-center gap-3 px-4 pl-16 py-3 bg-white shrink-0"
-          style={{ borderBottom: '1px solid rgba(30,39,97,0.08)' }}>
-          <span className="flex-1 text-[16px] font-bold text-[#0A1628]">Recherche IA</span>
-          <button onClick={() => router.push('/app/import')}
-            className="flex items-center justify-center"
-            style={{ background: '#F0F4FF', borderRadius: 8, width: 28, height: 28 }}>
-            <Upload className="text-[#4C6EF5]" style={{ width: 14, height: 14 }} />
+      <div className="md:hidden flex flex-col" style={{ height: '100dvh', background: '#F8F9FF' }}>
+
+        {/* Mobile header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '12px 16px 12px 68px',
+          background: 'white',
+          borderBottom: '0.5px solid #E5E7EB',
+          flexShrink: 0,
+        }}>
+          <span style={{ flex: 1, fontSize: 17, fontWeight: 700, color: '#1E2761' }}>Recherche IA</span>
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: '#F0F4FF', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <MessageCircle style={{ width: 16, height: 16, color: '#4C6EF5' }} />
+          </button>
+          <button
+            onClick={() => router.push('/app/import')}
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: '#F0F4FF', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Upload style={{ width: 15, height: 15, color: '#4C6EF5' }} />
           </button>
         </div>
 
-        <div className="flex shrink-0 items-center px-4 py-2 bg-white gap-6"
-          style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
-          {(['portfolio', 'global'] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className="text-[13px] pb-1.5 transition-all border-b-2"
-              style={activeTab === tab
-                ? { borderBottomColor: '#4C6EF5', color: '#1E2761', fontWeight: 500 }
-                : { borderBottomColor: 'transparent', color: '#94A3B8', fontWeight: 400 }}>
-              {tab === 'portfolio' ? 'Mon portefeuille' : 'Portefeuille global'}
-            </button>
-          ))}
+        {/* Mobile tabs */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 0,
+          padding: '10px 16px',
+          background: 'white', borderBottom: '0.5px solid #E5E7EB', flexShrink: 0,
+        }}>
+          <div style={{ display: 'inline-flex', background: '#F0F4FF', borderRadius: 8, padding: 2, gap: 1 }}>
+            {(['portfolio', 'global'] as const).map((tab) => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                  fontSize: 12, fontWeight: activeTab === tab ? 500 : 400,
+                  background: activeTab === tab ? 'white' : 'transparent',
+                  color: activeTab === tab ? '#1E2761' : '#8899BB',
+                  boxShadow: activeTab === tab ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  transition: 'all 0.15s',
+                }}>
+                {tab === 'portfolio' ? 'Mon portefeuille' : 'Portefeuille global'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {inConversation ? (
           <>
-            <div className="flex-1 overflow-y-auto min-h-0 px-[14px] py-4 space-y-3">
+            <div style={{
+              flex: 1, overflowY: 'auto', minHeight: 0,
+              padding: '20px 16px',
+              display: 'flex', flexDirection: 'column', gap: 16,
+            }}>
               {conversationMessages}
             </div>
-            <div className="shrink-0 bg-white px-[12px] pt-3"
-              style={{ borderTop: '1px solid #E5EAF5', paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom, 0px) + 20px))' }}>
+            <div style={{
+              flexShrink: 0, background: 'white', padding: '12px 16px',
+              borderTop: '0.5px solid #E5E7EB',
+              paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom, 0px) + 20px))',
+            }}>
               {inputBarSmall(mobileInputRef)}
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4 w-full">
-            <div className="text-center">
-              <Sparkles className="mx-auto mb-3" style={{ width: 32, height: 32, color: '#4C6EF5' }} />
-              <p style={{ fontSize: 20, fontWeight: 500, color: '#0A1628' }}>Que voulez-vous savoir ?</p>
-              <p style={{ fontSize: 13, color: '#8899BB', marginTop: 8, maxWidth: 320, lineHeight: 1.5 }}>
-                Posez une question sur n'importe quel client, note ou document de votre équipe.
+          <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '32px 24px', gap: 24,
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: 'rgba(76,110,245,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}>
+                <Sparkles style={{ width: 28, height: 28, color: '#4C6EF5' }} />
+              </div>
+              <p style={{ fontSize: 19, fontWeight: 700, color: '#1E2761', margin: '0 0 8px' }}>
+                Que voulez-vous savoir ?
+              </p>
+              <p style={{ fontSize: 13, color: '#8899BB', margin: 0, lineHeight: 1.6 }}>
+                Posez une question sur n'importe quel client, note ou document.
               </p>
             </div>
-            <div className="w-full"><CompanyProfileBanner /></div>
-            <div className="flex flex-wrap justify-center gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
               {suggestions.map((s) => (
                 <button key={s} onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
-                  className="transition-opacity hover:opacity-80"
                   style={{
-                    background: '#F0F4FF', border: '0.5px solid #C5D0F0',
-                    borderRadius: 20, padding: '8px 16px', fontSize: 13, color: '#64748B',
+                    padding: '8px 16px', background: 'white',
+                    border: '1px solid #E5E7EB', borderRadius: 24,
+                    fontSize: 12, color: '#374151', cursor: 'pointer',
                   }}>
                   {s}
                 </button>
               ))}
             </div>
-            <div className="w-full">
+            <div style={{ width: '100%' }}>
               {inputBarLarge(mobileInputRef)}
             </div>
           </div>
         )}
       </div>
+
+      {/* Mobile conversations overlay */}
+      {mobileSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-[60]"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setMobileSidebarOpen(false)}
+        >
+          <div
+            style={{ width: 280, height: '100%', background: '#0A1628' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ConversationsSidebar
+              conversations={conversations}
+              activeId={activeConversationId}
+              onNew={() => { handleNewConversation(); setMobileSidebarOpen(false) }}
+              onSelect={(id) => { handleSelectConversation(id); setMobileSidebarOpen(false) }}
+              onDelete={(id) => { setConfirmDeleteId(id); setMobileSidebarOpen(false) }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── DESKTOP ── */}
       <div className="hidden md:flex flex-1 overflow-hidden">
@@ -614,92 +756,120 @@ function SearchPageContent() {
         />
 
         {/* Main area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'white' }}>
 
-          {/* Top bar */}
-          <div className="shrink-0 px-8 pt-6 pb-4 bg-[#F0F4FF]" style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
-            <Breadcrumb items={[
-              { label: 'MAIMOO', href: '/app/dashboard' },
-              { label: 'Recherche IA' },
-            ]} />
-            <div className="flex items-center justify-between mt-3 mb-3">
-              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Recherche IA</h1>
-              {inConversation && (
-                <button onClick={handleReset}
-                  className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#1E2761] transition-colors">
-                  <RotateCcw className="w-3.5 h-3.5" />Nouvelle recherche
-                </button>
-              )}
+          {/* Header */}
+          <div style={{
+            flexShrink: 0,
+            padding: '14px 24px',
+            background: 'white',
+            borderBottom: '0.5px solid #E5E7EB',
+          }}>
+            {/* Breadcrumb */}
+            <div style={{ fontSize: 11, color: '#8899BB', marginBottom: 6 }}>
+              <span>MAIMOO</span>
+              <span style={{ margin: '0 5px', color: '#CBD5E1' }}>/</span>
+              <span>Recherche IA</span>
             </div>
 
-            {!inConversation && <div className="mb-3"><CompanyProfileBanner /></div>}
+            {/* Title */}
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1E2761', margin: '0 0 12px' }}>
+              Recherche IA
+            </h1>
 
-            {desktopTabs}
+            {/* Tabs + filters row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {pillTabs}
+              <div style={{ flex: 1 }} />
+              {statusFilters}
+            </div>
 
+            {/* Portfolio dropdown */}
             {activeTab === 'portfolio' && (
-              <div className="relative mt-3">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none"
-                  style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }}>
+              <div style={{ marginTop: 10, position: 'relative' }}>
+                <Building2 style={{
+                  position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                  width: 14, height: 14, color: '#94A3B8', pointerEvents: 'none',
+                }} />
+                <select
+                  value={selectedAccountId}
+                  onChange={(e) => setSelectedAccountId(e.target.value)}
+                  style={{
+                    width: '100%', paddingLeft: 30, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
+                    borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 13, color: '#374151',
+                    background: 'white', outline: 'none', cursor: 'pointer',
+                  }}
+                >
                   <option value="">Toutes mes entreprises</option>
                   {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
             )}
-
-            <div className="flex flex-wrap gap-2 mt-3">
-              {(['all', 'client', 'prospect'] as const).map((f) => (
-                <button key={f} onClick={() => setStatusFilter(f)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
-                  style={statusFilter === f
-                    ? { background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)', color: 'white' }
-                    : { background: 'white', color: '#64748B', border: '1px solid rgba(30,39,97,0.12)' }}>
-                  {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
-                </button>
-              ))}
-              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
-                className="px-3 py-1.5 rounded-xl text-xs text-slate-600 placeholder-slate-400 focus:outline-none w-24"
-                style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }} />
-            </div>
           </div>
 
-          {/* Content area */}
+          {/* Conversation / Empty state */}
           {inConversation ? (
             <>
-              <div className="flex-1 overflow-y-auto px-8 py-4">
-                <div className="max-w-2xl mx-auto space-y-3">
+              <div style={{
+                flex: 1, overflowY: 'auto',
+                padding: '24px',
+                background: '#F8F9FF',
+              }}>
+                <div style={{
+                  maxWidth: 760, margin: '0 auto',
+                  display: 'flex', flexDirection: 'column', gap: 20,
+                }}>
                   {conversationMessages}
                 </div>
               </div>
-              <div className="shrink-0 px-8 py-4 bg-white" style={{ borderTop: '1px solid #E5EAF5' }}>
-                <div className="max-w-2xl mx-auto">
+              <div style={{
+                flexShrink: 0,
+                background: 'white',
+                borderTop: '0.5px solid #E5E7EB',
+                padding: '16px 24px',
+              }}>
+                <div style={{ maxWidth: 760, margin: '0 auto' }}>
                   {inputBarSmall(desktopInputRef)}
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center px-8 py-12 gap-8">
-              <div className="text-center">
-                <Sparkles style={{ width: 32, height: 32, color: '#4C6EF5', margin: '0 auto' }} />
-                <h2 style={{ fontSize: 24, fontWeight: 500, color: '#0F172A', marginTop: 12 }}>
+            <div style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              padding: '48px 32px', gap: 32,
+              background: '#F8F9FF',
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: 'rgba(76,110,245,0.10)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 20px',
+                }}>
+                  <Sparkles style={{ width: 32, height: 32, color: '#4C6EF5' }} />
+                </div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1E2761', margin: '0 0 10px' }}>
                   Que voulez-vous savoir ?
                 </h2>
-                <p style={{ fontSize: 14, color: '#64748B', marginTop: 8, maxWidth: 400, lineHeight: 1.6 }}>
+                <p style={{ fontSize: 14, color: '#8899BB', margin: 0, lineHeight: 1.6, maxWidth: 440 }}>
                   Posez une question sur n'importe quel client, note ou document de votre équipe.
                 </p>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-2">
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
                 {suggestions.map((s) => (
                   <button
                     key={s}
                     onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
-                    className="transition-opacity hover:opacity-80"
                     style={{
-                      background: '#F0F4FF', border: '0.5px solid #C5D0F0',
-                      borderRadius: 20, padding: '8px 16px', fontSize: 13, color: '#64748B',
+                      padding: '9px 18px', background: 'white',
+                      border: '1px solid #E5E7EB', borderRadius: 24,
+                      fontSize: 13, color: '#374151', cursor: 'pointer',
+                      transition: 'border-color 0.15s, background 0.15s',
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#4C6EF5'; e.currentTarget.style.background = '#F8F9FF' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.background = 'white' }}
                   >
                     {s}
                   </button>
@@ -722,8 +892,11 @@ function SearchPageContent() {
           onClick={() => setConfirmDeleteId(null)}
         >
           <div
-            className="bg-white rounded-2xl p-6 mx-4"
-            style={{ maxWidth: 360, width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}
+            style={{
+              background: 'white', borderRadius: 16, padding: 24,
+              maxWidth: 360, width: 'calc(100% - 32px)',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0F172A', margin: '0 0 8px' }}>
