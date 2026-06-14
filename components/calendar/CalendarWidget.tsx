@@ -78,13 +78,17 @@ export function CalendarWidget({ userId, workspaceId, companyId }: CalendarWidge
     const supabase = createClient()
     const now = new Date()
     const in60Days = new Date(now.getTime() + 60 * 24 * 3600 * 1000)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('calendar_events')
       .select('id, google_event_id, title, start_time, end_time, company_id')
       .eq('user_id', userId)
       .gte('start_time', now.toISOString())
       .lte('start_time', in60Days.toISOString())
       .order('start_time', { ascending: true })
+    if (error) {
+      console.error('[CALENDAR WIDGET] erreur chargement events:', error.message, error.code)
+      return
+    }
     if (!data) return
 
     const accountIds = [...new Set(data.map((e) => e.company_id).filter(Boolean))] as string[]

@@ -25,6 +25,15 @@ async function geocodeCity(city: string): Promise<{ lat: number; lng: number } |
 }
 
 export async function POST(request: Request) {
+  try {
+    return await handleExecute(request)
+  } catch (err) {
+    console.error('[EXECUTE] exception non catchée:', err)
+    return NextResponse.json({ error: String(err), results: [], summary: [] }, { status: 500 })
+  }
+}
+
+async function handleExecute(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -209,17 +218,25 @@ export async function POST(request: Request) {
         if (found) calAccountId = found.id
       }
 
-      const calEvent = await createGoogleEvent(user.id, {
-        title,
-        startTime: startISO,
-        endTime: endISO,
-        workspaceId: workspaceId ?? null,
-        companyId: calAccountId,
-      })
+      let calEvent = null
+      try {
+        calEvent = await createGoogleEvent(user.id, {
+          title,
+          startTime: startISO,
+          endTime: endISO,
+          workspaceId: workspaceId ?? null,
+          companyId: calAccountId,
+        })
+      } catch (calErr) {
+        console.error('[EXECUTE] erreur createGoogleEvent:', calErr)
+      }
 
       if (calEvent) {
         results.push({ type: 'create_calendar_event', eventCreated: true, googleEventId: calEvent.google_event_id })
         summary.push(`RDV "${title}" ajouté au calendrier`)
+      } else {
+        results.push({ type: 'create_calendar_event', eventCreated: false, googleEventId: null })
+        summary.push(`RDV "${title}" — échec ajout calendrier`)
       }
     }
 

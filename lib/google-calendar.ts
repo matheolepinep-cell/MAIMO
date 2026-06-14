@@ -224,19 +224,26 @@ export async function createGoogleEvent(
 
   const calendar = google.calendar({ version: 'v3', auth })
 
-  const event = await calendar.events.insert({
-    calendarId: 'primary',
-    requestBody: {
-      summary: eventData.title,
-      description: eventData.description,
-      start: { dateTime: eventData.startTime },
-      end: { dateTime: eventData.endTime },
-      location: eventData.location,
-      attendees: eventData.attendeeEmails?.map((email) => ({ email })),
-    },
-  })
+  let googleId: string | null = null
+  try {
+    const event = await calendar.events.insert({
+      calendarId: 'primary',
+      requestBody: {
+        summary: eventData.title,
+        description: eventData.description,
+        start: { dateTime: eventData.startTime },
+        end: { dateTime: eventData.endTime },
+        location: eventData.location,
+        attendees: eventData.attendeeEmails?.map((email) => ({ email })),
+      },
+    })
+    googleId = event.data.id ?? null
+    console.log('[GOOGLE] événement créé sur Google Calendar, id:', googleId)
+  } catch (e) {
+    console.error('[GOOGLE] erreur création événement Google Calendar:', e)
+    return null
+  }
 
-  const googleId = event.data.id ?? null
   const supabase = adminSupabase()
 
   const row: Omit<CalendarEvent, 'id'> & { user_id: string; workspace_id?: string | null; created_at: string; updated_at: string } = {
@@ -255,7 +262,12 @@ export async function createGoogleEvent(
     updated_at: new Date().toISOString(),
   }
 
-  const { data } = await supabase.from('calendar_events').insert(row).select().single()
+  const { data, error: insErr } = await supabase.from('calendar_events').insert(row).select().single()
+  if (insErr) {
+    console.error('[GOOGLE] erreur insert calendar_events (table existe?):', insErr.message)
+    // Return a partial event so the caller knows Google creation succeeded
+    return { google_event_id: googleId, title: eventData.title, description: eventData.description ?? null, start_time: eventData.startTime, end_time: eventData.endTime, location: eventData.location ?? null, attendees: [], company_id: eventData.companyId ?? null, synced_from: 'maimoo' }
+  }
   return data as CalendarEvent
 }
 
