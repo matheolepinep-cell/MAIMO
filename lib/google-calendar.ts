@@ -224,6 +224,8 @@ export async function createGoogleEvent(
 
   const calendar = google.calendar({ version: 'v3', auth })
 
+  console.log('[GOOGLE] createGoogleEvent — startTime:', eventData.startTime, 'endTime:', eventData.endTime)
+
   let googleId: string | null = null
   try {
     const event = await calendar.events.insert({
@@ -231,16 +233,19 @@ export async function createGoogleEvent(
       requestBody: {
         summary: eventData.title,
         description: eventData.description,
-        start: { dateTime: eventData.startTime },
-        end: { dateTime: eventData.endTime },
+        start: { dateTime: eventData.startTime, timeZone: 'Europe/Paris' },
+        end: { dateTime: eventData.endTime, timeZone: 'Europe/Paris' },
         location: eventData.location,
         attendees: eventData.attendeeEmails?.map((email) => ({ email })),
       },
     })
     googleId = event.data.id ?? null
     console.log('[GOOGLE] événement créé sur Google Calendar, id:', googleId)
-  } catch (e) {
-    console.error('[GOOGLE] erreur création événement Google Calendar:', e)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const raw = e as Record<string, unknown>
+    const details = raw?.errors ?? (raw?.response as Record<string, unknown> | undefined)?.data ?? ''
+    console.error('[GOOGLE] erreur création événement Google Calendar:', msg, JSON.stringify(details))
     return null
   }
 

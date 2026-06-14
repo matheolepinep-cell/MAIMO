@@ -208,6 +208,7 @@ async function handleExecute(request: Request) {
       const endTime = (action.end_time ?? '10:00').trim()
       if (!title || !date) continue
 
+      // Keep as local datetime string (no Z) — createGoogleEvent adds timeZone:'Europe/Paris'
       const startISO = `${date}T${startTime}:00`
       const endISO = `${date}T${endTime}:00`
 
@@ -218,7 +219,12 @@ async function handleExecute(request: Request) {
         if (found) calAccountId = found.id
       }
 
+      console.log('[CALENDAR] tentative création event:', { title, startISO, endISO, calCompanyName, calAccountId })
+      console.log('[CALENDAR] user google_calendar_connected:', (user as Record<string, unknown>).google_calendar_connected)
+      console.log('[CALENDAR] access_token présent:', !!((user as Record<string, unknown>).google_access_token))
+
       let calEvent = null
+      let calErr: unknown = null
       try {
         calEvent = await createGoogleEvent(user.id, {
           title,
@@ -227,9 +233,12 @@ async function handleExecute(request: Request) {
           workspaceId: workspaceId ?? null,
           companyId: calAccountId,
         })
-      } catch (calErr) {
-        console.error('[EXECUTE] erreur createGoogleEvent:', calErr)
+      } catch (e) {
+        calErr = e
+        console.error('[EXECUTE] erreur createGoogleEvent:', e)
       }
+
+      console.log('[CALENDAR] résultat calEvent:', calEvent ? 'OK' : 'null', '— erreur:', calErr ?? 'aucune')
 
       if (calEvent) {
         results.push({ type: 'create_calendar_event', eventCreated: true, googleEventId: calEvent.google_event_id })
