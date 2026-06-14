@@ -93,6 +93,10 @@ DÉTECTION DE RDV : Si et SEULEMENT si le message mentionne explicitement une r�
 }
 La date doit être au format YYYY-MM-DD (année en cours : ${new Date().getFullYear()}). Si seule une heure de début est mentionnée, estime la fin à +1h. Si aucun RDV n'est mentionné, n'inclus PAS le champ "rdv".`
 
+  // Check google_calendar_connected once (needed to decide whether to inject create_calendar_event)
+  const { data: userRow } = await supabase.from('users').select('google_calendar_connected').eq('id', user.id).single()
+  const calConnected = !!userRow?.google_calendar_connected
+
   try {
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -104,10 +108,21 @@ La date doit être au format YYYY-MM-DD (année en cours : ${new Date().getFullY
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
     const result = JSON.parse(cleaned)
 
-    return NextResponse.json({
-      actions: Array.isArray(result.actions) ? result.actions : [],
-      rdv: result.rdv ?? null,
-    })
+    const actions: Record<string, unknown>[] = Array.isArray(result.actions) ? result.actions : []
+
+    if (result.rdv && calConnected) {
+      actions.unshift({
+        type: 'create_calendar_event',
+        title: result.rdv.title ?? '',
+        date: result.rdv.date ?? new Date().toISOString().slice(0, 10),
+        start_time: result.rdv.start_time ?? '09:00',
+        end_time: result.rdv.end_time ?? '10:00',
+        company_name: result.rdv.company_name ?? '',
+        enabled: true,
+      })
+    }
+
+    return NextResponse.json({ actions, rdv: null })
   } catch {
     return NextResponse.json({ actions: [] })
   }

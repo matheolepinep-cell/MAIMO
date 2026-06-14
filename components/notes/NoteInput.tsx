@@ -10,13 +10,15 @@ import { useWorkspace } from '@/contexts/WorkspaceContext'
 
 /* ─── Shared types (exported for dashboard modal reuse) ─── */
 export interface ExecuteResult {
-  type: 'create_company' | 'create_contact' | 'create_note'
+  type: 'create_company' | 'create_contact' | 'create_note' | 'create_calendar_event'
   created: boolean
   companyId?: string
   companyName?: string
   contactName?: string
   noteId?: string
   accountId?: string | null
+  eventCreated?: boolean
+  googleEventId?: string | null
 }
 
 export interface EditableCreateCompany {
@@ -31,7 +33,12 @@ export interface EditableCreateNote {
   id: string; type: 'create_note'
   content: string; company_name: string
 }
-export type EditableAction = EditableCreateCompany | EditableCreateContact | EditableCreateNote
+export interface EditableCreateCalendarEvent {
+  id: string; type: 'create_calendar_event'
+  title: string; date: string; start_time: string; end_time: string
+  company_name: string; enabled: boolean
+}
+export type EditableAction = EditableCreateCompany | EditableCreateContact | EditableCreateNote | EditableCreateCalendarEvent
 type ActionType = EditableAction['type']
 
 interface NoteInputProps {
@@ -40,15 +47,7 @@ interface NoteInputProps {
   onSuccess?: (results: ExecuteResult[]) => void
 }
 
-type Phase = 'input' | 'analyzing' | 'rdv-confirm' | 'confirm' | 'executing' | 'done'
-
-interface RdvDraft {
-  title: string
-  date: string
-  start_time: string
-  end_time: string
-  company_name: string
-}
+type Phase = 'input' | 'analyzing' | 'confirm' | 'executing' | 'done'
 
 declare global {
   interface Window { SpeechRecognition: typeof SpeechRecognition; webkitSpeechRecognition: typeof SpeechRecognition }
@@ -60,25 +59,29 @@ const inputCls = 'w-full px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm
 export function toCleanAction(a: EditableAction): Record<string, unknown> {
   if (a.type === 'create_company') return { type: 'create_company', company_name: a.company_name, city: a.city, sector: a.sector, status: a.status }
   if (a.type === 'create_contact') return { type: 'create_contact', first_name: a.first_name, last_name: a.last_name, position: a.position, email: a.email, phone: a.phone, company_name: a.company_name }
+  if (a.type === 'create_calendar_event') return { type: 'create_calendar_event', title: a.title, date: a.date, start_time: a.start_time, end_time: a.end_time, company_name: a.company_name, enabled: a.enabled }
   return { type: 'create_note', content: a.content, company_name: a.company_name }
 }
 
 function actionLabel(type: ActionType) {
   if (type === 'create_company') return 'Créer une fiche entreprise'
   if (type === 'create_contact') return 'Ajouter un contact'
+  if (type === 'create_calendar_event') return 'RDV Google Calendar'
   return 'Créer une note'
 }
 
 function ActionTypeIcon({ type }: { type: ActionType }) {
   if (type === 'create_company') return <Building2 className="w-3.5 h-3.5 shrink-0" style={{ color: '#0A0A0A' }} />
   if (type === 'create_contact') return <UserPlus className="w-3.5 h-3.5 shrink-0" style={{ color: '#0A0A0A' }} />
+  if (type === 'create_calendar_event') return <CalendarDays className="w-3.5 h-3.5 shrink-0" style={{ color: '#0A0A0A' }} />
   return <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#0A0A0A' }} />
 }
 
 function ResultIcon({ type, created }: { type: string; created: boolean }) {
-  if (!created) return <Info className="w-4 h-4 shrink-0" style={{ color: '#6B6B6B' }} />
+  if (!created && type !== 'create_calendar_event') return <Info className="w-4 h-4 shrink-0" style={{ color: '#6B6B6B' }} />
   if (type === 'create_company') return <Building2 className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
   if (type === 'create_contact') return <UserPlus className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
+  if (type === 'create_calendar_event') return <CalendarDays className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
   return <FileText className="w-4 h-4 shrink-0" style={{ color: '#0A0A0A' }} />
 }
 
@@ -162,6 +165,40 @@ export function ActionCard({ action, companiesForSelect, onUpdate, onRemove }: A
           </datalist>
         </>
       )}
+
+      {action.type === 'create_calendar_event' && (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#6B6B6B]">Ajouter à Google Calendar</span>
+            <button type="button" onClick={() => onUpdate(action.id, { enabled: !action.enabled })}
+              className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+              style={{ background: action.enabled ? '#0A0A0A' : '#E5E5E5' }}>
+              <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform"
+                style={{ transform: action.enabled ? 'translateX(18px)' : 'translateX(2px)' }} />
+            </button>
+          </div>
+          <input value={action.title} onChange={(e) => onUpdate(action.id, { title: e.target.value })}
+            placeholder="Titre du RDV" className={inputCls} />
+          <div className="grid grid-cols-2 gap-2">
+            <input type="date" value={action.date} onChange={(e) => onUpdate(action.id, { date: e.target.value })} className={inputCls} />
+            <input value={action.company_name} onChange={(e) => onUpdate(action.id, { company_name: e.target.value })}
+              list={`companies-cal-${action.id}`} placeholder="Entreprise" className={inputCls} />
+            <datalist id={`companies-cal-${action.id}`}>
+              {companiesForSelect.map((n) => <option key={n} value={n} />)}
+            </datalist>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-[#6B6B6B] mb-0.5 block">Début</label>
+              <input type="time" value={action.start_time} onChange={(e) => onUpdate(action.id, { start_time: e.target.value })} className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs text-[#6B6B6B] mb-0.5 block">Fin</label>
+              <input type="time" value={action.end_time} onChange={(e) => onUpdate(action.id, { end_time: e.target.value })} className={inputCls} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -216,8 +253,6 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
   const [originalText, setOriginalText] = useState('')
   const [wsAccounts, setWsAccounts] = useState<{ id: string; name: string }[]>([])
   const [showAddMenu, setShowAddMenu] = useState(false)
-  const [rdvDraft, setRdvDraft] = useState<RdvDraft | null>(null)
-  const [rdvAdding, setRdvAdding] = useState(false)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   const companiesForSelect = [
@@ -236,9 +271,10 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
   const addAction = useCallback((type: ActionType) => {
     const id = `new-${Date.now()}`
     const base = accountName ?? ''
-    if (type === 'create_company') setPendingActions((p) => [...p, { id, type, company_name: '', city: '', sector: '', status: 'prospect' }])
-    else if (type === 'create_contact') setPendingActions((p) => [...p, { id, type, first_name: '', last_name: '', position: '', email: '', phone: '', company_name: base }])
-    else setPendingActions((p) => [...p, { id, type, content: '', company_name: base }])
+    if (type === 'create_company') setPendingActions((p) => [...p, { id, type: 'create_company' as const, company_name: '', city: '', sector: '', status: 'prospect' as const }])
+    else if (type === 'create_contact') setPendingActions((p) => [...p, { id, type: 'create_contact' as const, first_name: '', last_name: '', position: '', email: '', phone: '', company_name: base }])
+    else if (type === 'create_calendar_event') setPendingActions((p) => [...p, { id, type: 'create_calendar_event' as const, title: '', date: new Date().toISOString().slice(0, 10), start_time: '09:00', end_time: '10:00', company_name: base, enabled: true }])
+    else setPendingActions((p) => [...p, { id, type: 'create_note' as const, content: '', company_name: base }])
     setShowAddMenu(false)
   }, [accountName])
 
@@ -254,33 +290,22 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: inputText, workspaceId: wsId, userId: profile.id, companyId: accountId }),
       })
-      const { actions, rdv } = await processRes.json()
+      const { actions } = await processRes.json()
 
       const supabase = createClient()
       const { data: accs } = await supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).order('name').limit(100)
       setWsAccounts(accs ?? [])
 
-      const editable: EditableAction[] = (actions ?? []).map((a: Record<string, string>, i: number) => {
+      const editable: EditableAction[] = (actions ?? []).map((a: Record<string, string | boolean>, i: number) => {
         const id = `a${i}-${Date.now()}`
-        if (a.type === 'create_company') return { id, type: 'create_company', company_name: a.company_name ?? '', city: a.city ?? '', sector: a.sector ?? '', status: (a.status as 'client' | 'prospect') ?? 'prospect' }
-        if (a.type === 'create_contact') return { id, type: 'create_contact', first_name: a.first_name ?? '', last_name: a.last_name ?? '', position: a.position ?? '', email: a.email ?? '', phone: a.phone ?? '', company_name: a.company_name ?? '' }
-        return { id, type: 'create_note' as const, content: a.content ?? '', company_name: a.company_name ?? '' }
+        if (a.type === 'create_company') return { id, type: 'create_company', company_name: (a.company_name as string) ?? '', city: (a.city as string) ?? '', sector: (a.sector as string) ?? '', status: ((a.status as 'client' | 'prospect') ?? 'prospect') }
+        if (a.type === 'create_contact') return { id, type: 'create_contact', first_name: (a.first_name as string) ?? '', last_name: (a.last_name as string) ?? '', position: (a.position as string) ?? '', email: (a.email as string) ?? '', phone: (a.phone as string) ?? '', company_name: (a.company_name as string) ?? '' }
+        if (a.type === 'create_calendar_event') return { id, type: 'create_calendar_event', title: (a.title as string) ?? '', date: (a.date as string) ?? new Date().toISOString().slice(0, 10), start_time: (a.start_time as string) ?? '09:00', end_time: (a.end_time as string) ?? '10:00', company_name: (a.company_name as string) ?? accountName ?? '', enabled: a.enabled !== false }
+        return { id, type: 'create_note' as const, content: (a.content as string) ?? '', company_name: (a.company_name as string) ?? '' }
       })
 
       setPendingActions(editable)
-
-      if (rdv && profile.google_calendar_connected) {
-        setRdvDraft({
-          title: rdv.title ?? '',
-          date: rdv.date ?? new Date().toISOString().slice(0, 10),
-          start_time: rdv.start_time ?? '09:00',
-          end_time: rdv.end_time ?? '10:00',
-          company_name: rdv.company_name ?? accountName ?? '',
-        })
-        setPhase('rdv-confirm')
-      } else {
-        setPhase('confirm')
-      }
+      setPhase('confirm')
     } catch {
       setPhase('input')
     }
@@ -305,28 +330,6 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
     }
   }, [profile, wsId, accountId, sourceMode, pendingActions, onSuccess])
 
-  const handleRdvAddToCalendar = useCallback(async () => {
-    if (!rdvDraft || !profile) return
-    setRdvAdding(true)
-    try {
-      const startISO = `${rdvDraft.date}T${rdvDraft.start_time}:00`
-      const endISO = `${rdvDraft.date}T${rdvDraft.end_time}:00`
-      await fetch('/api/calendar/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: rdvDraft.title, startTime: startISO, endTime: endISO, workspaceId: wsId }),
-      })
-    } catch {
-      // Continue even if calendar creation fails
-    }
-    setRdvAdding(false)
-    setPhase('confirm')
-  }, [rdvDraft, profile, wsId])
-
-  const handleRdvSkip = useCallback(() => {
-    setPhase('confirm')
-  }, [])
-
   const startRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return }
@@ -342,11 +345,11 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
 
   const handleReset = () => {
     setText(''); setPhase('input'); setSummary([]); setResults([])
-    setPendingActions([]); setOriginalText(''); setWsAccounts([]); setRdvDraft(null)
+    setPendingActions([]); setOriginalText(''); setWsAccounts([])
   }
 
   const handleCancel = () => {
-    setText(originalText); setPhase('input'); setPendingActions([]); setWsAccounts([]); setShowAddMenu(false); setRdvDraft(null)
+    setText(originalText); setPhase('input'); setPendingActions([]); setWsAccounts([]); setShowAddMenu(false)
   }
 
   const createdCompany = results.find((r) => r.type === 'create_company')
@@ -394,65 +397,6 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
         <p className="text-sm text-[#64748B]">
           {phase === 'analyzing' ? 'Analyse du texte en cours…' : 'Exécution des actions…'}
         </p>
-      </div>
-    )
-  }
-
-  /* ── RDV Confirm ── */
-  if (phase === 'rdv-confirm' && rdvDraft) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <CalendarDays className="w-5 h-5 shrink-0" style={{ color: '#0A0A0A' }} />
-          <div>
-            <p className="text-[15px] font-bold text-[#1E293B]">RDV détecté</p>
-            <p className="text-[12px] text-[#6B6B6B]">Voulez-vous ajouter cet événement à Google Calendar ?</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Titre</label>
-            <input value={rdvDraft.title} onChange={(e) => setRdvDraft({ ...rdvDraft, title: e.target.value })}
-              placeholder="Titre du RDV" className={inputCls} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Date</label>
-            <input type="date" value={rdvDraft.date} onChange={(e) => setRdvDraft({ ...rdvDraft, date: e.target.value })}
-              className={inputCls} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Début</label>
-              <input type="time" value={rdvDraft.start_time} onChange={(e) => setRdvDraft({ ...rdvDraft, start_time: e.target.value })}
-                className={inputCls} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Fin</label>
-              <input type="time" value={rdvDraft.end_time} onChange={(e) => setRdvDraft({ ...rdvDraft, end_time: e.target.value })}
-                className={inputCls} />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Client</label>
-            <input value={rdvDraft.company_name} onChange={(e) => setRdvDraft({ ...rdvDraft, company_name: e.target.value })}
-              placeholder="Entreprise" className={inputCls} />
-          </div>
-        </div>
-
-        <div className="space-y-2 pt-1">
-          <button onClick={handleRdvAddToCalendar} disabled={rdvAdding || !rdvDraft.title || !rdvDraft.date}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{ background: '#0A0A0A' }}>
-            {rdvAdding
-              ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Ajout en cours…</>
-              : <><CalendarDays className="w-4 h-4" />Ajouter à Google Calendar</>}
-          </button>
-          <button onClick={handleRdvSkip}
-            className="w-full py-1.5 text-xs text-[#94A3B8] hover:text-[#64748B] transition-colors text-center">
-            Ignorer
-          </button>
-        </div>
       </div>
     )
   }

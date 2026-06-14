@@ -266,11 +266,12 @@ export default function DashboardPage() {
       const { data: accs } = await supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).order('name').limit(100)
       setNoteWsAccounts(accs ?? [])
 
-      const editable: EditableAction[] = (actions ?? []).map((a: Record<string, string>, i: number) => {
+      const editable: EditableAction[] = (actions ?? []).map((a: Record<string, string | boolean>, i: number) => {
         const id = `a${i}-${Date.now()}`
-        if (a.type === 'create_company') return { id, type: 'create_company', company_name: a.company_name ?? '', city: a.city ?? '', sector: a.sector ?? '', status: (a.status as 'client' | 'prospect') ?? 'prospect' }
-        if (a.type === 'create_contact') return { id, type: 'create_contact', first_name: a.first_name ?? '', last_name: a.last_name ?? '', position: a.position ?? '', email: a.email ?? '', phone: a.phone ?? '', company_name: a.company_name ?? '' }
-        return { id, type: 'create_note' as const, content: a.content ?? '', company_name: a.company_name ?? '' }
+        if (a.type === 'create_company') return { id, type: 'create_company' as const, company_name: (a.company_name as string) ?? '', city: (a.city as string) ?? '', sector: (a.sector as string) ?? '', status: ((a.status as 'client' | 'prospect') ?? 'prospect') }
+        if (a.type === 'create_contact') return { id, type: 'create_contact' as const, first_name: (a.first_name as string) ?? '', last_name: (a.last_name as string) ?? '', position: (a.position as string) ?? '', email: (a.email as string) ?? '', phone: (a.phone as string) ?? '', company_name: (a.company_name as string) ?? '' }
+        if (a.type === 'create_calendar_event') return { id, type: 'create_calendar_event' as const, title: (a.title as string) ?? '', date: (a.date as string) ?? new Date().toISOString().slice(0, 10), start_time: (a.start_time as string) ?? '09:00', end_time: (a.end_time as string) ?? '10:00', company_name: (a.company_name as string) ?? '', enabled: a.enabled !== false }
+        return { id, type: 'create_note' as const, content: (a.content as string) ?? '', company_name: (a.company_name as string) ?? '' }
       })
 
       setNoteConfirmActions(editable)
@@ -317,9 +318,10 @@ export default function DashboardPage() {
 
   const addNoteAction = (type: EditableAction['type']) => {
     const newId = `new-${Date.now()}`
-    if (type === 'create_company') setNoteConfirmActions((p) => [...p, { id: newId, type, company_name: '', city: '', sector: '', status: 'prospect' }])
-    else if (type === 'create_contact') setNoteConfirmActions((p) => [...p, { id: newId, type, first_name: '', last_name: '', position: '', email: '', phone: '', company_name: '' }])
-    else setNoteConfirmActions((p) => [...p, { id: newId, type, content: '', company_name: '' }])
+    if (type === 'create_company') setNoteConfirmActions((p) => [...p, { id: newId, type: 'create_company' as const, company_name: '', city: '', sector: '', status: 'prospect' as const }])
+    else if (type === 'create_contact') setNoteConfirmActions((p) => [...p, { id: newId, type: 'create_contact' as const, first_name: '', last_name: '', position: '', email: '', phone: '', company_name: '' }])
+    else if (type === 'create_calendar_event') setNoteConfirmActions((p) => [...p, { id: newId, type: 'create_calendar_event' as const, title: '', date: new Date().toISOString().slice(0, 10), start_time: '09:00', end_time: '10:00', company_name: '', enabled: true }])
+    else setNoteConfirmActions((p) => [...p, { id: newId, type: 'create_note' as const, content: '', company_name: '' }])
     setNoteShowAddMenu(false)
   }
 

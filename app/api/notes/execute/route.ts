@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { normalizeText, levenshtein } from '@/lib/search-utils'
+import { createGoogleEvent } from '@/lib/google-calendar'
 
 interface CreateCompanyAction { type: 'create_company'; company_name?: string; city?: string; sector?: string; status?: string }
 interface CreateContactAction { type: 'create_contact'; first_name?: string; last_name?: string; position?: string; email?: string; phone?: string; company_name?: string }
 interface CreateNoteAction { type: 'create_note'; content?: string; company_name?: string }
-type Action = CreateCompanyAction | CreateContactAction | CreateNoteAction
+interface CreateCalendarEventAction { type: 'create_calendar_event'; title?: string; date?: string; start_time?: string; end_time?: string; company_name?: string; enabled?: boolean }
+type Action = CreateCompanyAction | CreateContactAction | CreateNoteAction | CreateCalendarEventAction
 
 type ResolvedCompany = { id: string; name: string; created: boolean }
 
@@ -185,6 +187,39 @@ export async function POST(request: Request) {
           results.push({ type: 'create_contact', contactId: (created as { id: string }).id, contactName: fullName, created: true, accountId })
           summary.push(`Contact ${fullName} ajouté`)
         }
+      }
+    }
+
+    /* ── create_calendar_event ── */
+    else if (action.type === 'create_calendar_event') {
+      if (action.enabled === false) continue
+      const title = (action.title ?? '').trim()
+      const date = (action.date ?? '').trim()
+      const startTime = (action.start_time ?? '09:00').trim()
+      const endTime = (action.end_time ?? '10:00').trim()
+      if (!title || !date) continue
+
+      const startISO = `${date}T${startTime}:00`
+      const endISO = `${date}T${endTime}:00`
+
+      let calAccountId: string | null = companyId ?? null
+      const calCompanyName = (action.company_name ?? '').trim()
+      if (calCompanyName) {
+        const found = findAccount(calCompanyName)
+        if (found) calAccountId = found.id
+      }
+
+      const calEvent = await createGoogleEvent(user.id, {
+        title,
+        startTime: startISO,
+        endTime: endISO,
+        workspaceId: workspaceId ?? null,
+        companyId: calAccountId,
+      })
+
+      if (calEvent) {
+        results.push({ type: 'create_calendar_event', eventCreated: true, googleEventId: calEvent.google_event_id })
+        summary.push(`RDV "${title}" ajouté au calendrier`)
       }
     }
 
