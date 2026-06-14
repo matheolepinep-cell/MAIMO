@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown, MessageCircle, Bell } from 'lucide-react'
@@ -85,19 +86,14 @@ export function Sidebar() {
       style={{ background: '#0A1628' }}
     >
       {/* Logo */}
-      <Link href="/app/dashboard" className="flex items-center gap-2.5 px-5 mb-4 group">
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
-          style={{ background: '#4C6EF5' }}
-        >
-          <span className="text-white font-bold text-sm">M</span>
-        </div>
-        <span
-          className="font-extrabold text-white transition-all duration-200 group-hover:opacity-80"
-          style={{ fontSize: 18, letterSpacing: '0.2em' }}
-        >
-          MAIMOO
-        </span>
+      <Link href="/app/dashboard" className="flex items-center px-5 mb-4 group transition-opacity duration-200 group-hover:opacity-80">
+        <Image
+          src="/logo.png"
+          alt="Maimoo"
+          width={120}
+          height={32}
+          style={{ filter: 'brightness(0) invert(1)' }}
+        />
       </Link>
 
       <WorkspaceSelector onCreateClick={() => setShowCreateWorkspace(true)} />

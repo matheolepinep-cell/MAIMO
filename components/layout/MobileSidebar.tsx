@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Search, LayoutDashboard, Briefcase, Users, Settings, User, Menu, MessageCircle, Bell } from 'lucide-react'
@@ -67,16 +68,14 @@ export function MobileSidebar() {
           onClick={(e) => e.stopPropagation()}
         >
           {/* Logo */}
-          <Link href="/app/dashboard" className="flex items-center gap-3 px-4 mb-4 shrink-0" onClick={close}>
-            <div
-              className="flex items-center justify-center shrink-0 text-white font-bold text-base"
-              style={{ background: '#4C6EF5', width: 36, height: 36, borderRadius: 10 }}
-            >
-              M
-            </div>
-            <span className="font-extrabold text-white text-lg" style={{ letterSpacing: '0.18em' }}>
-              MAIMOO
-            </span>
+          <Link href="/app/dashboard" className="flex items-center px-4 mb-4 shrink-0" onClick={close}>
+            <Image
+              src="/logo.png"
+              alt="Maimoo"
+              width={120}
+              height={32}
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
           </Link>
 
           <WorkspaceSelector onCreateClick={() => setShowCreateWorkspace(true)} />
