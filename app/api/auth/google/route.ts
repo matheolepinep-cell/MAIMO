@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { OAuth2Client } from 'google-auth-library'
+import { google } from 'googleapis'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { cookies } from 'next/headers'
 import crypto from 'crypto'
@@ -11,14 +11,22 @@ const SCOPES = [
 ]
 
 export async function GET() {
+  const clientId = process.env.GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  console.log('GOOGLE_CLIENT_ID:', clientId ? 'présent' : 'MANQUANT')
+  console.log('GOOGLE_CLIENT_SECRET:', clientSecret ? 'présent' : 'MANQUANT')
+
+  if (!clientId || !clientSecret) {
+    return NextResponse.json(
+      { error: 'Google OAuth credentials not configured on the server.' },
+      { status: 500 }
+    )
+  }
+
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const client = new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    REDIRECT_URI
-  )
+  const client = new google.auth.OAuth2(clientId, clientSecret, REDIRECT_URI)
 
   const state = crypto.randomBytes(16).toString('hex')
 

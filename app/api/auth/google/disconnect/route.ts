@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { OAuth2Client } from 'google-auth-library'
+import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 
@@ -19,15 +19,16 @@ export async function GET(req: NextRequest) {
     .single()
 
   if (profile?.google_access_token) {
-    try {
-      const client = new OAuth2Client(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET
-      )
-      client.setCredentials({ access_token: profile.google_access_token })
-      await client.revokeCredentials()
-    } catch {
-      // Continue even if revoke fails (token may already be expired)
+    const clientId = process.env.GOOGLE_CLIENT_ID
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+    if (clientId && clientSecret) {
+      try {
+        const client = new google.auth.OAuth2(clientId, clientSecret)
+        client.setCredentials({ access_token: profile.google_access_token })
+        await client.revokeCredentials()
+      } catch {
+        // Continue even if revoke fails (token may already be expired)
+      }
     }
   }
 

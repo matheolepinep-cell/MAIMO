@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { OAuth2Client } from 'google-auth-library'
+import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { cookies } from 'next/headers'
@@ -27,11 +27,13 @@ export async function GET(req: NextRequest) {
   }
   cookieStore.delete('google_oauth_state')
 
-  const client = new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    REDIRECT_URI
-  )
+  const clientId = process.env.GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  if (!clientId || !clientSecret) {
+    return NextResponse.redirect(new URL('/app/settings?google=error', req.url))
+  }
+
+  const client = new google.auth.OAuth2(clientId, clientSecret, REDIRECT_URI)
 
   try {
     const { tokens } = await client.getToken(code)
