@@ -8,6 +8,7 @@ import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { CompanyProfileBanner } from '@/components/ui/CompanyProfileBanner'
+import { ConversationsSidebar } from '@/components/search/ConversationsSidebar'
 import type { SearchSource } from '@/types/database'
 
 declare global {
@@ -17,9 +18,23 @@ declare global {
   }
 }
 
+type ChunkUsed = {
+  id: string; content: string; source_type: 'note' | 'document'; source_id: string
+  title?: string | null; date?: string; author?: string; file_name?: string; file_url?: string; account_id?: string
+}
+
 type SearchTab = 'portfolio' | 'global'
 type StatusFilter = 'all' | 'client' | 'prospect'
-type Message = { role: 'user' | 'assistant'; content: string; sources?: SearchSource[] }
+type Message = { role: 'user' | 'assistant'; content: string; sources?: SearchSource[]; chunks?: ChunkUsed[]; timestamp?: string }
+
+type ConvRow = {
+  id: string
+  title: string | null
+  messages: Message[]
+  updated_at: string
+  expires_at: string
+  created_at: string
+}
 
 async function getAccessibleAccountIds(
   supabase: ReturnType<typeof createClient>,
@@ -100,6 +115,12 @@ function SearchPageContent() {
   const [loading, setLoading] = useState(false)
   const [inputFocused, setInputFocused] = useState(false)
 
+  // Conversation persistence state
+  const [conversations, setConversations] = useState<ConvRow[]>([])
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [previousChunks, setPreviousChunks] = useState<ChunkUsed[]>([])
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
   const [isRecording, setIsRecording] = useState(false)
   const mobileInputRef = useRef<HTMLInputElement>(null)
   const desktopInputRef = useRef<HTMLInputElement>(null)
@@ -115,6 +136,7 @@ function SearchPageContent() {
     if (q) setQuery(q)
   }, [searchParams])
 
+  // Load portfolio and global accounts
   useEffect(() => {
     if (profileLoading || !profile) return
     const supabase = createClient()
@@ -138,6 +160,54 @@ function SearchPageContent() {
     }
   }, [profileLoading, profile, wsId])
 
+  // Load saved conversations from DB
+  useEffect(() => {
+    if (profileLoading || !profile) return
+
+    // Cleanup expired in background
+    fetch('/api/search/cleanup').catch(() => {})
+
+    const supabase = createClient()
+    let q = supabase
+      .from('search_conversations')
+      .select('id, title, messages, updated_at, expires_at, created_at')
+      .eq('user_id', profile.id)
+      .gt('expires_at', new Date().toISOString())
+      .order('updated_at', { ascending: false })
+
+    if (wsId) {
+      q = q.eq('workspace_id', wsId)
+    } else {
+      q = q.is('workspace_id', null)
+    }
+
+    q.then(({ data }) => {
+      const rows = ((data ?? []) as unknown[]).map((r) => {
+        const row = r as Record<string, unknown>
+        return {
+          id: row.id as string,
+          title: row.title as string | null,
+          messages: (row.messages as Message[]) ?? [],
+          updated_at: row.updated_at as string,
+          expires_at: row.expires_at as string,
+          created_at: row.created_at as string,
+        } satisfies ConvRow
+      })
+      setConversations(rows)
+
+      // Auto-load most recent if no URL query param
+      const qParam = searchParams.get('q')
+      if (!qParam && rows.length > 0) {
+        const first = rows[0]
+        setActiveConversationId(first.id)
+        setConversation(first.messages)
+        const lastAss = [...first.messages].reverse().find(m => m.role === 'assistant')
+        setPreviousChunks(lastAss?.chunks ?? [])
+      }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileLoading, profile, wsId])
+
   useEffect(() => {
     if (inConversation) {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -148,13 +218,47 @@ function SearchPageContent() {
     if (!q.trim() || !profile) return
     setLoading(true)
     const history = conversation.map(m => ({ role: m.role, content: m.content }))
-    setConversation(prev => [...prev, { role: 'user', content: q }])
+    const userMsg: Message = { role: 'user', content: q, timestamp: new Date().toISOString() }
+    const convWithUser = [...conversation, userMsg]
+    setConversation(convWithUser)
     setInput('')
+
+    const supabase = createClient()
+    let convId = activeConversationId
+
+    // Create new conversation on first message
+    if (!convId) {
+      const { data: newConv } = await supabase
+        .from('search_conversations')
+        .insert({
+          user_id: profile.id,
+          workspace_id: wsId ?? null,
+          title: q.slice(0, 40).trim(),
+          messages: [],
+        })
+        .select('id, expires_at, updated_at, created_at')
+        .single()
+      if (newConv) {
+        const nc = newConv as { id: string; expires_at: string; updated_at: string; created_at: string }
+        convId = nc.id
+        setActiveConversationId(convId)
+        setConversations(prev => [{
+          id: nc.id,
+          title: q.slice(0, 40).trim(),
+          messages: [],
+          updated_at: nc.updated_at,
+          expires_at: nc.expires_at,
+          created_at: nc.created_at,
+        }, ...prev])
+      }
+    }
+
     try {
       const body: Record<string, unknown> = {
         query: q, company_id: profile.company_id,
         workspace_id: wsId ?? undefined, status: statusFilter,
         city: city.trim() || undefined, history,
+        previousChunks,
       }
       if (activeTab === 'portfolio') {
         body[selectedAccountId ? 'account_id' : 'account_ids'] = selectedAccountId || portfolioAccounts.map((a) => a.id)
@@ -163,12 +267,41 @@ function SearchPageContent() {
       }
       const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json()
-      setConversation(prev => [...prev, { role: 'assistant', content: data.answer ?? '', sources: data.sources ?? [] }])
+
+      const chunks = (data.chunksUsed ?? []) as ChunkUsed[]
+      const assistantMsg: Message = {
+        role: 'assistant',
+        content: data.answer ?? '',
+        sources: data.sources ?? [],
+        chunks,
+        timestamp: new Date().toISOString(),
+      }
+
+      const finalConv = [...convWithUser, assistantMsg]
+      setConversation(finalConv)
+      setPreviousChunks(chunks)
+
+      // Persist to DB
+      if (convId) {
+        const now = new Date().toISOString()
+        await supabase
+          .from('search_conversations')
+          .update({ messages: finalConv, updated_at: now })
+          .eq('id', convId)
+        setConversations(prev => prev.map(c =>
+          c.id === convId ? { ...c, messages: finalConv, updated_at: now } : c
+        ))
+      }
     } catch {
-      setConversation(prev => [...prev, { role: 'assistant', content: 'Une erreur est survenue. Veuillez réessayer.', sources: [] }])
+      setConversation(prev => [...prev, {
+        role: 'assistant',
+        content: 'Une erreur est survenue. Veuillez réessayer.',
+        sources: [],
+        timestamp: new Date().toISOString(),
+      }])
     }
     setLoading(false)
-  }, [profile, wsId, conversation, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city])
+  }, [profile, wsId, conversation, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city, activeConversationId, previousChunks])
 
   useEffect(() => {
     const q = searchParams.get('q')
@@ -179,7 +312,51 @@ function SearchPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, profileLoading, profile, portfolioAccounts])
 
-  const handleReset = () => { setConversation([]); setInput(''); setQuery('') }
+  const handleNewConversation = () => {
+    setActiveConversationId(null)
+    setConversation([])
+    setPreviousChunks([])
+    setInput('')
+    setQuery('')
+  }
+
+  const handleSelectConversation = useCallback((id: string) => {
+    setConversations(prev => {
+      const conv = prev.find(c => c.id === id)
+      if (!conv) return prev
+      setActiveConversationId(conv.id)
+      setConversation(conv.messages)
+      const lastAss = [...conv.messages].reverse().find(m => m.role === 'assistant')
+      setPreviousChunks(lastAss?.chunks ?? [])
+      setInput('')
+      return prev
+    })
+  }, [])
+
+  const doDeleteConversation = async (id: string) => {
+    const supabase = createClient()
+    await supabase.from('search_conversations').delete().eq('id', id)
+    setConversations(prev => {
+      const remaining = prev.filter(c => c.id !== id)
+      if (activeConversationId === id) {
+        if (remaining.length > 0) {
+          const next = remaining[0]
+          setActiveConversationId(next.id)
+          setConversation(next.messages)
+          const lastAss = [...next.messages].reverse().find(m => m.role === 'assistant')
+          setPreviousChunks(lastAss?.chunks ?? [])
+        } else {
+          setActiveConversationId(null)
+          setConversation([])
+          setPreviousChunks([])
+        }
+      }
+      return remaining
+    })
+    setConfirmDeleteId(null)
+  }
+
+  const handleReset = handleNewConversation
   const handleSubmit = () => { const q = input.trim(); if (!q || loading) return; setQuery(q); doSearch(q) }
 
   const startVoice = useCallback(() => {
@@ -195,7 +372,7 @@ function SearchPageContent() {
   }, [])
   const stopVoice = () => { recognitionRef.current?.stop(); setIsRecording(false) }
 
-  // Input bar — small (bottom, in conversation)
+  // Input bar — small (in conversation)
   const inputBarSmall = (inputRef: React.RefObject<HTMLInputElement | null>) => (
     <div
       className="flex items-center gap-2 transition-all duration-150"
@@ -230,7 +407,7 @@ function SearchPageContent() {
     </div>
   )
 
-  // Input bar — large (empty state, centered)
+  // Input bar — large (empty state)
   const inputBarLarge = (inputRef: React.RefObject<HTMLInputElement | null>) => (
     <div
       className="flex items-center gap-3 transition-all duration-150"
@@ -263,7 +440,6 @@ function SearchPageContent() {
     </div>
   )
 
-  // Suggestions
   const firstAccount = portfolioAccounts[0]?.name
   const suggestions = [
     firstAccount ? `Dernier contact avec ${firstAccount} ?` : 'Quand ai-je contacté ce client pour la dernière fois ?',
@@ -271,7 +447,6 @@ function SearchPageContent() {
     'Résume les notes de la semaine',
   ]
 
-  // Desktop tabs — underline style
   const desktopTabs = (
     <div className="flex gap-6" style={{ borderBottom: '1px solid rgba(30,39,97,0.10)' }}>
       {([
@@ -374,7 +549,6 @@ function SearchPageContent() {
           </button>
         </div>
 
-        {/* Mobile tabs — lightweight */}
         <div className="flex shrink-0 items-center px-4 py-2 bg-white gap-6"
           style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
           {(['portfolio', 'global'] as const).map((tab) => (
@@ -428,107 +602,161 @@ function SearchPageContent() {
       </div>
 
       {/* ── DESKTOP ── */}
-      <div className="hidden md:flex flex-col flex-1 overflow-hidden">
+      <div className="hidden md:flex flex-1 overflow-hidden">
 
-        {/* Top bar — always visible */}
-        <div className="shrink-0 px-8 pt-6 pb-4 bg-[#F0F4FF]" style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
-          <Breadcrumb items={[
-            { label: 'MAIMOO', href: '/app/dashboard' },
-            { label: 'Recherche IA' },
-          ]} />
-          <div className="flex items-center justify-between mt-3 mb-3">
-            <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Recherche IA</h1>
-            {inConversation && (
-              <button onClick={handleReset}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#1E2761] transition-colors">
-                <RotateCcw className="w-3.5 h-3.5" />Nouvelle recherche
-              </button>
+        {/* Conversations sidebar */}
+        <ConversationsSidebar
+          conversations={conversations}
+          activeId={activeConversationId}
+          onNew={handleNewConversation}
+          onSelect={handleSelectConversation}
+          onDelete={(id) => setConfirmDeleteId(id)}
+        />
+
+        {/* Main area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* Top bar */}
+          <div className="shrink-0 px-8 pt-6 pb-4 bg-[#F0F4FF]" style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
+            <Breadcrumb items={[
+              { label: 'MAIMOO', href: '/app/dashboard' },
+              { label: 'Recherche IA' },
+            ]} />
+            <div className="flex items-center justify-between mt-3 mb-3">
+              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight">Recherche IA</h1>
+              {inConversation && (
+                <button onClick={handleReset}
+                  className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-[#1E2761] transition-colors">
+                  <RotateCcw className="w-3.5 h-3.5" />Nouvelle recherche
+                </button>
+              )}
+            </div>
+
+            {!inConversation && <div className="mb-3"><CompanyProfileBanner /></div>}
+
+            {desktopTabs}
+
+            {activeTab === 'portfolio' && (
+              <div className="relative mt-3">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none"
+                  style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }}>
+                  <option value="">Toutes mes entreprises</option>
+                  {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
             )}
-          </div>
 
-          {!inConversation && <div className="mb-3"><CompanyProfileBanner /></div>}
-
-          {desktopTabs}
-
-          {activeTab === 'portfolio' && (
-            <div className="relative mt-3">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none"
-                style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }}>
-                <option value="">Toutes mes entreprises</option>
-                {portfolioAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2 mt-3">
-            {(['all', 'client', 'prospect'] as const).map((f) => (
-              <button key={f} onClick={() => setStatusFilter(f)}
-                className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
-                style={statusFilter === f
-                  ? { background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)', color: 'white' }
-                  : { background: 'white', color: '#64748B', border: '1px solid rgba(30,39,97,0.12)' }}>
-                {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
-              </button>
-            ))}
-            <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
-              className="px-3 py-1.5 rounded-xl text-xs text-slate-600 placeholder-slate-400 focus:outline-none w-24"
-              style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }} />
-          </div>
-        </div>
-
-        {/* Content area */}
-        {inConversation ? (
-          <>
-            <div className="flex-1 overflow-y-auto px-8 py-4">
-              <div className="max-w-2xl mx-auto space-y-3">
-                {conversationMessages}
-              </div>
-            </div>
-            <div className="shrink-0 px-8 py-4 bg-white" style={{ borderTop: '1px solid #E5EAF5' }}>
-              <div className="max-w-2xl mx-auto">
-                {inputBarSmall(desktopInputRef)}
-              </div>
-            </div>
-          </>
-        ) : (
-          /* Empty state — centered */
-          <div className="flex-1 flex flex-col items-center justify-center px-8 py-12 gap-8">
-            <div className="text-center">
-              <Sparkles style={{ width: 32, height: 32, color: '#4C6EF5', margin: '0 auto' }} />
-              <h2 style={{ fontSize: 24, fontWeight: 500, color: '#0F172A', marginTop: 12 }}>
-                Que voulez-vous savoir ?
-              </h2>
-              <p style={{ fontSize: 14, color: '#64748B', marginTop: 8, maxWidth: 400, lineHeight: 1.6 }}>
-                Posez une question sur n'importe quel client, note ou document de votre équipe.
-              </p>
-            </div>
-
-            {/* Suggestions */}
-            <div className="flex flex-wrap justify-center gap-2">
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
-                  className="transition-opacity hover:opacity-80"
-                  style={{
-                    background: '#F0F4FF', border: '0.5px solid #C5D0F0',
-                    borderRadius: 20, padding: '8px 16px', fontSize: 13, color: '#64748B',
-                  }}
-                >
-                  {s}
+            <div className="flex flex-wrap gap-2 mt-3">
+              {(['all', 'client', 'prospect'] as const).map((f) => (
+                <button key={f} onClick={() => setStatusFilter(f)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
+                  style={statusFilter === f
+                    ? { background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)', color: 'white' }
+                    : { background: 'white', color: '#64748B', border: '1px solid rgba(30,39,97,0.12)' }}>
+                  {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
                 </button>
               ))}
-            </div>
-
-            {/* Large input bar */}
-            <div style={{ width: '100%', maxWidth: 680 }}>
-              {inputBarLarge(desktopInputRef)}
+              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville..."
+                className="px-3 py-1.5 rounded-xl text-xs text-slate-600 placeholder-slate-400 focus:outline-none w-24"
+                style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.12)' }} />
             </div>
           </div>
-        )}
+
+          {/* Content area */}
+          {inConversation ? (
+            <>
+              <div className="flex-1 overflow-y-auto px-8 py-4">
+                <div className="max-w-2xl mx-auto space-y-3">
+                  {conversationMessages}
+                </div>
+              </div>
+              <div className="shrink-0 px-8 py-4 bg-white" style={{ borderTop: '1px solid #E5EAF5' }}>
+                <div className="max-w-2xl mx-auto">
+                  {inputBarSmall(desktopInputRef)}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center px-8 py-12 gap-8">
+              <div className="text-center">
+                <Sparkles style={{ width: 32, height: 32, color: '#4C6EF5', margin: '0 auto' }} />
+                <h2 style={{ fontSize: 24, fontWeight: 500, color: '#0F172A', marginTop: 12 }}>
+                  Que voulez-vous savoir ?
+                </h2>
+                <p style={{ fontSize: 14, color: '#64748B', marginTop: 8, maxWidth: 400, lineHeight: 1.6 }}>
+                  Posez une question sur n'importe quel client, note ou document de votre équipe.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap justify-center gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => { setInput(s); setTimeout(() => doSearch(s), 0) }}
+                    className="transition-opacity hover:opacity-80"
+                    style={{
+                      background: '#F0F4FF', border: '0.5px solid #C5D0F0',
+                      borderRadius: 20, padding: '8px 16px', fontSize: 13, color: '#64748B',
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ width: '100%', maxWidth: 680 }}>
+                {inputBarLarge(desktopInputRef)}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setConfirmDeleteId(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 mx-4"
+            style={{ maxWidth: 360, width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0F172A', margin: '0 0 8px' }}>
+              Supprimer cette conversation ?
+            </h3>
+            <p style={{ fontSize: 14, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
+              Cette action est irréversible.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10,
+                  border: '1px solid #E2E8F0', background: 'white',
+                  color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => doDeleteConversation(confirmDeleteId)}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10,
+                  border: 'none', background: '#EF4444',
+                  color: 'white', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
