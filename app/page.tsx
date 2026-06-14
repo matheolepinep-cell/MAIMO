@@ -295,27 +295,59 @@ CREATE TABLE IF NOT EXISTS early_access (
 
   const PLANS = [
     {
-      name: 'Starter',
-      price: billing === 'monthly' ? 29 : 23,
-      desc: 'Pour les petites équipes qui démarrent',
-      features: ['3 utilisateurs', '500 notes / mois', 'Recherche IA', 'Import CSV', 'Support email'],
-      cta: 'Commencer',
+      name: 'Solo',
+      monthlyPrice: 19,
+      annualPrice: 15,
+      priceNote: '/mois',
+      desc: 'Pour les commerciaux indépendants',
+      features: [
+        '1 utilisateur, 1 espace',
+        'Portefeuille illimité',
+        'Notes texte et vocales illimitées',
+        'Recherche IA illimitée',
+        '10 imports de documents / mois',
+        'Import Excel jusqu\'à 200 lignes',
+        '5 Go de stockage',
+        'Support email',
+      ],
       highlight: false,
     },
     {
-      name: 'Pro',
-      price: billing === 'monthly' ? 79 : 63,
+      name: 'Team',
+      monthlyPrice: 39,
+      annualPrice: 31,
+      priceNote: '/utilisateur/mois',
       desc: 'Pour les équipes commerciales en croissance',
-      features: ['10 utilisateurs', 'Notes illimitées', 'Recherche IA avancée', 'Import documents (PDF, Word)', 'Espaces de travail', 'Support prioritaire'],
-      cta: 'Commencer',
+      features: [
+        "Jusqu'à 25 utilisateurs, 3 espaces",
+        'Tout Solo inclus',
+        'Portefeuille partagé',
+        'Messagerie interne temps réel',
+        'Notifications et activité équipe',
+        'Détection de conflits IA',
+        '50 imports de documents / mois / espace',
+        "Import Excel jusqu'à 1000 lignes",
+        '50 Go de stockage',
+        'Support prioritaire',
+      ],
       highlight: true,
     },
     {
-      name: 'Enterprise',
-      price: null,
-      desc: 'Pour les grandes organisations',
-      features: ['Utilisateurs illimités', 'SSO / SAML', 'API dédiée', 'SLA garanti', 'Accompagnement onboarding', 'Support dédié'],
-      cta: 'Nous contacter',
+      name: 'Business',
+      monthlyPrice: 59,
+      annualPrice: 47,
+      priceNote: '/utilisateur/mois',
+      desc: 'Pour les grandes organisations commerciales',
+      features: [
+        'Utilisateurs illimités, 5 espaces isolés',
+        'Tout Team inclus',
+        'Super Admin tous accès',
+        'Imports illimités',
+        'Import Excel sans limite de lignes',
+        'Fiche entreprise IA personnalisée',
+        'Stockage illimité',
+        'Support dédié + onboarding',
+      ],
       highlight: false,
     },
   ]
@@ -580,46 +612,40 @@ CREATE TABLE IF NOT EXISTS early_access (
             </div>
           </div>
           <div className="grid md:grid-cols-3 gap-6 items-start">
-            {PLANS.map((plan) => (
-              <div key={plan.name} className="rounded-2xl p-8 relative" style={{
-                background: plan.highlight ? '#0A0A0A' : 'white',
-                border: `1px solid ${plan.highlight ? '#0A0A0A' : '#E5E5E5'}`,
-                boxShadow: plan.highlight ? '0 16px 48px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)',
-              }}>
-                {plan.highlight && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-bold" style={{ background: '#0A0A0A', color: 'white', border: '2px solid white' }}>
-                    Populaire
-                  </span>
-                )}
-                <h3 className="font-bold text-lg mb-1" style={{ color: plan.highlight ? 'white' : '#0A0A0A' }}>{plan.name}</h3>
-                <p className="text-sm mb-5" style={{ color: plan.highlight ? 'rgba(255,255,255,0.55)' : '#6B6B6B' }}>{plan.desc}</p>
-                <div className="mb-6">
-                  {plan.price !== null ? (
-                    <>
-                      <span className="font-black" style={{ fontSize: 40, color: plan.highlight ? 'white' : '#0A0A0A' }}>{plan.price}€</span>
-                      <span className="text-sm ml-1" style={{ color: plan.highlight ? 'rgba(255,255,255,0.4)' : '#9B9B9B' }}>/mois</span>
-                    </>
-                  ) : (
-                    <span className="font-bold text-2xl" style={{ color: plan.highlight ? 'white' : '#0A0A0A' }}>Sur devis</span>
+            {PLANS.map((plan) => {
+              const price = billing === 'monthly' ? plan.monthlyPrice : plan.annualPrice
+              return (
+                <div key={plan.name} className="rounded-2xl p-8 relative bg-white" style={{
+                  border: '1px solid #E5E5E5',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                }}>
+                  {plan.highlight && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-bold" style={{ background: '#0A0A0A', color: 'white', border: '2px solid white', whiteSpace: 'nowrap' }}>
+                      Populaire
+                    </span>
                   )}
+                  <h3 className="font-bold text-lg mb-1" style={{ color: '#0A0A0A' }}>{plan.name}</h3>
+                  <p className="text-sm mb-5" style={{ color: '#6B6B6B' }}>{plan.desc}</p>
+                  <div className="mb-1">
+                    <span className="font-black" style={{ fontSize: 40, color: '#0A0A0A', lineHeight: 1 }}>{price}€</span>
+                  </div>
+                  <p className="text-sm mb-6" style={{ color: '#9B9B9B' }}>{plan.priceNote}</p>
+                  <ul className="space-y-3 mb-8">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-3">
+                        <Check style={{ width: 14, height: 14, color: '#16A34A', flexShrink: 0, marginTop: 2 }} />
+                        <span style={{ fontSize: 14, color: '#0A0A0A', lineHeight: 1.5 }}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button onClick={openRegister}
+                    className="w-full py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+                    style={{ background: '#0A0A0A', color: 'white', border: 'none', cursor: 'pointer' }}>
+                    Commencer
+                  </button>
                 </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-3">
-                      <Check style={{ width: 14, height: 14, color: plan.highlight ? 'rgba(255,255,255,0.7)' : '#16A34A', flexShrink: 0 }} />
-                      <span style={{ fontSize: 14, color: plan.highlight ? 'rgba(255,255,255,0.8)' : '#0A0A0A' }}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={openRegister}
-                  className="w-full py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
-                  style={plan.highlight
-                    ? { background: 'white', color: '#0A0A0A', border: 'none', cursor: 'pointer' }
-                    : { background: '#0A0A0A', color: 'white', border: 'none', cursor: 'pointer' }}>
-                  {plan.cta}
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
