@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Building2, User, LogOut, Palette, Layers, Settings2 } from 'lucide-react'
+import { Building2, User, LogOut, Palette, Layers, Settings2, CalendarDays, RefreshCw, CheckCircle2, XCircle } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -18,6 +18,7 @@ import type { Company, Workspace } from '@/types/database'
 
 export default function SettingsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor, setAccentColor } = useAccentColor()
   const { userWorkspaces, isSuperAdmin, wsId } = useWorkspace()
@@ -146,6 +147,24 @@ export default function SettingsPage() {
   }
 
   const isAdmin = profile?.role === 'admin'
+
+  // Google Calendar
+  const [calSyncing, setCalSyncing] = useState(false)
+  const [calMsg, setCalMsg] = useState('')
+  const [calMsgType, setCalMsgType] = useState<'success' | 'error'>('success')
+  const googleStatus = searchParams.get('google')
+  const calConnected = !!profile?.google_calendar_connected
+
+  const handleCalSync = async () => {
+    if (calSyncing) return
+    setCalSyncing(true); setCalMsg('')
+    try {
+      const res = await fetch('/api/calendar/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+      const { synced, updated } = await res.json()
+      setCalMsgType('success'); setCalMsg(`Synchronisé : ${synced} nouvel${synced !== 1 ? 's' : ''} événement${synced !== 1 ? 's' : ''}, ${updated} mis à jour`)
+    } catch { setCalMsgType('error'); setCalMsg('Erreur lors de la synchronisation') }
+    setCalSyncing(false)
+  }
 
   return (
     <div>
@@ -402,6 +421,77 @@ export default function SettingsPage() {
             <span className="px-2 py-0.5 rounded-full text-xs font-medium border"
               style={{ background: 'rgba(0,0,0,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)' }}>Prospect</span>
             <span className="text-xs text-[#94A3B8] ml-1">Aperçu</span>
+          </div>
+        </Card>
+
+        {/* Integrations */}
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#F5F5F5' }}>
+              <CalendarDays className="w-4 h-4" style={{ color: '#0A0A0A' }} />
+            </div>
+            <div>
+              <p className="font-semibold text-sm" style={{ color: '#0A0A0A' }}>Intégrations</p>
+              <p className="text-xs" style={{ color: '#6B6B6B' }}>Connectez vos outils externes</p>
+            </div>
+          </div>
+
+          {/* Google Calendar card */}
+          <div className="rounded-xl p-4" style={{ border: '1px solid #E5E5E5', background: '#FAFAFA' }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fff', border: '1px solid #E5E5E5' }}>
+                  <CalendarDays className="w-5 h-5" style={{ color: '#0A0A0A' }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#0A0A0A' }}>Google Calendar</p>
+                  <p className="text-xs" style={{ color: '#6B6B6B' }}>
+                    {calConnected ? 'Synchronisation bidirectionnelle activée' : 'Synchronisez vos RDV automatiquement'}
+                  </p>
+                </div>
+              </div>
+              {calConnected
+                ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#16A34A' }} />
+                : <XCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#9B9B9B' }} />}
+            </div>
+
+            {googleStatus === 'connected' && !calMsg && (
+              <p className="mt-3 text-xs font-medium" style={{ color: '#16A34A' }}>Google Calendar connecté avec succès !</p>
+            )}
+            {googleStatus === 'disconnected' && !calMsg && (
+              <p className="mt-3 text-xs font-medium" style={{ color: '#6B6B6B' }}>Google Calendar déconnecté.</p>
+            )}
+            {googleStatus === 'error' && !calMsg && (
+              <p className="mt-3 text-xs font-medium" style={{ color: '#DC2626' }}>Erreur lors de la connexion. Réessayez.</p>
+            )}
+            {calMsg && <p className="mt-3 text-xs font-medium" style={{ color: calMsgType === 'success' ? '#16A34A' : '#DC2626' }}>{calMsg}</p>}
+
+            <div className="flex gap-2 mt-3">
+              {calConnected ? (
+                <>
+                  <button onClick={handleCalSync} disabled={calSyncing}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all"
+                    style={{ background: '#0A0A0A' }}>
+                    <RefreshCw className={`w-3.5 h-3.5 ${calSyncing ? 'animate-spin' : ''}`} />
+                    {calSyncing ? 'Sync…' : 'Synchroniser maintenant'}
+                  </button>
+                  <a href="/api/auth/google/disconnect"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                    style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FEE2E2' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2' }}>
+                    Déconnecter
+                  </a>
+                </>
+              ) : (
+                <a href="/api/auth/google"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white transition-all"
+                  style={{ background: '#0A0A0A' }}>
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  Connecter Google Calendar
+                </a>
+              )}
+            </div>
           </div>
         </Card>
 
