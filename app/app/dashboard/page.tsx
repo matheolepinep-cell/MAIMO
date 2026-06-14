@@ -2,19 +2,15 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
-import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, Maximize2 } from 'lucide-react'
+import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { getInitials } from '@/components/ui/CompanyCard'
 import { Modal } from '@/components/ui/Modal'
-import type { MapAccount } from '@/components/AccountsMap'
 import { CompanyProfileBanner } from '@/components/ui/CompanyProfileBanner'
 import { ActionCard, AddActionMenu, toCleanAction, type EditableAction, type EditableCreateCompany } from '@/components/notes/NoteInput'
-
-const AccountsMap = dynamic(() => import('@/components/AccountsMap'), { ssr: false, loading: () => <div className="w-full h-full bg-gray-100 animate-pulse rounded-xl" /> })
 
 /* ─── types ─── */
 type MobileItem =
@@ -54,7 +50,7 @@ function capitalize(s: string) { return s.charAt(0).toUpperCase() + s.slice(1) }
 
 /* ─── Skeleton ─── */
 function Skeleton({ className }: { className?: string }) {
-  return <div className={`bg-[#EEF2FF] animate-pulse rounded-xl ${className ?? ''}`} />
+  return <div className={`bg-[#EFEFEF] animate-pulse rounded-xl ${className ?? ''}`} />
 }
 
 export default function DashboardPage() {
@@ -96,8 +92,6 @@ export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState<PortfolioRow[]>([])
   const [team, setTeam] = useState<TeamRow[]>([])
   const [desktopLoading, setDesktopLoading] = useState(true)
-  const [mapAccounts, setMapAccounts] = useState<MapAccount[]>([])
-  const [mapFullscreen, setMapFullscreen] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setTime(formatTime()), 60000)
@@ -208,16 +202,6 @@ export default function DashboardPage() {
       )
 
       setDesktopLoading(false)
-
-      // Fetch geocoded accounts for map
-      let mapQ = supabase.from('accounts').select('id, name, status, lat, lng').eq('company_id', cid).not('lat', 'is', null)
-      if (wf) mapQ = mapQ.or(wf)
-      const { data: geoAccounts } = await mapQ
-      setMapAccounts(
-        ((geoAccounts ?? []) as { id: string; name: string; status: string; lat: number; lng: number }[])
-          .filter((a) => a.lat && a.lng)
-          .map((a) => ({ id: a.id, name: a.name, status: a.status as 'client' | 'prospect', lat: a.lat, lng: a.lng }))
-      )
     })
   }, [profileLoading, profile, wsId])
 
@@ -348,64 +332,77 @@ export default function DashboardPage() {
   const clientSearchBox = (
     <div className="relative" ref={clientSearchRef}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: '#9B9B9B' }} />
         <input
           type="text"
           placeholder="Trouver une entreprise..."
           value={clientQuery}
           onChange={(e) => { setClientQuery(e.target.value); setShowClientDrop(true) }}
-          onFocus={() => setShowClientDrop(true)}
-          onBlur={() => setTimeout(() => setShowClientDrop(false), 150)}
-          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
+          onFocus={(e) => { setShowClientDrop(true); e.target.style.borderColor = '#0A0A0A'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.08)' }}
+          onBlur={(e) => { e.target.style.borderColor = '#E5E5E5'; e.target.style.boxShadow = 'none'; setTimeout(() => setShowClientDrop(false), 150) }}
+          className="w-full pl-10 pr-9 py-2.5 rounded-xl text-sm focus:outline-none transition-all duration-150"
+          style={{
+            border: '1px solid #E5E5E5',
+            background: '#fff',
+            color: '#0A0A0A',
+          }}
         />
         {clientQuery && (
           <button onMouseDown={() => { setClientQuery(''); setClientResults([]) }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
+            className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+            style={{ color: '#9B9B9B' }}>
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
       {showClientDrop && (clientQuery || recentAccounts.length > 0) && (
-        <div className="absolute z-40 mt-1 w-full bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden">
+        <div className="absolute z-40 mt-1 w-full bg-white rounded-2xl overflow-hidden"
+          style={{ border: '1px solid #E5E5E5', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}>
           {clientQuery ? (
             clientLoading ? (
-              <div className="flex items-center gap-2 px-4 py-3 text-sm text-slate-400">
-                <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+              <div className="flex items-center gap-2 px-4 py-3 text-sm" style={{ color: '#9B9B9B' }}>
+                <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#9B9B9B', borderTopColor: 'transparent' }} />
                 Recherche…
               </div>
             ) : clientResults.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-slate-400">Aucune entreprise trouvée</div>
+              <div className="px-4 py-3 text-sm" style={{ color: '#9B9B9B' }}>Aucune entreprise trouvée</div>
             ) : clientResults.map((acc) => (
               <button key={acc.id} onMouseDown={() => router.push(`/app/accounts/${acc.id}`)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F0F4FF] text-left transition-colors duration-100">
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100"
+                style={{ background: 'transparent' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F5F5F5' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                  style={{ background: accentColor }}>
+                  style={{ background: '#0A0A0A' }}>
                   {getInitials(acc.name)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#0F172A] truncate">{acc.name}</p>
-                  {acc.city && <p className="text-xs text-slate-400">{acc.city}</p>}
+                  <p className="text-sm font-medium truncate" style={{ color: '#0A0A0A' }}>{acc.name}</p>
+                  {acc.city && <p className="text-xs" style={{ color: '#9B9B9B' }}>{acc.city}</p>}
                 </div>
                 <span className="shrink-0 text-xs px-2 py-0.5 rounded-full font-medium"
                   style={acc.status === 'client'
-                    ? { background: 'rgba(30,39,97,0.12)', color: '#1E2761' }
-                    : { background: 'rgba(30,39,97,0.05)', color: 'rgba(30,39,97,0.5)' }}>
+                    ? { background: '#F0FDF4', color: '#16A34A', border: '1px solid #BBF7D0' }
+                    : { background: '#F5F5F5', color: '#6B6B6B', border: '1px solid #E5E5E5' }}>
                   {acc.status === 'client' ? 'Client' : 'Prospect'}
                 </span>
               </button>
             ))
           ) : (
             <>
-              <p className="px-4 pt-3 pb-1 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Récents</p>
+              <p className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#9B9B9B' }}>Récents</p>
               {recentAccounts.map((acc) => (
                 <button key={acc.id} onMouseDown={() => router.push(`/app/accounts/${acc.id}`)}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F0F4FF] text-left transition-colors duration-100">
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100"
+                  style={{ background: 'transparent' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F5F5F5' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                    style={{ background: accentColor }}>
+                    style={{ background: '#0A0A0A' }}>
                     {getInitials(acc.name)}
                   </div>
-                  <p className="text-sm font-medium text-[#0F172A] truncate">{acc.name}</p>
+                  <p className="text-sm font-medium truncate" style={{ color: '#0A0A0A' }}>{acc.name}</p>
                 </button>
               ))}
             </>
@@ -418,25 +415,25 @@ export default function DashboardPage() {
   const statCards = [
     {
       label: 'Entreprises', value: stats.accounts,
-      icon: Building2, iconColor: '#4C6EF5', iconBg: 'rgba(76,110,245,0.1)',
+      icon: Building2, iconColor: '#0A0A0A', iconBg: '#F5F5F5',
       delta: stats.accountsWeek > 0 ? `+${stats.accountsWeek} cette semaine` : null,
       href: '/app/accounts',
     },
     {
       label: 'Notes', value: stats.notes,
-      icon: FileText, iconColor: '#10B981', iconBg: 'rgba(16,185,129,0.1)',
+      icon: FileText, iconColor: '#0A0A0A', iconBg: '#F5F5F5',
       delta: stats.notesWeek > 0 ? `+${stats.notesWeek} cette semaine` : null,
       href: '/app/notes',
     },
     {
       label: 'Documents', value: stats.docs,
-      icon: Upload, iconColor: '#8B5CF6', iconBg: 'rgba(139,92,246,0.1)',
+      icon: Upload, iconColor: '#0A0A0A', iconBg: '#F5F5F5',
       delta: null,
       href: '/app/documents',
     },
     {
       label: 'Membres', value: stats.team,
-      icon: Users, iconColor: '#F59E0B', iconBg: 'rgba(245,158,11,0.1)',
+      icon: Users, iconColor: '#0A0A0A', iconBg: '#F5F5F5',
       delta: null,
       href: '/app/team',
     },
@@ -444,34 +441,25 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full overflow-x-hidden">
-
-      {/* ── BODY (mobile + desktop) ── */}
       <div className="flex flex-col min-h-full">
 
         {/* Hero */}
         <div className="relative pl-16 pr-4 md:px-10 pt-5 md:pt-5 pb-8 md:pb-10 overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #0F1F5C 0%, #1E2761 40%, #2D3F8F 70%, #4C6EF5 100%)' }}>
-          {/* Subtle grid pattern */}
-          <div className="absolute inset-0 opacity-[0.04]" style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)',
+          style={{ background: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)' }}>
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
             backgroundSize: '32px 32px',
           }} />
           <div className="max-w-7xl mx-auto relative">
             <div className="flex items-end justify-between">
               <div>
-                <p
-                  className="font-extrabold text-white/60 text-xs mb-2 uppercase"
-                  style={{ letterSpacing: '0.2em', textShadow: '0 2px 20px rgba(76,110,245,0.4)' }}
-                >
-                  MAIMOO
-                </p>
                 <h1 className="text-xl md:text-3xl font-semibold text-white tracking-tight">
-                  {greeting()}, {firstName} 👋
+                  {greeting()}, {firstName}
                 </h1>
-                <p className="text-white/50 text-sm mt-1">{capitalize(formatDate())} · {time}</p>
+                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>{capitalize(formatDate())} · {time}</p>
               </div>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(255,255,255,0.12)' }}>
+                style={{ background: 'rgba(255,255,255,0.1)' }}>
                 <span className="text-white text-sm font-semibold">
                   {profile?.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
                 </span>
@@ -481,17 +469,17 @@ export default function DashboardPage() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 bg-[#F0F4FF] px-3 md:px-10 pt-11 pb-4 md:py-8 -mt-6">
+        <div className="flex-1 px-3 md:px-10 pt-11 pb-4 md:py-8 -mt-6" style={{ background: '#F5F5F5' }}>
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* Actions rapides */}
             <div>
-              <p className="text-[13px] font-semibold mb-2" style={{ color: '#8899BB' }}>Actions rapides</p>
+              <p className="text-[13px] font-semibold mb-2" style={{ color: '#6B6B6B' }}>Actions rapides</p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <button
                   onClick={() => router.push('/app/search')}
                   className="col-span-2 md:col-span-1 text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
-                  style={{ background: '#0A1628', borderRadius: 12, padding: 14 }}
+                  style={{ background: '#0A0A0A', borderRadius: 12, padding: 14 }}
                 >
                   <Sparkles className="w-5 h-5 text-white" />
                   <div>
@@ -502,27 +490,26 @@ export default function DashboardPage() {
                 <button
                   onClick={() => { handleNoteReset(); setNoteModalOpen(true) }}
                   className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
-                  style={{ background: '#fff', borderRadius: 12, padding: 14, border: '0.5px solid #C5D0F0' }}
+                  style={{ background: '#fff', borderRadius: 12, padding: 14, border: '1px solid #E5E5E5' }}
                 >
-                  <Pencil className="w-5 h-5" style={{ color: '#1E2761' }} />
+                  <Pencil className="w-5 h-5" style={{ color: '#0A0A0A' }} />
                   <div>
-                    <p className="text-[13px] font-medium leading-snug" style={{ color: '#1E2761' }}>Nouvelle note</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: '#8899BB' }}>Texte ou vocal, client détecté auto</p>
+                    <p className="text-[13px] font-medium leading-snug" style={{ color: '#0A0A0A' }}>Nouvelle note</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: '#6B6B6B' }}>Texte ou vocal, client détecté auto</p>
                   </div>
                 </button>
                 <button
                   onClick={() => router.push('/app/import')}
                   className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
-                  style={{ background: '#EEF2FF', borderRadius: 12, padding: 14, border: '0.5px solid #C5D0F0' }}
+                  style={{ background: '#F5F5F5', borderRadius: 12, padding: 14, border: '1px solid #E5E5E5' }}
                 >
-                  <CloudUpload className="w-5 h-5" style={{ color: '#4C6EF5' }} />
+                  <CloudUpload className="w-5 h-5" style={{ color: '#0A0A0A' }} />
                   <div>
-                    <p className="text-[13px] font-medium leading-snug" style={{ color: '#1E2761' }}>Importer</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: '#8899BB' }}>PDF, Word, Excel, image — classé auto</p>
+                    <p className="text-[13px] font-medium leading-snug" style={{ color: '#0A0A0A' }}>Importer</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: '#6B6B6B' }}>PDF, Word, Excel, image — classé auto</p>
                   </div>
                 </button>
               </div>
-              <div className="mt-4" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)', marginBottom: 0 }} />
             </div>
 
             {/* Company profile banner */}
@@ -541,17 +528,15 @@ export default function DashboardPage() {
                   onClick={() => router.push(href)}
                   className="text-left bg-white rounded-2xl p-3 md:p-5 transition-all duration-150 hover:-translate-y-0.5"
                   style={{
-                    border: '1px solid rgba(30,39,97,0.08)',
-                    boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)',
+                    border: '1px solid #E5E5E5',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                     cursor: 'pointer',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.border = '1px solid rgba(30,39,97,0.22)'
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(30,39,97,0.10), 0 8px 24px rgba(30,39,97,0.08)'
+                    e.currentTarget.style.borderColor = '#0A0A0A'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.border = '1px solid rgba(30,39,97,0.08)'
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)'
+                    e.currentTarget.style.borderColor = '#E5E5E5'
                   }}
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
@@ -560,164 +545,138 @@ export default function DashboardPage() {
                   </div>
                   {desktopLoading
                     ? <Skeleton className="h-9 w-16 mb-1" />
-                    : <p className="text-3xl font-bold text-[#0F172A] tracking-tight">{value}</p>
+                    : <p className="text-3xl font-bold tracking-tight" style={{ color: '#0A0A0A' }}>{value}</p>
                   }
-                  <p className="text-sm text-slate-500 mt-0.5">{label}</p>
+                  <p className="text-sm mt-0.5" style={{ color: '#6B6B6B' }}>{label}</p>
                   {delta && !desktopLoading && (
-                    <p className="text-xs text-emerald-600 font-medium mt-1.5">{delta}</p>
+                    <p className="text-xs font-medium mt-1.5" style={{ color: '#16A34A' }}>{delta}</p>
                   )}
                 </button>
               ))}
             </div>
 
-            {/* ROW 2 — Map + Portfolio/Team */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-5">
+            {/* ROW 2 — Portfolio + Team */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5">
 
-              {/* Map — 3/5 */}
-              <div className="col-span-1 lg:col-span-3 bg-white rounded-2xl overflow-hidden relative"
-                style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)', height: 280 }}>
-                <button
-                  onClick={() => setMapFullscreen(true)}
-                  className="absolute top-2 right-2 z-[400] w-8 h-8 flex items-center justify-center rounded-lg bg-white shadow-md hover:bg-gray-50 transition-colors"
-                  title="Agrandir"
-                >
-                  <Maximize2 className="w-4 h-4 text-[#1E2761]" />
-                </button>
-                {mapAccounts.length === 0 && !desktopLoading ? (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                    <p className="text-sm">Aucune entreprise géocodée</p>
-                    <p className="text-xs mt-1">Ajoutez une ville dans les fiches clients</p>
+              {/* Portfolio card */}
+              <div className="bg-white rounded-2xl overflow-hidden"
+                style={{ border: '1px solid #E5E5E5', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <div className="flex items-center justify-between px-5 py-4"
+                  style={{ borderBottom: '1px solid #E5E5E5' }}>
+                  <h2 className="font-semibold" style={{ color: '#0A0A0A' }}>Mon portefeuille</h2>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => router.push('/app/import')} className="flex items-center gap-1 text-xs font-medium transition-colors duration-150" style={{ color: '#9B9B9B' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#0A0A0A' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#9B9B9B' }}>
+                      <Upload className="w-3 h-3" />Importer
+                    </button>
+                    <button onClick={() => router.push('/app/portfolio')} className="text-xs font-medium transition-colors" style={{ color: '#0A0A0A' }}>Voir tout →</button>
                   </div>
-                ) : desktopLoading ? (
-                  <div className="w-full h-full bg-gray-100 animate-pulse" />
+                </div>
+                {desktopLoading ? (
+                  <div className="divide-y" style={{ borderColor: '#E5E5E5' }}>
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-5 py-3">
+                        <Skeleton className="w-8 h-8 rounded-xl shrink-0" />
+                        <div className="flex-1 space-y-1.5"><Skeleton className="h-3.5 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : portfolio.length === 0 ? (
+                  <div className="px-5 py-6 text-center">
+                    <p className="text-sm" style={{ color: '#9B9B9B' }}>Portefeuille vide</p>
+                    <button onClick={() => router.push('/app/portfolio')} className="mt-2 text-xs font-medium" style={{ color: '#0A0A0A' }}>Ajouter des entreprises →</button>
+                  </div>
                 ) : (
-                  <AccountsMap
-                    accounts={mapAccounts}
-                    onNavigate={(id) => router.push(`/app/accounts/${id}`)}
-                    scrollWheelZoom={false}
-                    style={{ height: 280 }}
-                  />
+                  <div>
+                    {portfolio.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => router.push(`/app/accounts/${item.account_id}`)}
+                        className="w-full flex items-center gap-3 px-5 py-3 transition-colors duration-150 text-left"
+                        style={{ borderBottom: '1px solid #F5F5F5', background: 'transparent' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F5F5F5' }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                      >
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                          style={{ background: '#0A0A0A' }}>
+                          {getInitials(item.account_name)}
+                        </div>
+                        <span className="flex-1 text-sm font-medium truncate" style={{ color: '#0A0A0A' }}>{item.account_name}</span>
+                        <span
+                          className="shrink-0 w-2 h-2 rounded-full"
+                          style={{ background: item.status === 'client' ? '#16A34A' : '#6B6B6B' }}
+                        />
+                        <ChevronRight className="w-3.5 h-3.5 shrink-0" style={{ color: '#9B9B9B' }} />
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Right col — Portfolio + Team — 2/5 */}
-              <div className="col-span-1 lg:col-span-2 flex flex-col gap-5">
-
-                {/* Portfolio card */}
-                <div className="bg-white rounded-2xl overflow-hidden"
-                  style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
-                  <div className="flex items-center justify-between px-5 py-4"
-                    style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
-                    <h2 className="font-semibold text-[#0F172A]">Mon portefeuille</h2>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => router.push('/app/import')} className="flex items-center gap-1 text-xs text-slate-400 hover:text-[#4C6EF5] transition-colors duration-150 font-medium">
-                        <Upload className="w-3 h-3" />Importer
-                      </button>
-                      <button onClick={() => router.push('/app/portfolio')} className="text-xs text-[#4C6EF5] hover:underline font-medium">Voir tout →</button>
-                    </div>
-                  </div>
-                  {desktopLoading ? (
-                    <div className="divide-y divide-[rgba(30,39,97,0.04)]">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="flex items-center gap-3 px-5 py-3">
-                          <Skeleton className="w-8 h-8 rounded-xl shrink-0" />
-                          <div className="flex-1 space-y-1.5"><Skeleton className="h-3.5 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : portfolio.length === 0 ? (
-                    <div className="px-5 py-6 text-center">
-                      <p className="text-sm text-slate-400">Portefeuille vide</p>
-                      <button onClick={() => router.push('/app/portfolio')} className="mt-2 text-xs text-[#4C6EF5] hover:underline">Ajouter des entreprises →</button>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-[rgba(30,39,97,0.04)]">
-                      {portfolio.map((item) => (
-                          <button
-                            key={item.id}
-                            onClick={() => router.push(`/app/accounts/${item.account_id}`)}
-                            className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
-                          >
-                            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                              style={{ background: accentColor }}>
-                              {getInitials(item.account_name)}
-                            </div>
-                            <span className="flex-1 text-sm font-medium text-[#0F172A] truncate">{item.account_name}</span>
-                            <span
-                              className="shrink-0 w-2 h-2 rounded-full"
-                              style={{ background: item.status === 'client' ? '#10B981' : '#F59E0B' }}
-                            />
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                          </button>
-                        ))}
-                    </div>
-                  )}
+              {/* Team card */}
+              <div className="bg-white rounded-2xl overflow-hidden"
+                style={{ border: '1px solid #E5E5E5', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <div className="flex items-center justify-between px-5 py-4"
+                  style={{ borderBottom: '1px solid #E5E5E5' }}>
+                  <h2 className="font-semibold" style={{ color: '#0A0A0A' }}>Équipe</h2>
+                  <button onClick={() => router.push('/app/team')} className="text-xs font-medium" style={{ color: '#0A0A0A' }}>Voir tout →</button>
                 </div>
-
-                {/* Team card */}
-                <div className="bg-white rounded-2xl overflow-hidden"
-                  style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
-                  <div className="flex items-center justify-between px-5 py-4"
-                    style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
-                    <h2 className="font-semibold text-[#0F172A]">Équipe</h2>
-                    <button onClick={() => router.push('/app/team')} className="text-xs text-[#4C6EF5] hover:underline font-medium">Voir tout →</button>
+                {desktopLoading ? (
+                  <div>
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid #F5F5F5' }}>
+                        <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                        <div className="flex-1 space-y-1.5"><Skeleton className="h-3.5 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
+                      </div>
+                    ))}
                   </div>
-                  {desktopLoading ? (
-                    <div className="divide-y divide-[rgba(30,39,97,0.04)]">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="flex items-center gap-3 px-5 py-3">
-                          <Skeleton className="w-8 h-8 rounded-full shrink-0" />
-                          <div className="flex-1 space-y-1.5"><Skeleton className="h-3.5 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-[rgba(30,39,97,0.04)]">
-                      {team.map((member) => {
-                        const initials = member.full_name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
-                        return (
-                          <div key={member.id} className="flex items-center gap-3 px-5 py-3">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                              style={{ background: 'linear-gradient(135deg, rgba(30,39,97,0.1), rgba(76,110,245,0.1))' }}>
-                              <span className="text-xs font-semibold text-[#1E2761]">{initials}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-[#0F172A] truncate">{member.full_name}</p>
-                              <p className="text-xs text-slate-400">
-                                {member.portfolio_count} entreprise{member.portfolio_count !== 1 ? 's' : ''}
-                              </p>
-                            </div>
-                            <span
-                              className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
-                              style={member.role === 'admin' ? {
-                                background: 'linear-gradient(135deg, #EDE9FE, #DDD6FE)',
-                                color: '#4C1D95',
-                                borderColor: 'rgba(139,92,246,0.2)',
-                              } : {
-                                background: '#F8FAFC',
-                                color: '#64748B',
-                                borderColor: 'rgba(30,39,97,0.08)',
-                              }}
-                            >
-                              {member.role === 'admin' ? 'Admin' : 'Collaborateur'}
-                            </span>
+                ) : (
+                  <div>
+                    {team.map((member) => {
+                      const initials = member.full_name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+                      return (
+                        <div key={member.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid #F5F5F5' }}>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                            style={{ background: '#EFEFEF' }}>
+                            <span className="text-xs font-semibold" style={{ color: '#0A0A0A' }}>{initials}</span>
                           </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: '#0A0A0A' }}>{member.full_name}</p>
+                            <p className="text-xs" style={{ color: '#9B9B9B' }}>
+                              {member.portfolio_count} entreprise{member.portfolio_count !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <span
+                            className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
+                            style={member.role === 'admin' ? {
+                              background: '#0A0A0A',
+                              color: '#fff',
+                              borderColor: '#0A0A0A',
+                            } : {
+                              background: '#F5F5F5',
+                              color: '#6B6B6B',
+                              borderColor: '#E5E5E5',
+                            }}
+                          >
+                            {member.role === 'admin' ? 'Admin' : 'Collaborateur'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* ROW 3 — Compact Activity */}
             {activity.length > 0 && (
               <div className="bg-white rounded-2xl overflow-hidden"
-                style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06), 0 4px 16px rgba(30,39,97,0.05)' }}>
-                <div className="px-5 py-3" style={{ borderBottom: '1px solid rgba(30,39,97,0.06)' }}>
-                  <h2 className="text-sm font-semibold text-[#0F172A]">Activité récente</h2>
+                style={{ border: '1px solid #E5E5E5', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <div className="px-5 py-3" style={{ borderBottom: '1px solid #E5E5E5' }}>
+                  <h2 className="text-sm font-semibold" style={{ color: '#0A0A0A' }}>Activité récente</h2>
                 </div>
-                <div className="divide-y divide-[rgba(30,39,97,0.04)]">
+                <div>
                   {activity.slice(0, 3).map((item) => (
                     <button
                       key={`${item.type}-${item.id}`}
@@ -731,20 +690,23 @@ export default function DashboardPage() {
                         }
                         router.push(`/app/accounts/${item.account_id}`)
                       }}
-                      className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-[#F0F4FF] transition-colors duration-150 text-left"
+                      className="w-full flex items-center gap-3 px-5 py-2.5 transition-colors duration-150 text-left"
+                      style={{ borderBottom: '1px solid #F5F5F5', background: 'transparent' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F5F5F5' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                     >
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ background: item.type === 'note' ? (item.source === 'vocal' ? 'rgba(239,68,68,0.1)' : 'rgba(76,110,245,0.1)') : 'rgba(139,92,246,0.1)' }}>
+                        style={{ background: '#EFEFEF' }}>
                         {item.type === 'note'
-                          ? (item.source === 'vocal' ? <Mic className="w-3 h-3 text-red-500" /> : <Type className="w-3 h-3 text-[#4C6EF5]" />)
-                          : <Upload className="w-3 h-3 text-purple-500" />}
+                          ? (item.source === 'vocal' ? <Mic className="w-3 h-3" style={{ color: '#0A0A0A' }} /> : <Type className="w-3 h-3" style={{ color: '#0A0A0A' }} />)
+                          : <Upload className="w-3 h-3" style={{ color: '#0A0A0A' }} />}
                       </div>
-                      <p className="text-xs text-[#0F172A] flex-1 truncate">
+                      <p className="text-xs flex-1 truncate" style={{ color: '#0A0A0A' }}>
                         <span className="font-medium">{item.author_name}</span>
-                        {item.type === 'note' ? ' · ' : ' · '}
-                        <span className="text-slate-400">{item.account_name}</span>
+                        {' · '}
+                        <span style={{ color: '#6B6B6B' }}>{item.account_name}</span>
                       </p>
-                      <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(item.created_at)}</span>
+                      <span className="text-[10px] shrink-0" style={{ color: '#9B9B9B' }}>{timeAgo(item.created_at)}</span>
                     </button>
                   ))}
                 </div>
@@ -754,19 +716,21 @@ export default function DashboardPage() {
             {/* ROW 4 — CTA if empty portfolio */}
             {!desktopLoading && portfolio.length === 0 && (
               <div className="bg-white rounded-2xl px-8 py-10 flex flex-col items-center text-center"
-                style={{ border: '1px solid rgba(30,39,97,0.08)', boxShadow: '0 1px 3px rgba(30,39,97,0.06)' }}>
+                style={{ border: '1px solid #E5E5E5', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-                  style={{ background: 'rgba(76,110,245,0.1)' }}>
-                  <Plus className="w-7 h-7 text-[#4C6EF5]" />
+                  style={{ background: '#F5F5F5' }}>
+                  <Plus className="w-7 h-7" style={{ color: '#0A0A0A' }} />
                 </div>
-                <h3 className="text-lg font-semibold text-[#0F172A] mb-1">Commencez votre portefeuille</h3>
-                <p className="text-sm text-slate-400 mb-5 max-w-sm">
-                  Ajoutez votre premier client ou prospect pour profiter de toutes les fonctionnalités MAIMOO.
+                <h3 className="text-lg font-semibold mb-1" style={{ color: '#0A0A0A' }}>Commencez votre portefeuille</h3>
+                <p className="text-sm mb-5 max-w-sm" style={{ color: '#6B6B6B' }}>
+                  Ajoutez votre premier client ou prospect pour profiter de toutes les fonctionnalités Maimoo.
                 </p>
                 <button
                   onClick={() => router.push('/app/portfolio')}
-                  className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 shadow-sm hover:brightness-110 hover:-translate-y-px"
-                  style={{ background: 'linear-gradient(135deg, #1E2761 0%, #3B5BDB 100%)' }}
+                  className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200"
+                  style={{ background: '#0A0A0A' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1A1A1A' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#0A0A0A' }}
                 >
                   Ajouter ma première entreprise →
                 </button>
@@ -782,23 +746,23 @@ export default function DashboardPage() {
         {notePhase === 'done' ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <span className="w-7 h-7 flex items-center justify-center rounded-full shrink-0" style={{ background: 'rgba(34,197,94,0.1)' }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="#22C55E" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              <span className="w-7 h-7 flex items-center justify-center rounded-full shrink-0" style={{ background: 'rgba(22,163,74,0.1)' }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="#16A34A" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
               </span>
-              <p className="font-semibold text-[#1E293B]">Actions effectuées</p>
+              <p className="font-semibold" style={{ color: '#0A0A0A' }}>Actions effectuées</p>
             </div>
             <div className="space-y-2.5">
               {noteResults.length === 0 ? (
-                <p className="text-sm text-[#94A3B8]">Aucune action détectée.</p>
+                <p className="text-sm" style={{ color: '#9B9B9B' }}>Aucune action détectée.</p>
               ) : noteResults.map((r, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm text-[#334155]">
+                <div key={i} className="flex items-center gap-2 text-sm" style={{ color: '#0A0A0A' }}>
                   {!r.created
-                    ? <svg className="w-4 h-4 shrink-0 text-[#8899BB]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4m0 4h.01" /></svg>
+                    ? <svg className="w-4 h-4 shrink-0" style={{ color: '#9B9B9B' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4m0 4h.01" /></svg>
                     : r.type === 'create_company'
-                      ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#4C6EF5" strokeWidth={2}><path strokeLinecap="round" d="M3 21h18M9 21V7l6-4v18M9 9H3v12M15 9h6v12" /></svg>
+                      ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#0A0A0A" strokeWidth={2}><path strokeLinecap="round" d="M3 21h18M9 21V7l6-4v18M9 9H3v12M15 9h6v12" /></svg>
                       : r.type === 'create_contact'
-                        ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#4C6EF5" strokeWidth={2}><path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" d="M20 8v6m3-3h-6" /></svg>
-                        : <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#4C6EF5" strokeWidth={2}><path strokeLinecap="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#0A0A0A" strokeWidth={2}><path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" d="M20 8v6m3-3h-6" /></svg>
+                        : <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#0A0A0A" strokeWidth={2}><path strokeLinecap="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   }
                   <span>{noteSummary[i] ?? ''}</span>
                 </div>
@@ -809,14 +773,17 @@ export default function DashboardPage() {
                 <button
                   onClick={() => { setNoteModalOpen(false); router.push(`/app/accounts/${noteResults.find((r) => r.type === 'create_company')?.companyId}`) }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: '#1E2761' }}
+                  style={{ background: '#0A0A0A' }}
                 >
                   Voir la fiche →
                 </button>
               )}
               <button
                 onClick={() => { handleNoteReset() }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-[#64748B] hover:bg-gray-50 transition-all"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={{ border: '1px solid #E5E5E5', color: '#6B6B6B', background: 'transparent' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F5F5F5' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 Nouvelle note
               </button>
@@ -825,12 +792,12 @@ export default function DashboardPage() {
         ) : notePhase === 'confirm' ? (
           <div className="space-y-4">
             <div>
-              <p className="text-[15px] font-bold text-[#1E293B]">Vérifier les actions</p>
-              <p className="text-[12px] text-[#8899BB] mt-0.5">L&apos;IA a détecté ces actions — modifiez si nécessaire</p>
+              <p className="text-[15px] font-bold" style={{ color: '#0A0A0A' }}>Vérifier les actions</p>
+              <p className="text-[12px] mt-0.5" style={{ color: '#6B6B6B' }}>L&apos;IA a détecté ces actions — modifiez si nécessaire</p>
             </div>
             <div className="space-y-3">
               {noteConfirmActions.length === 0 && (
-                <p className="text-sm text-[#94A3B8] py-1">Aucune action détectée automatiquement.</p>
+                <p className="text-sm py-1" style={{ color: '#9B9B9B' }}>Aucune action détectée automatiquement.</p>
               )}
               {noteConfirmActions.map((action) => (
                 <ActionCard key={action.id} action={action} companiesForSelect={noteCompaniesForSelect}
@@ -841,11 +808,14 @@ export default function DashboardPage() {
             <div className="space-y-2 pt-1">
               <button onClick={handleNoteExecute}
                 className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                style={{ background: '#1E2761' }}>
+                style={{ background: '#0A0A0A' }}>
                 Confirmer et enregistrer
               </button>
               <button onClick={handleNoteCancel}
-                className="w-full py-1.5 text-xs text-[#94A3B8] hover:text-[#64748B] transition-colors text-center">
+                className="w-full py-1.5 text-xs text-center transition-colors"
+                style={{ color: '#9B9B9B' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#6B6B6B' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#9B9B9B' }}>
                 Annuler
               </button>
             </div>
@@ -854,8 +824,8 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {(notePhase === 'analyzing' || notePhase === 'executing') ? (
               <div className="flex items-center gap-3 py-4">
-                <span className="w-5 h-5 border-2 border-[#1E2761] border-t-transparent rounded-full animate-spin shrink-0" />
-                <p className="text-sm text-[#64748B]">
+                <span className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: '#0A0A0A', borderTopColor: 'transparent' }} />
+                <p className="text-sm" style={{ color: '#6B6B6B' }}>
                   {notePhase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}
                 </p>
               </div>
@@ -868,13 +838,19 @@ export default function DashboardPage() {
                     onChange={(e) => setNoteText(e.target.value)}
                     placeholder="Saisir une note ou une instruction…"
                     rows={5}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all duration-150 pr-10"
+                    className="w-full px-3 py-2.5 rounded-xl text-sm resize-none focus:outline-none transition-all duration-150 pr-10"
+                    style={{
+                      border: '1px solid #E5E5E5',
+                      color: '#0A0A0A',
+                    }}
+                    onFocus={(e) => { e.target.style.borderColor = '#0A0A0A'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.08)' }}
+                    onBlur={(e) => { e.target.style.borderColor = '#E5E5E5'; e.target.style.boxShadow = 'none' }}
                   />
                   <button
                     type="button"
                     onClick={noteRecording ? handleNoteRecordStop : handleNoteRecordStart}
                     className="absolute right-2 bottom-2 p-2 rounded-lg transition-all duration-150"
-                    style={noteRecording ? { background: '#EF4444', color: '#fff' } : { background: '#F1F5F9', color: '#64748B' }}
+                    style={noteRecording ? { background: '#DC2626', color: '#fff' } : { background: '#F5F5F5', color: '#6B6B6B' }}
                   >
                     {noteRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
@@ -883,7 +859,7 @@ export default function DashboardPage() {
                   onClick={handleNoteSave}
                   disabled={!noteText.trim()}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
-                  style={{ background: '#1E2761' }}
+                  style={{ background: '#0A0A0A' }}
                 >
                   Enregistrer la note
                 </button>
@@ -893,28 +869,10 @@ export default function DashboardPage() {
         )}
       </Modal>
 
-      {/* Fullscreen map modal */}
-      {mapFullscreen && (
-        <div className="fixed inset-0 z-[9999]" style={{ background: 'rgba(0,0,0,0.85)' }}>
-          <button
-            onClick={() => setMapFullscreen(false)}
-            className="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-xl hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-5 h-5 text-[#1E2761]" />
-          </button>
-          <AccountsMap
-            accounts={mapAccounts}
-            onNavigate={(id) => { setMapFullscreen(false); router.push(`/app/accounts/${id}`) }}
-            scrollWheelZoom={true}
-            style={{ width: '100vw', height: '100dvh' }}
-          />
-        </div>
-      )}
-
       {/* Toast */}
       {noteToast && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-xl text-sm font-medium text-white shadow-lg"
-          style={{ background: '#1E2761' }}>
+          style={{ background: '#0A0A0A' }}>
           {noteToast}
         </div>
       )}
