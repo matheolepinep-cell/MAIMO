@@ -1,11 +1,12 @@
-import { OAuth2Client } from 'google-auth-library'
 import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 
 const REDIRECT_URI = 'https://www.maimoo.fr/api/auth/google/callback'
 
-function makeClient() {
-  return new OAuth2Client(
+type GoogAuthClient = InstanceType<typeof google.auth.OAuth2>
+
+function makeClient(): GoogAuthClient {
+  return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     REDIRECT_URI
@@ -19,7 +20,7 @@ function adminSupabase() {
   )
 }
 
-export async function getGoogleClient(userId: string): Promise<OAuth2Client | null> {
+export async function getGoogleClient(userId: string): Promise<GoogAuthClient | null> {
   const supabase = adminSupabase()
   const { data: profile } = await supabase
     .from('users')
@@ -94,8 +95,7 @@ export async function syncCalendarEvents(
   const supabase = adminSupabase()
 
   // Load accounts for fuzzy matching
-  let accountsQ = supabase.from('accounts').select('id, name')
-  const { data: accounts } = await accountsQ
+  const { data: accounts } = await supabase.from('accounts').select('id, name')
 
   // Load contacts for email matching
   const { data: contacts } = await supabase
@@ -108,13 +108,11 @@ export async function syncCalendarEvents(
   }
 
   function findCompanyId(event: typeof items[0]): string | null {
-    // Match by attendee email
     const attendeeEmails = (event.attendees ?? [])
       .map((a) => (a.email ?? '').toLowerCase())
     for (const email of attendeeEmails) {
       if (emailToAccount[email]) return emailToAccount[email]
     }
-    // Fuzzy match title against account names
     const title = (event.summary ?? '').toLowerCase()
     for (const acc of accounts ?? []) {
       if (acc.name && title.includes(acc.name.toLowerCase())) return acc.id

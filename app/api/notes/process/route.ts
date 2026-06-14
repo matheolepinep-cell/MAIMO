@@ -78,7 +78,20 @@ Règles STRICTES :
 - company_name dans create_contact doit correspondre exactement à une entreprise existante ou à une entreprise créée dans la même réponse
 
 RÈGLE ABSOLUE : chaque action create_note ET create_contact DOIT avoir un company_name renseigné (chaîne non vide). Si aucune entreprise n'est explicitement mentionnée, déduis-la depuis le contexte (nom de personne, secteur, indice dans la conversation). Si vraiment impossible à déduire, génère une action create_company avec le nom le plus probable extrait du texte, même partiel, et utilise ce nom dans company_name.
-Il est INTERDIT de retourner une action create_note ou create_contact avec un company_name vide ou absent.`
+Il est INTERDIT de retourner une action create_note ou create_contact avec un company_name vide ou absent.
+
+DÉTECTION DE RDV : Si et SEULEMENT si le message mentionne explicitement une réunion, un rendez-vous ou un appel planifié avec une date ET/OU une heure précise, ajoute un champ "rdv" dans ta réponse JSON (au même niveau que "actions") :
+{
+  "actions": [...],
+  "rdv": {
+    "title": "...",
+    "date": "YYYY-MM-DD",
+    "start_time": "HH:MM",
+    "end_time": "HH:MM",
+    "company_name": "..."
+  }
+}
+La date doit être au format YYYY-MM-DD (année en cours : ${new Date().getFullYear()}). Si seule une heure de début est mentionnée, estime la fin à +1h. Si aucun RDV n'est mentionné, n'inclus PAS le champ "rdv".`
 
   try {
     const message = await anthropic.messages.create({
@@ -91,7 +104,10 @@ Il est INTERDIT de retourner une action create_note ou create_contact avec un co
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
     const result = JSON.parse(cleaned)
 
-    return NextResponse.json({ actions: Array.isArray(result.actions) ? result.actions : [] })
+    return NextResponse.json({
+      actions: Array.isArray(result.actions) ? result.actions : [],
+      rdv: result.rdv ?? null,
+    })
   } catch {
     return NextResponse.json({ actions: [] })
   }

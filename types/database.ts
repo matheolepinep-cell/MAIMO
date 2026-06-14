@@ -9,6 +9,7 @@ export interface UserProfile {
   is_active: boolean
   is_super_admin?: boolean
   created_at: string
+  google_calendar_connected?: boolean
 }
 
 export interface Workspace {

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mic, MicOff, Send, Save, Type, Building2, UserPlus, FileText, Info, CheckCircle2, Trash2, Plus, ChevronDown } from 'lucide-react'
+import { Mic, MicOff, Send, Save, Type, Building2, UserPlus, FileText, Info, CheckCircle2, Trash2, Plus, ChevronDown, CalendarDays } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -40,7 +40,15 @@ interface NoteInputProps {
   onSuccess?: (results: ExecuteResult[]) => void
 }
 
-type Phase = 'input' | 'analyzing' | 'confirm' | 'executing' | 'done'
+type Phase = 'input' | 'analyzing' | 'rdv-confirm' | 'confirm' | 'executing' | 'done'
+
+interface RdvDraft {
+  title: string
+  date: string
+  start_time: string
+  end_time: string
+  company_name: string
+}
 
 declare global {
   interface Window { SpeechRecognition: typeof SpeechRecognition; webkitSpeechRecognition: typeof SpeechRecognition }
@@ -208,6 +216,8 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
   const [originalText, setOriginalText] = useState('')
   const [wsAccounts, setWsAccounts] = useState<{ id: string; name: string }[]>([])
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const [rdvDraft, setRdvDraft] = useState<RdvDraft | null>(null)
+  const [rdvAdding, setRdvAdding] = useState(false)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   const companiesForSelect = [
@@ -244,7 +254,7 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: inputText, workspaceId: wsId, userId: profile.id, companyId: accountId }),
       })
-      const { actions } = await processRes.json()
+      const { actions, rdv } = await processRes.json()
 
       const supabase = createClient()
       const { data: accs } = await supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).order('name').limit(100)
@@ -258,7 +268,19 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
       })
 
       setPendingActions(editable)
-      setPhase('confirm')
+
+      if (rdv && profile.google_calendar_connected) {
+        setRdvDraft({
+          title: rdv.title ?? '',
+          date: rdv.date ?? new Date().toISOString().slice(0, 10),
+          start_time: rdv.start_time ?? '09:00',
+          end_time: rdv.end_time ?? '10:00',
+          company_name: rdv.company_name ?? accountName ?? '',
+        })
+        setPhase('rdv-confirm')
+      } else {
+        setPhase('confirm')
+      }
     } catch {
       setPhase('input')
     }
@@ -283,6 +305,28 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
     }
   }, [profile, wsId, accountId, sourceMode, pendingActions, onSuccess])
 
+  const handleRdvAddToCalendar = useCallback(async () => {
+    if (!rdvDraft || !profile) return
+    setRdvAdding(true)
+    try {
+      const startISO = `${rdvDraft.date}T${rdvDraft.start_time}:00`
+      const endISO = `${rdvDraft.date}T${rdvDraft.end_time}:00`
+      await fetch('/api/calendar/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: rdvDraft.title, startTime: startISO, endTime: endISO, workspaceId: wsId }),
+      })
+    } catch {
+      // Continue even if calendar creation fails
+    }
+    setRdvAdding(false)
+    setPhase('confirm')
+  }, [rdvDraft, profile, wsId])
+
+  const handleRdvSkip = useCallback(() => {
+    setPhase('confirm')
+  }, [])
+
   const startRecording = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return }
@@ -298,11 +342,11 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
 
   const handleReset = () => {
     setText(''); setPhase('input'); setSummary([]); setResults([])
-    setPendingActions([]); setOriginalText(''); setWsAccounts([])
+    setPendingActions([]); setOriginalText(''); setWsAccounts([]); setRdvDraft(null)
   }
 
   const handleCancel = () => {
-    setText(originalText); setPhase('input'); setPendingActions([]); setWsAccounts([]); setShowAddMenu(false)
+    setText(originalText); setPhase('input'); setPendingActions([]); setWsAccounts([]); setShowAddMenu(false); setRdvDraft(null)
   }
 
   const createdCompany = results.find((r) => r.type === 'create_company')
@@ -350,6 +394,65 @@ export function NoteInput({ accountId, accountName, onSuccess }: NoteInputProps)
         <p className="text-sm text-[#64748B]">
           {phase === 'analyzing' ? 'Analyse du texte en cours…' : 'Exécution des actions…'}
         </p>
+      </div>
+    )
+  }
+
+  /* ── RDV Confirm ── */
+  if (phase === 'rdv-confirm' && rdvDraft) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="w-5 h-5 shrink-0" style={{ color: '#0A0A0A' }} />
+          <div>
+            <p className="text-[15px] font-bold text-[#1E293B]">RDV détecté</p>
+            <p className="text-[12px] text-[#6B6B6B]">Voulez-vous ajouter cet événement à Google Calendar ?</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Titre</label>
+            <input value={rdvDraft.title} onChange={(e) => setRdvDraft({ ...rdvDraft, title: e.target.value })}
+              placeholder="Titre du RDV" className={inputCls} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Date</label>
+            <input type="date" value={rdvDraft.date} onChange={(e) => setRdvDraft({ ...rdvDraft, date: e.target.value })}
+              className={inputCls} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Début</label>
+              <input type="time" value={rdvDraft.start_time} onChange={(e) => setRdvDraft({ ...rdvDraft, start_time: e.target.value })}
+                className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Fin</label>
+              <input type="time" value={rdvDraft.end_time} onChange={(e) => setRdvDraft({ ...rdvDraft, end_time: e.target.value })}
+                className={inputCls} />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-[#6B6B6B] mb-1 block">Client</label>
+            <input value={rdvDraft.company_name} onChange={(e) => setRdvDraft({ ...rdvDraft, company_name: e.target.value })}
+              placeholder="Entreprise" className={inputCls} />
+          </div>
+        </div>
+
+        <div className="space-y-2 pt-1">
+          <button onClick={handleRdvAddToCalendar} disabled={rdvAdding || !rdvDraft.title || !rdvDraft.date}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+            style={{ background: '#0A0A0A' }}>
+            {rdvAdding
+              ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Ajout en cours…</>
+              : <><CalendarDays className="w-4 h-4" />Ajouter à Google Calendar</>}
+          </button>
+          <button onClick={handleRdvSkip}
+            className="w-full py-1.5 text-xs text-[#94A3B8] hover:text-[#64748B] transition-colors text-center">
+            Ignorer
+          </button>
+        </div>
       </div>
     )
   }
