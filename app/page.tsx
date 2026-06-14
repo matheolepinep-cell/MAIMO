@@ -2,23 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import Image from 'next/image'
-import { motion } from 'framer-motion'
-import { Mic, Search, Users, Sparkles, Smartphone, FileText, Check } from 'lucide-react'
+import { Check, ChevronDown, Menu, X } from 'lucide-react'
 import { AuthModal } from '@/components/AuthModal'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
-import { fadeInUp, staggerContainer } from '@/lib/animations'
 
 type ModalView = 'login' | 'register'
-
-const navyGradient = 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 60%, #1A1A1A 100%)'
-
-const serifItalic: React.CSSProperties = {
-  fontFamily: 'Georgia, serif',
-  fontStyle: 'italic',
-}
 
 // ── CountUp ────────────────────────────────────────────────────────────────
 function CountUp({ target, suffix = '' }: { target: number; suffix?: string }) {
@@ -29,21 +19,18 @@ function CountUp({ target, suffix = '' }: { target: number; suffix?: string }) {
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting || started.current) return
-        started.current = true
-        const steps = 30
-        const duration = 1200
-        let step = 0
-        const timer = setInterval(() => {
-          step++
-          setCount(Math.round((target * step) / steps))
-          if (step >= steps) clearInterval(timer)
-        }, duration / steps)
-      },
-      { threshold: 0.5 }
-    )
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || started.current) return
+      started.current = true
+      const steps = 30
+      const duration = 1200
+      let step = 0
+      const timer = setInterval(() => {
+        step++
+        setCount(Math.round((target * step) / steps))
+        if (step >= steps) clearInterval(timer)
+      }, duration / steps)
+    }, { threshold: 0.5 })
     observer.observe(el)
     return () => observer.disconnect()
   }, [target])
@@ -51,13 +38,30 @@ function CountUp({ target, suffix = '' }: { target: number; suffix?: string }) {
   return <span ref={ref}>{count}{suffix}</span>
 }
 
-// ── FeatureItem ────────────────────────────────────────────────────────────
-function FeatureItem({ text }: { text: string }) {
+// ── FAQ Item ───────────────────────────────────────────────────────────────
+function FaqItem({ question, answer }: { question: string; answer: string }) {
+  const [open, setOpen] = useState(false)
   return (
-    <li className="flex items-start gap-2.5">
-      <Check style={{ width: 14, height: 14, color: '#22C55E', flexShrink: 0, marginTop: 3 }} />
-      <span style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>{text}</span>
-    </li>
+    <div style={{ borderBottom: '1px solid #E5E5E5' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between py-5 text-left transition-colors"
+        style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 600, color: '#0A0A0A' }}>{question}</span>
+        <div className="shrink-0 ml-4 transition-transform duration-200" style={{ transform: open ? 'rotate(45deg)' : 'rotate(0)' }}>
+          <ChevronDown style={{ width: 20, height: 20, color: '#6B6B6B', transform: open ? 'rotate(180deg)' : 'rotate(0)' }} />
+        </div>
+      </button>
+      <div style={{
+        overflow: 'hidden',
+        maxHeight: open ? 300 : 0,
+        transition: 'max-height 0.3s ease',
+        paddingBottom: open ? 20 : 0,
+      }}>
+        <p style={{ fontSize: 15, color: '#6B6B6B', lineHeight: 1.7 }}>{answer}</p>
+      </div>
+    </div>
   )
 }
 
@@ -67,7 +71,7 @@ export default function LandingPage() {
   const router = useRouter()
   const [modalOpen, setModalOpen] = useState(false)
   const [modalView, setModalView] = useState<ModalView>('login')
-  const [scrolled, setScrolled] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly')
 
   // Early access form
@@ -97,12 +101,6 @@ export default function LandingPage() {
   }, [router])
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 10)
-    window.addEventListener('scroll', handler, { passive: true })
-    return () => window.removeEventListener('scroll', handler)
-  }, [])
-
-  useEffect(() => {
     const hash = window.location.hash.slice(1)
     if (!hash.includes('access_token')) return
     const params = new URLSearchParams(hash)
@@ -129,7 +127,6 @@ export default function LandingPage() {
     })
   }, [])
 
-  // SQL à exécuter dans Supabase pour créer la table early_access
   useEffect(() => {
     console.log(`-- Supabase SQL Editor:
 CREATE TABLE IF NOT EXISTS early_access (
@@ -193,43 +190,43 @@ CREATE TABLE IF NOT EXISTS early_access (
     setEarlyLoading(false)
   }
 
-  // ── Invite mode ──────────────────────────────────────────────────────────
+  // ── Invite mode ────────────────────────────────────────────────────────────
   if (inviteMode) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: '#F8F9FF' }}>
-        <nav className="flex items-center px-6 py-4 bg-white sticky top-0 z-40 border-b border-[#E5E7EB]">
+      <div className="min-h-screen" style={{ background: '#F5F5F5' }}>
+        <nav className="flex items-center px-6 py-4 bg-white sticky top-0 z-40" style={{ borderBottom: '1px solid #E5E5E5' }}>
           <Image src="/logo.png" alt="Maimoo" height={32} width={120} style={{ height: 32, width: 'auto' }} />
         </nav>
         <div className="flex items-center justify-center px-4 py-16">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-7" style={{ border: '1px solid #E5E5E5', boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
             <Image src="/logo.png" alt="Maimoo" height={28} width={100} style={{ height: 28, width: 'auto', marginBottom: 24 }} />
             {!inviteReady ? (
-              <p className="text-sm text-center py-4 text-[#6B7280]">{inviteError || 'Vérification du lien…'}</p>
+              <p className="text-sm text-center py-4" style={{ color: '#6B6B6B' }}>{inviteError || 'Vérification du lien…'}</p>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-[#0A0A0A] mb-1">Bienvenue sur Maimoo</h2>
-                <p className="text-sm text-[#6B7280] mb-5">Créez votre accès</p>
+                <h2 className="text-xl font-bold mb-1" style={{ color: '#0A0A0A' }}>Bienvenue sur Maimoo</h2>
+                <p className="text-sm mb-5" style={{ color: '#6B6B6B' }}>Créez votre accès</p>
                 <form onSubmit={handleInviteSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Prénom</label>
-                      <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0A0A0A]" placeholder="Jean" value={inviteFirstName} onChange={(e) => setInviteFirstName(e.target.value)} />
+                      <label className="block text-xs font-medium mb-1" style={{ color: '#0A0A0A' }}>Prénom</label>
+                      <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid #E5E5E5', color: '#0A0A0A' }} placeholder="Jean" value={inviteFirstName} onChange={(e) => setInviteFirstName(e.target.value)} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Nom</label>
-                      <input className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0A0A0A]" placeholder="Dupont" value={inviteLastName} onChange={(e) => setInviteLastName(e.target.value)} />
+                      <label className="block text-xs font-medium mb-1" style={{ color: '#0A0A0A' }}>Nom</label>
+                      <input className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid #E5E5E5', color: '#0A0A0A' }} placeholder="Dupont" value={inviteLastName} onChange={(e) => setInviteLastName(e.target.value)} />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Mot de passe</label>
-                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0A0A0A]" placeholder="••••••••" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} />
+                    <label className="block text-xs font-medium mb-1" style={{ color: '#0A0A0A' }}>Mot de passe</label>
+                    <input type="password" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid #E5E5E5', color: '#0A0A0A' }} placeholder="••••••••" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#1A1A2E] mb-1">Confirmer</label>
-                    <input type="password" className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0A0A0A]" placeholder="••••••••" value={inviteConfirm} onChange={(e) => setInviteConfirm(e.target.value)} />
+                    <label className="block text-xs font-medium mb-1" style={{ color: '#0A0A0A' }}>Confirmer</label>
+                    <input type="password" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={{ border: '1px solid #E5E5E5', color: '#0A0A0A' }} placeholder="••••••••" value={inviteConfirm} onChange={(e) => setInviteConfirm(e.target.value)} />
                   </div>
                   {inviteError && <FormMessage type="error" message={inviteError} />}
-                  <button type="submit" disabled={inviteLoading} className="w-full py-3 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60" style={{ background: navyGradient }}>
+                  <button type="submit" disabled={inviteLoading} className="w-full py-3 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60" style={{ background: '#0A0A0A' }}>
                     {inviteLoading ? 'Chargement…' : "Rejoindre l'espace"}
                   </button>
                 </form>
@@ -242,527 +239,481 @@ CREATE TABLE IF NOT EXISTS early_access (
   }
 
   // ── Landing page ──────────────────────────────────────────────────────────
+  const gridBg = {
+    backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+    backgroundSize: '40px 40px',
+  }
+  const gridBgDark = {
+    backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
+    backgroundSize: '40px 40px',
+  }
+
+  const PROBLEMS = [
+    {
+      num: '01',
+      title: "L'information se perd entre les réunions",
+      desc: "Vos commerciaux notent sur des bouts de papier, des mails, des notes vocales non classées. En 48h, tout est oublié.",
+    },
+    {
+      num: '02',
+      title: 'Le CRM reste vide',
+      desc: 'Saisir manuellement chaque interaction est trop long. Résultat : le CRM est incomplet, inutile pour le management.',
+    },
+    {
+      num: '03',
+      title: 'Impossible de chercher dans ses notes',
+      desc: 'Quand il faut retrouver une info avant un appel, personne ne sait où chercher. Chaque RDV repart de zéro.',
+    },
+  ]
+
+  const BENEFITS = [
+    {
+      title: 'Capturer en 30 secondes',
+      desc: "Dictez une note après un RDV. L'IA détecte le client, crée la fiche, classe automatiquement.",
+    },
+    {
+      title: 'Retrouver en 3 secondes',
+      desc: "Posez une question en langage naturel. L'IA cherche dans toutes vos notes et documents.",
+    },
+    {
+      title: 'Partager sans effort',
+      desc: "Toute l'équipe voit les informations clés. Plus de silos, plus de doublons, plus d'oublis.",
+    },
+  ]
+
+  const STEPS = [
+    { num: '1', title: 'Invitez votre équipe', desc: 'Créez un espace en 2 minutes, invitez vos commerciaux par email.' },
+    { num: '2', title: 'Importez vos clients', desc: 'CSV, Excel ou saisie manuelle — vos fiches clients sont prêtes en quelques secondes.' },
+    { num: '3', title: 'Commencez à noter', desc: "Vocal ou texte, depuis mobile ou desktop. L'IA fait le reste." },
+  ]
+
+  const TESTIMONIALS = [
+    { name: 'Sophie M.', role: 'Directrice commerciale', quote: "En 3 semaines, notre équipe a capturé 2x plus d'infos clients qu'en 6 mois avec l'ancien CRM." },
+    { name: 'Thomas L.', role: 'Commercial terrain', quote: 'Je dicte ma note en sortant du RDV. Le lendemain matin, tout est classé et partagé. Magique.' },
+    { name: 'Julie R.', role: 'Manager équipe vente', quote: "La recherche IA m'a sauvé la vie avant un appel difficile. J'ai retrouvé tous les historiques en 5 secondes." },
+  ]
+
+  const PLANS = [
+    {
+      name: 'Starter',
+      price: billing === 'monthly' ? 29 : 23,
+      desc: 'Pour les petites équipes qui démarrent',
+      features: ['3 utilisateurs', '500 notes / mois', 'Recherche IA', 'Import CSV', 'Support email'],
+      cta: 'Commencer',
+      highlight: false,
+    },
+    {
+      name: 'Pro',
+      price: billing === 'monthly' ? 79 : 63,
+      desc: 'Pour les équipes commerciales en croissance',
+      features: ['10 utilisateurs', 'Notes illimitées', 'Recherche IA avancée', 'Import documents (PDF, Word)', 'Espaces de travail', 'Support prioritaire'],
+      cta: 'Commencer',
+      highlight: true,
+    },
+    {
+      name: 'Enterprise',
+      price: null,
+      desc: 'Pour les grandes organisations',
+      features: ['Utilisateurs illimités', 'SSO / SAML', 'API dédiée', 'SLA garanti', 'Accompagnement onboarding', 'Support dédié'],
+      cta: 'Nous contacter',
+      highlight: false,
+    },
+  ]
+
+  const FAQS = [
+    { question: 'Maimoo remplace-t-il mon CRM ?', answer: "Non, Maimoo complète votre CRM. Il capture tout ce que le CRM ne retient pas : notes informelles, documents, impressions d'appels. Vos deux outils travaillent ensemble." },
+    { question: 'Combien de temps faut-il pour démarrer ?', answer: 'Moins de 5 minutes. Créez votre espace, invitez votre équipe, importez vos clients. Vous pouvez dicter votre première note dès le premier jour.' },
+    { question: 'Mes données sont-elles sécurisées ?', answer: 'Oui. Vos données sont hébergées en Europe (Frankfurt, Allemagne), chiffrées au repos et en transit, conformes au RGPD.' },
+    { question: 'Est-ce accessible sur mobile ?', answer: 'Maimoo est une PWA installable sur iPhone et Android. Elle fonctionne comme une vraie app native depuis votre écran d\'accueil.' },
+    { question: 'Puis-je importer mes clients existants ?', answer: "Oui. Importez un fichier Excel ou CSV, l'IA mappe automatiquement les colonnes et crée les fiches clients en quelques secondes." },
+  ]
+
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ position: 'relative', zIndex: 1, color: '#1A1A2E' }}>
-      {/* Fixed grid — stays put while content scrolls over */}
-      <div className="grid-background" aria-hidden="true" />
+    <div className="min-h-screen overflow-x-hidden" style={{ background: '#FFFFFF', color: '#0A0A0A' }}>
       <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} defaultView={modalView} />
 
-      {/* ── NAVBAR ─────────────────────────────────────────────────────────── */}
-      <nav
-        className="sticky top-0 z-50 bg-white border-b border-[#E5E7EB] transition-shadow duration-200"
-        style={scrolled ? { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' } : {}}
-      >
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Image src="/logo.png" alt="Maimoo" height={32} width={120} style={{ height: 32, width: 'auto' }} />
+      {/* ── NAVBAR pill ─────────────────────────────────────────────────────── */}
+      <div className="fixed top-4 left-1/2 z-[100]" style={{ transform: 'translateX(-50%)', width: 'min(92vw, 860px)' }}>
+        <nav className="flex items-center justify-between px-5 py-3 rounded-[40px] bg-white" style={{ boxShadow: '0 2px 20px rgba(0,0,0,0.08)', border: '1px solid #E5E5E5' }}>
+          <Image src="/logo.png" alt="Maimoo" height={28} width={104} style={{ height: 28, width: 'auto' }} />
+
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-[#6B7280] hover:text-[#0A0A0A] transition-colors">Fonctionnalités</a>
-            <a href="#pricing" className="text-sm text-[#6B7280] hover:text-[#0A0A0A] transition-colors">Tarifs</a>
-            <button onClick={openLogin} className="text-sm text-[#6B7280] hover:text-[#0A0A0A] transition-colors">
+            <a href="#features" className="text-sm transition-colors" style={{ color: '#6B6B6B' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#0A0A0A' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6B6B6B' }}>
+              Fonctionnalités
+            </a>
+            <a href="#pricing" className="text-sm transition-colors" style={{ color: '#6B6B6B' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#0A0A0A' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6B6B6B' }}>
+              Tarifs
+            </a>
+          </div>
+
+          <div className="hidden md:flex items-center gap-3">
+            <button onClick={openLogin} className="text-sm transition-colors" style={{ color: '#0A0A0A', background: 'none', border: 'none', cursor: 'pointer' }}>
               Se connecter
             </button>
+            <button onClick={openRegister} className="px-4 py-2 text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: '#0A0A0A', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
+              Commencer
+            </button>
+          </div>
+
+          <div className="flex md:hidden items-center gap-2">
+            <button onClick={openLogin} className="text-sm" style={{ color: '#6B6B6B', background: 'none', border: 'none', cursor: 'pointer' }}>Connexion</button>
             <button
-              onClick={openRegister}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
-              style={{ background: navyGradient }}
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
             >
+              {mobileMenuOpen ? <X style={{ width: 20, height: 20, color: '#0A0A0A' }} /> : <Menu style={{ width: 20, height: 20, color: '#0A0A0A' }} />}
+            </button>
+          </div>
+        </nav>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-2 rounded-2xl bg-white p-4 flex flex-col gap-3" style={{ border: '1px solid #E5E5E5', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}>
+            <a href="#features" className="text-sm py-2" style={{ color: '#0A0A0A' }} onClick={() => setMobileMenuOpen(false)}>Fonctionnalités</a>
+            <a href="#pricing" className="text-sm py-2" style={{ color: '#0A0A0A' }} onClick={() => setMobileMenuOpen(false)}>Tarifs</a>
+            <button onClick={() => { openRegister(); setMobileMenuOpen(false) }} className="w-full py-2.5 text-sm font-semibold text-white rounded-xl" style={{ background: '#0A0A0A', border: 'none', cursor: 'pointer' }}>
               Commencer gratuitement
             </button>
           </div>
-          <div className="flex md:hidden items-center gap-3">
-            <button onClick={openLogin} className="text-sm text-[#6B7280]">Connexion</button>
-            <button onClick={openRegister} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: navyGradient }}>
-              Démarrer
-            </button>
-          </div>
-        </div>
-      </nav>
+        )}
+      </div>
 
-      {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <section className="relative" style={{ zIndex: 1 }}>
-        <div className="max-w-4xl mx-auto px-6 pt-[120px] pb-[100px] text-center">
-          <motion.div
-            variants={fadeInUp} initial="hidden" animate="visible"
-            className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium mb-8"
-            style={{ backgroundColor: '#F5F5F5', color: '#0A0A0A' }}
-          >
+      {/* ── HERO ────────────────────────────────────────────────────────────── */}
+      <section style={{ background: '#0A0A0A', paddingTop: 160, paddingBottom: 100, position: 'relative', overflow: 'hidden' }}>
+        <div className="absolute inset-0" style={gridBg} aria-hidden="true" />
+        <div className="relative max-w-4xl mx-auto px-6 text-center">
+          <p className="text-sm font-medium mb-6 inline-block px-4 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>
             Knowledge management commercial
-          </motion.div>
-
-          <motion.h1
-            variants={fadeInUp} initial="hidden" animate="visible" transition={{ delay: 0.1 }}
-            className="font-black leading-tight"
-            style={{ fontSize: 'clamp(36px, 6vw, 64px)', color: '#0A0A0A', letterSpacing: '-0.02em', maxWidth: 700, margin: '0 auto 24px' }}
-          >
-            La mémoire de votre équipe commerciale
-          </motion.h1>
-
-          <motion.p
-            variants={fadeInUp} initial="hidden" animate="visible" transition={{ delay: 0.2 }}
-            style={{ fontSize: 20, color: '#6B7280', lineHeight: 1.7, maxWidth: 560, margin: '0 auto 40px' }}
-          >
-            Capturez chaque information client en 30 secondes. Retrouvez tout en 3 secondes. Depuis votre téléphone, partout.
-          </motion.p>
-
-          <motion.div
-            variants={fadeInUp} initial="hidden" animate="visible" transition={{ delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
-          >
+          </p>
+          <h1 className="font-black leading-none mb-6" style={{
+            fontSize: 'clamp(40px, 7vw, 80px)',
+            color: 'white',
+            letterSpacing: '-0.03em',
+            lineHeight: 1.05,
+          }}>
+            La mémoire de votre<br />équipe commerciale
+          </h1>
+          <p className="mb-10 mx-auto" style={{ fontSize: 18, color: 'rgba(255,255,255,0.55)', maxWidth: 520, lineHeight: 1.6 }}>
+            Capturez chaque information client en 30 secondes. Retrouvez tout en 3 secondes. Notes vocales, recherche IA, partage équipe.
+          </p>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
             <button
               onClick={openRegister}
-              className="w-full sm:w-auto px-7 py-3.5 rounded-lg text-base font-semibold text-white transition-transform duration-150 hover:scale-[1.02]"
-              style={{ background: navyGradient }}
+              className="font-semibold transition-all hover:opacity-90"
+              style={{ background: 'white', color: '#0A0A0A', borderRadius: 24, padding: '14px 28px', fontSize: 15, border: 'none', cursor: 'pointer' }}
             >
               Commencer gratuitement
             </button>
             <button
               onClick={openLogin}
-              className="w-full sm:w-auto px-7 py-3.5 rounded-lg text-base font-semibold transition-transform duration-150 hover:scale-[1.02] border"
-              style={{ borderColor: '#0A0A0A', color: '#0A0A0A' }}
+              className="font-medium transition-all hover:opacity-80"
+              style={{ background: 'transparent', color: 'white', borderRadius: 24, padding: '14px 28px', fontSize: 15, border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}
             >
               Se connecter
             </button>
-          </motion.div>
+          </div>
 
-          {/* ── AI Conversation Mockup ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.6, ease: [0.0, 0.0, 0.2, 1.0], delay: 0.4 }}
-            className="mx-auto text-left"
-            style={{ maxWidth: 860, borderRadius: 20, background: navyGradient, boxShadow: '0 32px 80px rgba(0,0,0,0.25)', overflow: 'hidden' }}
-          >
-            <div className="px-5 py-3.5 border-b border-white/10 flex items-center gap-3">
-              <div className="flex gap-1.5">
-                <span className="w-[10px] h-[10px] rounded-full" style={{ backgroundColor: '#FF5F57' }} />
-                <span className="w-[10px] h-[10px] rounded-full" style={{ backgroundColor: '#FEBC2E' }} />
-                <span className="w-[10px] h-[10px] rounded-full" style={{ backgroundColor: '#28C840' }} />
-              </div>
-              <span className="flex-1 text-center text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>Maimoo — Recherche IA</span>
+          {/* App mockup */}
+          <div className="mt-16 mx-auto" style={{ maxWidth: 860, borderRadius: 24, overflow: 'hidden', background: '#1A1A1A', boxShadow: '0 40px 80px rgba(0,0,0,0.4)', border: '1px solid #2A2A2A' }}>
+            <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: '1px solid #2A2A2A' }}>
+              <span className="w-3 h-3 rounded-full" style={{ background: '#DC2626' }} />
+              <span className="w-3 h-3 rounded-full" style={{ background: '#D97706' }} />
+              <span className="w-3 h-3 rounded-full" style={{ background: '#16A34A' }} />
+              <span className="ml-4 text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>Maimoo — Recherche IA</span>
             </div>
-            <div className="p-7 space-y-5">
-              <div className="flex justify-end">
-                <div className="max-w-[85%] px-4 py-3 text-white text-[13px] leading-relaxed" style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '12px 12px 4px 12px' }}>
-                  Qu&apos;est-ce que je dois savoir avant mon RDV avec Schneider demain ?
+            <div className="px-8 py-10">
+              <div className="flex gap-3 mb-6">
+                <div className="w-8 h-8 rounded-full shrink-0" style={{ background: '#2A2A2A' }} />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 rounded" style={{ background: '#2A2A2A', width: '70%' }} />
+                  <div className="h-3 rounded" style={{ background: '#2A2A2A', width: '50%' }} />
+                </div>
+              </div>
+              <div className="flex justify-end mb-6">
+                <div className="px-4 py-3 rounded-2xl text-sm" style={{ background: '#0A0A0A', color: 'white', maxWidth: '60%', border: '1px solid #2A2A2A' }}>
+                  Résume les dernières notes sur TechCorp
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(76,110,245,0.4)' }}>
-                    <Sparkles style={{ width: 12, height: 12, color: '#9FB4FF' }} />
-                  </div>
-                  <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>Maimoo IA</span>
-                </div>
-                <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                  Votre dernier échange avec Marc Dupont (Schneider) date du 12 juin. Il attendait votre proposition commerciale avant fin juin. Le budget validé est de 45k€ annuel. Ils ont mentionné une contrainte de déploiement avant septembre.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3 pt-1">
-                {[
-                  { label: 'Note du 12/06', snippet: 'Échange avec Marc Dupont…' },
-                  { label: 'Proposition commerciale', snippet: 'Budget 45k€ annuel validé…' },
-                  { label: 'RDV du 5 mai', snippet: 'Contrainte déploiement sept.' },
-                ].map(({ label, snippet }, i) => (
-                  <motion.div
-                    key={label}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.9 + i * 0.1, duration: 0.35 }}
-                    className="flex-1 px-3.5 py-2.5 bg-white rounded-[10px] flex flex-col gap-1"
-                    style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.2)', transform: 'translateY(-4px)' }}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <FileText style={{ width: 12, height: 12, color: '#0A0A0A', flexShrink: 0 }} />
-                      <span className="text-[11px] font-bold text-[#0A0A0A] truncate">{label}</span>
-                    </div>
-                    <span className="text-[10px] text-[#6B7280] truncate">{snippet}</span>
-                  </motion.div>
-                ))}
+                <div className="h-3 rounded" style={{ background: '#2A2A2A', width: '90%' }} />
+                <div className="h-3 rounded" style={{ background: '#2A2A2A', width: '75%' }} />
+                <div className="h-3 rounded" style={{ background: '#2A2A2A', width: '82%' }} />
+                <div className="h-3 rounded" style={{ background: '#2A2A2A', width: '60%' }} />
               </div>
             </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── CHIFFRES CLÉS ──────────────────────────────────────────────────── */}
-      <section className="relative border-t border-b border-[#E5E7EB] py-10" style={{ zIndex: 1 }}>
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3">
-            {[
-              { value: <CountUp target={30} suffix="s" />, label: 'Pour capturer un appel', animated: true },
-              { value: <CountUp target={3} suffix="s" />, label: 'Pour retrouver une info', animated: true },
-              { value: '100%', label: 'Accessible sur mobile', animated: false },
-            ].map(({ value, label, animated }, i) => (
-              <motion.div
-                key={label}
-                variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-                className="flex flex-col items-center justify-center text-center py-6 relative"
-              >
-                {i > 0 && <span className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-px bg-[#E5E7EB]" style={{ height: 48 }} />}
-                <span className="font-extrabold block mb-1" style={{ fontSize: 48, lineHeight: 1, color: '#0A0A0A' }}>
-                  {animated ? value : (
-                    <motion.span variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>{value}</motion.span>
-                  )}
-                </span>
-                <span style={{ fontSize: 13, color: '#6B7280' }}>{label}</span>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
 
-      {/* ── PROBLÈMES ──────────────────────────────────────────────────────── */}
-      <section className="relative py-[100px]" style={{ zIndex: 1 }}>
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
-              Vous reconnaissez-vous ?
-            </motion.p>
-            <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
-              Ce que vivent vos équipes au quotidien
-            </motion.h2>
-          </div>
-          <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { num: '01', title: "L'information se perd", desc: "Après un appel ou une visite, les infos finissent dans un carnet, un email ou nulle part. Trois semaines plus tard, plus personne ne se souvient de ce qui a été dit." },
-              { num: '02', title: 'Le savoir reste dans une seule tête', desc: "Quand un commercial part en vacances, tombe malade ou quitte l'entreprise, toute la relation client part avec lui." },
-              { num: '03', title: 'Le CRM ne capture pas tout', desc: "Il est fait pour les données formelles, pas pour les infos du quotidien. Une remarque en réunion, un document reçu, une impression après un appel : tout disparait. Et sur le terrain, personne n'ouvre son CRM entre deux rendez-vous." },
-            ].map(({ num, title, desc }) => (
-              <motion.div key={num} variants={fadeInUp} className="bg-white border border-[#E5E7EB] rounded-xl p-7">
-                <div className="font-black mb-5 select-none" style={{ fontSize: 48, color: '#F5F5F5', lineHeight: 1 }}>{num}</div>
-                <h3 className="font-bold text-[#0A0A0A] mb-3" style={{ fontSize: 18 }}>{title}</h3>
-                <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>{desc}</p>
-              </motion.div>
-            ))}
-          </motion.div>
+      {/* ── CHIFFRES CLÉS ───────────────────────────────────────────────────── */}
+      <section style={{ background: '#F5F5F5', padding: '64px 24px' }}>
+        <div className="max-w-3xl mx-auto grid grid-cols-3 gap-8 text-center">
+          {[
+            { value: 30, suffix: 's', label: 'pour capturer une note' },
+            { value: 3, suffix: 's', label: 'pour retrouver une info' },
+            { value: 100, suffix: '%', label: 'des informations partagées' },
+          ].map(({ value, suffix, label }) => (
+            <div key={label}>
+              <div className="font-black mb-2" style={{ fontSize: 'clamp(36px,5vw,56px)', color: '#0A0A0A', lineHeight: 1 }}>
+                <CountUp target={value} suffix={suffix} />
+              </div>
+              <p className="text-sm" style={{ color: '#6B6B6B' }}>{label}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ── BÉNÉFICES ──────────────────────────────────────────────────────── */}
-      <section id="features" className="relative py-[100px]" style={{ zIndex: 1, backgroundColor: '#F8F9FF' }}>
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
-              Avec Maimoo
-            </motion.p>
-            <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
-              Tout reste. Tout se retrouve. Partout.
-            </motion.h2>
-          </div>
-          <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { stat: '30s', title: 'Après un appel', desc: "Note vocale, l'IA structure et classe automatiquement. Aucune saisie manuelle, depuis votre téléphone, où que vous soyez.", Icon: Mic },
-              { stat: '3s', title: "Pour retrouver n'importe quelle info", desc: 'Une question en langage naturel, une réponse immédiate. Documents, notes informelles, comptes-rendus : tout est retrouvable instantanément.', Icon: Search },
-              { stat: '100%', title: 'Accessible depuis votre téléphone', desc: "Maimoo ne remplace pas votre CRM, il le complète. Il capture tout ce que le CRM ne retient pas, et le rend accessible à toute l'équipe, en permanence.", Icon: Smartphone },
-            ].map(({ stat, title, desc, Icon }) => (
-              <motion.div key={stat} variants={fadeInUp} className="bg-white flex flex-col p-9"
-                style={{ border: '1.5px solid #E5E7EB', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-                <div className="font-black select-none mb-4 leading-none" style={{ fontSize: 80, color: '#F5F5F5', lineHeight: 1 }}>{stat}</div>
-                <Icon style={{ width: 28, height: 28, color: '#0A0A0A', marginBottom: 16 }} />
-                <h3 className="font-bold mb-3" style={{ fontSize: 18, color: '#0A0A0A' }}>{title}</h3>
-                <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>{desc}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── COMMENT ÇA MARCHE ──────────────────────────────────────────────── */}
-      <section id="how" className="relative py-[100px]" style={{ zIndex: 1 }}>
-        <div className="max-w-5xl mx-auto px-6">
+      {/* ── PROBLÈMES ───────────────────────────────────────────────────────── */}
+      <section id="features" style={{ background: '#FFFFFF', padding: '100px 24px', position: 'relative' }}>
+        <div className="absolute inset-0" style={gridBgDark} aria-hidden="true" />
+        <div className="relative max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
-              En 3 étapes
-            </motion.p>
-            <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
-              Simple comme un appel téléphonique
-            </motion.h2>
+            <h2 className="font-black mb-4" style={{ fontSize: 'clamp(28px,4vw,56px)', color: '#0A0A0A', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              Vos commerciaux perdent<br />du temps chaque jour
+            </h2>
+            <p style={{ fontSize: 17, color: '#6B6B6B', maxWidth: 480, margin: '0 auto' }}>
+              Trois problèmes qui freinent chaque équipe commerciale terrain.
+            </p>
           </div>
-          <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }} className="relative">
-            <div className="hidden md:block absolute z-0 pointer-events-none"
-              style={{ top: 24, left: 'calc(100% / 6)', right: 'calc(100% / 6)', borderTop: '2px dashed #E5E7EB' }} />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-              {[
-                { num: '01', title: 'Capturez en 30 secondes', text: "Après un appel, dictez une note vocale. L'IA transcrit, structure et classe automatiquement sous le bon client.", Icon: Mic },
-                { num: '02', title: "L'IA organise tout", text: "Vos notes, documents et informations sont indexés et rendus accessibles à toute votre équipe instantanément.", Icon: Sparkles },
-                { num: '03', title: 'Retrouvez en 3 secondes', text: "Posez une question en langage naturel. Maimoo retrouve la bonne information parmi toutes vos notes et documents.", Icon: Search },
-              ].map(({ num, title, text, Icon }) => (
-                <motion.div key={num} variants={fadeInUp} className="flex flex-col items-center text-center relative z-10">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base mb-6 shrink-0" style={{ background: navyGradient }}>{num}</div>
-                  <h3 className="font-bold mb-3" style={{ fontSize: 18, color: '#0A0A0A' }}>{title}</h3>
-                  <p className="mb-5" style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>{text}</p>
-                  <Icon style={{ width: 24, height: 24, color: '#0A0A0A' }} />
-                </motion.div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {PROBLEMS.map((p) => (
+              <div key={p.num} className="rounded-2xl bg-white p-8" style={{ border: '1px solid #E5E5E5', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <p className="font-black mb-4" style={{ fontSize: 72, color: '#F5F5F5', lineHeight: 1 }}>{p.num}</p>
+                <h3 className="font-bold mb-3" style={{ fontSize: 17, color: '#0A0A0A' }}>{p.title}</h3>
+                <p style={{ fontSize: 14, color: '#6B6B6B', lineHeight: 1.6 }}>{p.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── BÉNÉFICES ───────────────────────────────────────────────────────── */}
+      <section style={{ background: '#0A0A0A', padding: '100px 24px', position: 'relative' }}>
+        <div className="absolute inset-0" style={gridBg} aria-hidden="true" />
+        <div className="relative max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="font-black mb-4" style={{ fontSize: 'clamp(28px,4vw,56px)', color: 'white', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              La solution qui s'adapte<br />à votre rythme
+            </h2>
+            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.55)', maxWidth: 480, margin: '0 auto' }}>
+              Pas de formation longue, pas de processus à réinventer.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {BENEFITS.map((b) => (
+              <div key={b.title} className="rounded-2xl p-8" style={{ background: '#1A1A1A', border: '1px solid #2A2A2A' }}>
+                <h3 className="font-bold mb-3" style={{ fontSize: 17, color: 'white' }}>{b.title}</h3>
+                <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>{b.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── COMMENT ÇA MARCHE ───────────────────────────────────────────────── */}
+      <section style={{ background: '#FFFFFF', padding: '100px 24px', position: 'relative' }}>
+        <div className="absolute inset-0" style={gridBgDark} aria-hidden="true" />
+        <div className="relative max-w-3xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="font-black mb-4" style={{ fontSize: 'clamp(28px,4vw,56px)', color: '#0A0A0A', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              Opérationnel en 5 minutes
+            </h2>
+          </div>
+          <div className="space-y-8">
+            {STEPS.map((s) => (
+              <div key={s.num} className="flex items-start gap-6">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-black text-white text-lg" style={{ background: '#0A0A0A' }}>
+                  {s.num}
+                </div>
+                <div className="pt-2">
+                  <h3 className="font-bold mb-1" style={{ fontSize: 18, color: '#0A0A0A' }}>{s.title}</h3>
+                  <p style={{ fontSize: 15, color: '#6B6B6B', lineHeight: 1.6 }}>{s.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TÉMOIGNAGES ─────────────────────────────────────────────────────── */}
+      <section style={{ background: '#F5F5F5', padding: '100px 24px' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="font-black mb-4" style={{ fontSize: 'clamp(28px,4vw,48px)', color: '#0A0A0A', letterSpacing: '-0.02em' }}>
+              Ce qu'en disent nos utilisateurs
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {TESTIMONIALS.map((t) => (
+              <div key={t.name} className="bg-white rounded-2xl p-7" style={{ border: '1px solid #E5E5E5', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <p className="mb-6" style={{ fontSize: 15, color: '#0A0A0A', lineHeight: 1.7 }}>"{t.quote}"</p>
+                <div>
+                  <p className="font-semibold" style={{ color: '#0A0A0A', fontSize: 14 }}>{t.name}</p>
+                  <p style={{ fontSize: 13, color: '#9B9B9B' }}>{t.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRICING ─────────────────────────────────────────────────────────── */}
+      <section id="pricing" style={{ background: '#FFFFFF', padding: '100px 24px', position: 'relative' }}>
+        <div className="absolute inset-0" style={gridBgDark} aria-hidden="true" />
+        <div className="relative max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="font-black mb-4" style={{ fontSize: 'clamp(28px,4vw,48px)', color: '#0A0A0A', letterSpacing: '-0.02em' }}>
+              Des tarifs simples et transparents
+            </h2>
+            <div className="inline-flex items-center rounded-full p-1 mt-4" style={{ background: '#F5F5F5', border: '1px solid #E5E5E5' }}>
+              {(['monthly', 'annual'] as const).map((b) => (
+                <button key={b} onClick={() => setBilling(b)}
+                  className="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
+                  style={billing === b ? { background: '#0A0A0A', color: 'white', border: 'none', cursor: 'pointer' } : { background: 'transparent', color: '#6B6B6B', border: 'none', cursor: 'pointer' }}>
+                  {b === 'monthly' ? 'Mensuel' : 'Annuel −20%'}
+                </button>
               ))}
             </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── TÉMOIGNAGES ────────────────────────────────────────────────────── */}
-      <section className="relative py-[100px]" style={{ zIndex: 1, backgroundColor: '#F8F9FF' }}>
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
-              Ils nous font confiance
-            </motion.p>
-            <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
-              Des équipes qui n'oublient plus rien
-            </motion.h2>
           </div>
-          <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { quote: "Avant Maimoo, chaque départ de commercial était une catastrophe. Aujourd'hui toute la relation client reste dans l'équipe.", name: 'Sophie M.', role: 'Directrice Commerciale, PME industrielle', initials: 'SM' },
-              { quote: "Je dicte mes notes en sortant du rendez-vous. En 30 secondes c'est classé, structuré, accessible à toute l'équipe.", name: 'Thomas R.', role: 'Commercial terrain, secteur BTP', initials: 'TR' },
-              { quote: "Notre CRM on l'adore mais il ne capturait pas les infos informelles. Maimoo comble exactement ce manque.", name: 'Pierre L.', role: 'Directeur des ventes, distribution', initials: 'PL' },
-            ].map(({ quote, name, role, initials }) => (
-              <motion.div key={name} variants={fadeInUp} className="bg-white border border-[#E5E7EB] rounded-xl p-7 flex flex-col">
-                <div className="font-black mb-4 select-none leading-none" style={{ fontSize: 48, color: '#F5F5F5' }}>&ldquo;</div>
-                <p className="flex-1 text-[#1A1A2E] mb-6" style={{ fontSize: 15, lineHeight: 1.7, fontStyle: 'italic' }}>{quote}</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: navyGradient }}>{initials}</div>
-                  <div>
-                    <div className="text-sm font-semibold text-[#1A1A2E]">{name}</div>
-                    <div className="text-xs text-[#6B7280]">{role}</div>
-                  </div>
+          <div className="grid md:grid-cols-3 gap-6 items-start">
+            {PLANS.map((plan) => (
+              <div key={plan.name} className="rounded-2xl p-8 relative" style={{
+                background: plan.highlight ? '#0A0A0A' : 'white',
+                border: `1px solid ${plan.highlight ? '#0A0A0A' : '#E5E5E5'}`,
+                boxShadow: plan.highlight ? '0 16px 48px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)',
+              }}>
+                {plan.highlight && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-bold" style={{ background: '#0A0A0A', color: 'white', border: '2px solid white' }}>
+                    Populaire
+                  </span>
+                )}
+                <h3 className="font-bold text-lg mb-1" style={{ color: plan.highlight ? 'white' : '#0A0A0A' }}>{plan.name}</h3>
+                <p className="text-sm mb-5" style={{ color: plan.highlight ? 'rgba(255,255,255,0.55)' : '#6B6B6B' }}>{plan.desc}</p>
+                <div className="mb-6">
+                  {plan.price !== null ? (
+                    <>
+                      <span className="font-black" style={{ fontSize: 40, color: plan.highlight ? 'white' : '#0A0A0A' }}>{plan.price}€</span>
+                      <span className="text-sm ml-1" style={{ color: plan.highlight ? 'rgba(255,255,255,0.4)' : '#9B9B9B' }}>/mois</span>
+                    </>
+                  ) : (
+                    <span className="font-bold text-2xl" style={{ color: plan.highlight ? 'white' : '#0A0A0A' }}>Sur devis</span>
+                  )}
                 </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── PRICING ────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="relative py-[100px]" style={{ zIndex: 1 }}>
-        <div className="max-w-5xl mx-auto px-6">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <motion.p variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="text-[#0A0A0A] text-[13px] tracking-[0.1em] uppercase mb-4" style={serifItalic}>
-              Tarifs
-            </motion.p>
-            <motion.h2 variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              className="font-bold" style={{ fontSize: 40, color: '#0A0A0A', letterSpacing: '-0.01em' }}>
-              Simple. Transparent. Sans surprise.
-            </motion.h2>
-          </div>
-
-          {/* Toggle mensuel / annuel */}
-          <motion.div
-            variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="flex items-center justify-center mb-14"
-          >
-            <div className="flex items-center bg-[#F8F9FF] border border-[#E5E7EB] rounded-xl p-1 gap-1">
-              <button
-                onClick={() => setBilling('monthly')}
-                className="px-5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
-                style={billing === 'monthly'
-                  ? { background: '#fff', color: '#0A0A0A', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-                  : { color: '#6B7280' }}
-              >
-                Mensuel
-              </button>
-              <button
-                onClick={() => setBilling('annual')}
-                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
-                style={billing === 'annual'
-                  ? { background: '#fff', color: '#0A0A0A', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-                  : { color: '#6B7280' }}
-              >
-                Annuel
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: '#F0FDF4', color: '#22C55E' }}>-20%</span>
-              </button>
-            </div>
-          </motion.div>
-
-          {/* Cards */}
-          <motion.div
-            variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch"
-          >
-            {/* ── SOLO ── */}
-            <motion.div
-              variants={fadeInUp}
-              className="bg-white flex flex-col"
-              style={{ border: '1px solid #E5E7EB', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
-            >
-              <div className="mb-6">
-                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#0A0A0A' }}>Solo</h3>
-                <p style={{ fontSize: 14, color: '#6B7280' }}>Pour le commercial indépendant</p>
-              </div>
-              <div className="mb-6">
-                <motion.span key={`solo-${billing}`} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}
-                  className="font-black" style={{ fontSize: 40, color: '#0A0A0A', lineHeight: 1 }}>
-                  {billing === 'monthly' ? '19€' : '15€'}
-                </motion.span>
-                <span className="ml-2" style={{ fontSize: 13, color: '#6B7280' }}>
-                  {billing === 'monthly' ? '/mois' : '/mois, facturé annuellement'}
-                </span>
-              </div>
-              <hr style={{ borderColor: '#E5E7EB', marginBottom: 24 }} />
-              <ul className="space-y-3 flex-1 mb-8">
-                {['1 utilisateur', '1 espace', 'Portefeuille illimité', 'Notes texte et vocales illimitées', 'Recherche IA illimitée', '10 imports de documents par mois', "Import Excel jusqu'à 200 lignes par fichier", '5 Go de stockage', 'Support email'].map(f => <FeatureItem key={f} text={f} />)}
-              </ul>
-              <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
-                style={{ height: 44, borderRadius: 8, border: '1.5px solid #0A0A0A', color: '#0A0A0A', fontSize: 14, marginTop: 'auto' }}>
-                Commencer
-              </button>
-            </motion.div>
-
-            {/* ── TEAM ── */}
-            <motion.div
-              variants={fadeInUp}
-              className="bg-white flex flex-col relative"
-              style={{ border: '1px solid #E5E7EB', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
-            >
-              <span className="absolute top-4 right-4 text-white text-[11px] font-semibold px-3 py-1"
-                style={{ background: '#0A0A0A', borderRadius: 20 }}>
-                Populaire
-              </span>
-              <div className="mb-6">
-                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#0A0A0A' }}>Team</h3>
-                <p style={{ fontSize: 14, color: '#6B7280' }}>Pour les équipes commerciales</p>
-              </div>
-              <div className="mb-6">
-                <motion.span key={`team-${billing}`} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}
-                  className="font-black" style={{ fontSize: 40, color: '#0A0A0A', lineHeight: 1 }}>
-                  {billing === 'monthly' ? '39€' : '31€'}
-                </motion.span>
-                <span className="ml-2" style={{ fontSize: 13, color: '#6B7280' }}>
-                  {billing === 'monthly' ? '/utilisateur/mois' : '/utilisateur/mois, facturé annuellement'}
-                </span>
-              </div>
-              <hr style={{ borderColor: '#E5E7EB', marginBottom: 24 }} />
-              <ul className="space-y-3 flex-1 mb-8">
-                {["Jusqu'à 25 utilisateurs", '3 espaces internes', 'Tout Solo inclus', 'Portefeuille partagé (perso + global)', 'Messagerie interne temps réel', "Notifications et activité équipe", 'Carte clients interactive', 'Détection de conflits IA', '50 imports de documents par mois par espace', "Import Excel illimité jusqu'à 1000 lignes", '50 Go de stockage', 'Support prioritaire'].map(f => <FeatureItem key={f} text={f} />)}
-              </ul>
-              <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
-                style={{ height: 44, borderRadius: 8, border: '1.5px solid #0A0A0A', color: '#0A0A0A', fontSize: 14, marginTop: 'auto' }}>
-                Commencer
-              </button>
-            </motion.div>
-
-            {/* ── BUSINESS ── */}
-            <motion.div
-              variants={fadeInUp}
-              className="bg-white flex flex-col"
-              style={{ border: '1px solid #E5E7EB', borderRadius: 16, padding: 36, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
-            >
-              <div className="mb-6">
-                <h3 className="font-bold mb-1" style={{ fontSize: 20, color: '#0A0A0A' }}>Business</h3>
-                <p style={{ fontSize: 14, color: '#6B7280' }}>Pour les organisations multi-entités</p>
-              </div>
-              <div className="mb-6">
-                <motion.span key={`biz-${billing}`} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}
-                  className="font-black" style={{ fontSize: 40, color: '#0A0A0A', lineHeight: 1 }}>
-                  {billing === 'monthly' ? '59€' : '47€'}
-                </motion.span>
-                <span className="ml-2" style={{ fontSize: 13, color: '#6B7280' }}>
-                  {billing === 'monthly' ? '/utilisateur/mois' : '/utilisateur/mois, facturé annuellement'}
-                </span>
-              </div>
-              <hr style={{ borderColor: '#E5E7EB', marginBottom: 24 }} />
-              <ul className="space-y-3 flex-1 mb-8">
-                {['Utilisateurs illimités', '5 espaces internes isolés', 'Tout Team inclus', 'Super Admin tous accès', 'Imports de documents illimités', 'Import Excel illimité sans limite de lignes', 'Fiche entreprise IA personnalisée', "Statistiques et rapports d'activité", 'Stockage illimité', 'Intégrations CRM (à venir)', "Support dédié + session d'onboarding"].map(f => <FeatureItem key={f} text={f} />)}
-              </ul>
-              <button onClick={openRegister} className="w-full font-semibold transition-all hover:opacity-80"
-                style={{ height: 44, borderRadius: 8, border: '1.5px solid #0A0A0A', color: '#0A0A0A', fontSize: 14, marginTop: 'auto' }}>
-                Commencer
-              </button>
-            </motion.div>
-          </motion.div>
-
-          {/* ── Accès anticipé ── */}
-          <motion.div
-            variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="mx-auto text-center mt-16"
-            style={{ maxWidth: 600, backgroundColor: '#F8F9FF', border: '1px solid #E5E7EB', borderRadius: 16, padding: 40 }}
-          >
-            <span className="inline-block text-white text-[11px] font-semibold px-3 py-1 mb-5"
-              style={{ background: navyGradient, borderRadius: 20 }}>
-              ACCÈS ANTICIPÉ
-            </span>
-            <h3 className="font-bold mb-3" style={{ fontSize: 24, color: '#0A0A0A' }}>Testez Maimoo gratuitement</h3>
-            <p className="mb-7" style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.7 }}>
-              Nous sélectionnons un nombre limité d'équipes pour accéder à Maimoo en avant-première. Laissez votre email, nous reviendrons vers vous sous 48h.
-            </p>
-            {earlyDone ? (
-              <p className="font-medium" style={{ color: '#22C55E', fontSize: 15 }}>
-                Demande envoyée. Nous reviendrons vers vous sous 48h.
-              </p>
-            ) : (
-              <form onSubmit={handleEarlyAccess} className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="email"
-                  onInvalid={(e) => e.preventDefault()}
-                  placeholder="votre@email.com"
-                  value={earlyEmail}
-                  onChange={(e) => setEarlyEmail(e.target.value)}
-                  className="flex-1 focus:outline-none focus:border-[#0A0A0A]"
-                  style={{ border: '1px solid #E5E7EB', borderRadius: 8, padding: '12px 16px', fontSize: 14, backgroundColor: '#fff' }}
-                />
-                <button
-                  type="submit"
-                  disabled={earlyLoading}
-                  className="text-white font-semibold whitespace-nowrap transition-all hover:opacity-90 disabled:opacity-60"
-                  style={{ background: navyGradient, borderRadius: 8, padding: '12px 20px', fontSize: 14 }}
-                >
-                  {earlyLoading ? 'Envoi…' : "Demander l'accès"}
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-center gap-3">
+                      <Check style={{ width: 14, height: 14, color: plan.highlight ? 'rgba(255,255,255,0.7)' : '#16A34A', flexShrink: 0 }} />
+                      <span style={{ fontSize: 14, color: plan.highlight ? 'rgba(255,255,255,0.8)' : '#0A0A0A' }}>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={openRegister}
+                  className="w-full py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+                  style={plan.highlight
+                    ? { background: 'white', color: '#0A0A0A', border: 'none', cursor: 'pointer' }
+                    : { background: '#0A0A0A', color: 'white', border: 'none', cursor: 'pointer' }}>
+                  {plan.cta}
                 </button>
-              </form>
-            )}
-            {earlyError && <div className="mt-3"><FormMessage type="error" message={earlyError} /></div>}
-          </motion.div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ── CTA FINAL ──────────────────────────────────────────────────────── */}
-      <section className="relative py-[100px] text-center" style={{ zIndex: 1, background: navyGradient }}>
-        <div className="max-w-3xl mx-auto px-6">
-          <motion.h2
-            variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="font-extrabold text-white mb-6"
-            style={{ fontSize: 'clamp(28px, 4vw, 48px)', letterSpacing: '-0.02em' }}
-          >
-            Prêt à ne plus jamais perdre une information client ?
-          </motion.h2>
-          <motion.p
-            variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="mb-10" style={{ fontSize: 18, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7 }}
-          >
-            Créez votre espace gratuitement en 2 minutes.
-          </motion.p>
-          <motion.div variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-            <button onClick={openRegister} className="px-8 py-4 rounded-lg text-base font-bold bg-white transition-transform duration-150 hover:scale-[1.02]" style={{ color: '#0A0A0A' }}>
-              Commencer gratuitement
-            </button>
-          </motion.div>
+      {/* ── ACCÈS ANTICIPÉ ──────────────────────────────────────────────────── */}
+      <section style={{ background: '#0A0A0A', padding: '100px 24px', position: 'relative' }}>
+        <div className="absolute inset-0" style={gridBg} aria-hidden="true" />
+        <div className="relative max-w-2xl mx-auto text-center">
+          <h2 className="font-black mb-4" style={{ fontSize: 'clamp(28px,4vw,48px)', color: 'white', letterSpacing: '-0.02em' }}>
+            Réservez votre accès anticipé
+          </h2>
+          <p className="mb-8" style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>
+            Soyez parmi les premiers à essayer Maimoo. Accès prioritaire, prix fondateur.
+          </p>
+          {earlyDone ? (
+            <div className="flex items-center justify-center gap-3 py-4">
+              <Check style={{ width: 20, height: 20, color: '#16A34A' }} />
+              <p style={{ color: 'white', fontSize: 16 }}>Vous êtes sur la liste ! On vous contacte très vite.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleEarlyAccess} className="flex gap-3 max-w-md mx-auto flex-col sm:flex-row">
+              <input
+                type="email"
+                placeholder="votre@email.com"
+                value={earlyEmail}
+                onChange={(e) => setEarlyEmail(e.target.value)}
+                className="flex-1 rounded-xl px-4 py-3 text-sm focus:outline-none"
+                style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', color: 'white' }}
+              />
+              <button type="submit" disabled={earlyLoading}
+                className="px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: 'white', color: '#0A0A0A', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {earlyLoading ? 'Chargement…' : 'Rejoindre la liste'}
+              </button>
+            </form>
+          )}
+          {earlyError && <p className="mt-3 text-sm" style={{ color: '#DC2626' }}>{earlyError}</p>}
         </div>
       </section>
 
-      {/* ── FOOTER ─────────────────────────────────────────────────────────── */}
-      <footer className="relative border-t border-[#E5E7EB] px-6 py-10" style={{ zIndex: 1 }}>
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Image src="/logo.png" alt="Maimoo" height={24} width={90} style={{ height: 24, width: 'auto' }} />
-            <span style={{ fontSize: 13, color: '#6B7280' }}>© 2026 Maimoo</span>
+      {/* ── FAQ ─────────────────────────────────────────────────────────────── */}
+      <section style={{ background: '#FFFFFF', padding: '100px 24px', position: 'relative' }}>
+        <div className="absolute inset-0" style={gridBgDark} aria-hidden="true" />
+        <div className="relative max-w-2xl mx-auto">
+          <h2 className="font-black mb-12 text-center" style={{ fontSize: 'clamp(28px,4vw,48px)', color: '#0A0A0A', letterSpacing: '-0.02em' }}>
+            Questions fréquentes
+          </h2>
+          <div>
+            {FAQS.map((faq) => (
+              <FaqItem key={faq.question} question={faq.question} answer={faq.answer} />
+            ))}
           </div>
-          <div className="flex items-center gap-6">
-            <Link href="/mentions-legales" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#0A0A0A] transition-colors">Mentions légales</Link>
-            <Link href="/confidentialite" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#0A0A0A] transition-colors">Confidentialité</Link>
-            <Link href="/contact" style={{ fontSize: 13, color: '#6B7280' }} className="hover:text-[#0A0A0A] transition-colors">Contact</Link>
+        </div>
+      </section>
+
+      {/* ── CTA FINAL ───────────────────────────────────────────────────────── */}
+      <section style={{ background: '#0A0A0A', padding: '100px 24px', position: 'relative' }}>
+        <div className="absolute inset-0" style={gridBg} aria-hidden="true" />
+        <div className="relative max-w-3xl mx-auto text-center">
+          <h2 className="font-black mb-6" style={{ fontSize: 'clamp(32px,5vw,64px)', color: 'white', letterSpacing: '-0.03em', lineHeight: 1.05 }}>
+            Votre équipe mérite<br />une vraie mémoire
+          </h2>
+          <p className="mb-10" style={{ fontSize: 17, color: 'rgba(255,255,255,0.55)', maxWidth: 440, margin: '0 auto 40px' }}>
+            Rejoignez les équipes commerciales qui capturent et retrouvent chaque information.
+          </p>
+          <button onClick={openRegister} className="font-semibold transition-all hover:opacity-90"
+            style={{ background: 'white', color: '#0A0A0A', borderRadius: 24, padding: '16px 36px', fontSize: 16, border: 'none', cursor: 'pointer' }}>
+            Commencer gratuitement
+          </button>
+        </div>
+      </section>
+
+      {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
+      <footer style={{ background: '#0A0A0A', borderTop: '1px solid #1A1A1A', padding: '40px 24px' }}>
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <Image src="/logo.png" alt="Maimoo" height={24} width={90} style={{ height: 24, width: 'auto', filter: 'brightness(0) invert(1)' }} />
+          <div className="flex items-center gap-6 flex-wrap justify-center">
+            <a href="/confidentialite" className="text-sm transition-colors" style={{ color: '#6B6B6B' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'white' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6B6B6B' }}>
+              Confidentialité
+            </a>
+            <a href="/mentions-legales" className="text-sm transition-colors" style={{ color: '#6B6B6B' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'white' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6B6B6B' }}>
+              Mentions légales
+            </a>
+            <a href="/contact" className="text-sm transition-colors" style={{ color: '#6B6B6B' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'white' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#6B6B6B' }}>
+              Contact
+            </a>
           </div>
+          <p className="text-sm" style={{ color: '#6B6B6B' }}>© 2025 Maimoo</p>
         </div>
       </footer>
     </div>
