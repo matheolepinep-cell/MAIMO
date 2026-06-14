@@ -64,7 +64,9 @@ export default function DashboardPage() {
   /* mobile state */
   const [recentAccounts, setRecentAccounts] = useState<{ id: string; name: string }[]>([])
   const [mobileItems, setMobileItems] = useState<MobileItem[]>([])
-  const [time, setTime] = useState(formatTime())
+  const [time, setTime] = useState('')
+  const [greetingStr, setGreetingStr] = useState('')
+  const [dateStr, setDateStr] = useState('')
 
   /* client search */
   const [clientQuery, setClientQuery] = useState('')
@@ -100,7 +102,14 @@ export default function DashboardPage() {
   const [calLoading, setCalLoading] = useState(true)
 
   useEffect(() => {
-    const id = setInterval(() => setTime(formatTime()), 60000)
+    setTime(formatTime())
+    setGreetingStr(greeting())
+    setDateStr(capitalize(formatDate()))
+    const id = setInterval(() => {
+      setTime(formatTime())
+      setGreetingStr(greeting())
+      setDateStr(capitalize(formatDate()))
+    }, 60000)
     return () => clearInterval(id)
   }, [])
 
@@ -477,9 +486,9 @@ export default function DashboardPage() {
             <div className="flex items-end justify-between">
               <div>
                 <h1 className="text-xl md:text-3xl font-semibold text-white tracking-tight">
-                  {greeting()}, {firstName}
+                  {greetingStr}, {firstName}
                 </h1>
-                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>{capitalize(formatDate())} · {time}</p>
+                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>{dateStr} · {time}</p>
               </div>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: 'rgba(255,255,255,0.1)' }}>
