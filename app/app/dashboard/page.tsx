@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, CalendarDays, RefreshCw, Clock } from 'lucide-react'
+import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, CalendarDays } from 'lucide-react'
+const CalendarWidget = dynamic(() => import('@/components/calendar/CalendarWidget').then(m => m.CalendarWidget), { ssr: false })
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
@@ -24,7 +26,6 @@ type ActivityItem = {
 }
 
 type PortfolioRow = { id: string; account_id: string; account_name: string; status: 'client' | 'prospect' }
-type CalendarEventRow = { id: string; title: string; start_time: string; end_time: string; company_id: string | null; account_name?: string; account_id?: string | null }
 type TeamRow = { id: string; full_name: string; role: 'admin' | 'commercial'; portfolio_count: number }
 type Stats = { accounts: number; notes: number; docs: number; team: number; notesWeek: number; accountsWeek: number }
 
@@ -48,16 +49,6 @@ function formatDate() {
   return new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
 }
 function capitalize(s: string) { return s.charAt(0).toUpperCase() + s.slice(1) }
-function fmtEventTime(iso: string) {
-  return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
-}
-function fmtEventDateLabel(iso: string) {
-  const d = new Date(iso); const now = new Date()
-  const tom = new Date(now); tom.setDate(now.getDate() + 1)
-  if (d.toDateString() === now.toDateString()) return "Aujourd'hui"
-  if (d.toDateString() === tom.toDateString()) return 'Demain'
-  return capitalize(new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(d))
-}
 
 /* ─── Skeleton ─── */
 function Skeleton({ className }: { className?: string }) {
@@ -105,8 +96,6 @@ export default function DashboardPage() {
   const [desktopLoading, setDesktopLoading] = useState(true)
 
   /* calendar state */
-  const [calEvents, setCalEvents] = useState<CalendarEventRow[]>([])
-  const [calSyncing, setCalSyncing] = useState(false)
   const [calConnected, setCalConnected] = useState(false)
   const [calLoading, setCalLoading] = useState(true)
 
@@ -334,45 +323,6 @@ export default function DashboardPage() {
     setNoteShowAddMenu(false)
   }
 
-  const loadCalEvents = async (uid: string) => {
-    const supabase = createClient()
-    const now = new Date().toISOString()
-    const { data } = await supabase
-      .from('calendar_events')
-      .select('id, title, start_time, end_time, company_id')
-      .eq('user_id', uid)
-      .gte('start_time', now)
-      .order('start_time', { ascending: true })
-      .limit(5)
-    if (!data) return
-    // Resolve account names from company_id → account_id (for display + links)
-    const accountIds = [...new Set(data.map((e) => e.company_id).filter(Boolean))] as string[]
-    const accMap: Record<string, { name: string; id: string }> = {}
-    if (accountIds.length > 0) {
-      const { data: accs } = await supabase.from('accounts').select('id, name').in('id', accountIds)
-      for (const a of accs ?? []) accMap[a.id] = { name: a.name, id: a.id }
-    }
-    setCalEvents(data.map((e) => ({
-      ...e,
-      account_name: e.company_id ? accMap[e.company_id]?.name : undefined,
-      account_id: e.company_id ?? null,
-    })))
-  }
-
-  const handleCalSync = async () => {
-    if (calSyncing || !profile) return
-    setCalSyncing(true)
-    try {
-      await fetch('/api/calendar/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspaceId: wsId }),
-      })
-      await loadCalEvents(profile.id)
-    } catch { /* silent */ }
-    setCalSyncing(false)
-  }
-
   const handleNoteReset = () => {
     setNoteText(''); setNotePhase('input'); setNoteSummary([]); setNoteResults([])
     setNoteRecording(false); noteRecognitionRef.current?.stop()
@@ -386,7 +336,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (profileLoading || !profile) return
-    // Read google_calendar_connected directly from DB — not from cached profile
     const supabase = createClient()
     supabase
       .from('users')
@@ -394,16 +343,9 @@ export default function DashboardPage() {
       .eq('id', profile.id)
       .single()
       .then(({ data }) => {
-        const connected = !!data?.google_calendar_connected
-        setCalConnected(connected)
+        setCalConnected(!!data?.google_calendar_connected)
         setCalLoading(false)
-        if (!connected) return
-        loadCalEvents(profile.id)
-        handleCalSync()
       })
-    // Auto-sync every 30 min
-    const interval = setInterval(() => handleCalSync(), 30 * 60 * 1000)
-    return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileLoading, profile?.id])
 
@@ -637,28 +579,15 @@ export default function DashboardPage() {
             {/* Agenda */}
             <div className="bg-white rounded-2xl overflow-hidden"
               style={{ border: '1px solid #E5E5E5', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid #E5E5E5' }}>
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4" style={{ color: '#0A0A0A' }} />
-                  <h2 className="font-semibold" style={{ color: '#0A0A0A' }}>Agenda</h2>
-                </div>
-                {calConnected && (
-                  <button onClick={handleCalSync} disabled={calSyncing}
-                    className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50"
-                    style={{ color: '#9B9B9B' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#0A0A0A' }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#9B9B9B' }}>
-                    <RefreshCw className={`w-3.5 h-3.5 ${calSyncing ? 'animate-spin' : ''}`} />
-                    {calSyncing ? 'Sync…' : 'Synchroniser'}
-                  </button>
-                )}
+              <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: '1px solid #E5E5E5' }}>
+                <CalendarDays className="w-4 h-4" style={{ color: '#0A0A0A' }} />
+                <h2 className="font-semibold" style={{ color: '#0A0A0A' }}>Agenda</h2>
               </div>
-
               {calLoading ? (
                 <div className="px-5 py-4 space-y-3">
-                  {[...Array(3)].map((_, i) => (
+                  {[...Array(2)].map((_, i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <Skeleton className="w-12 h-4 shrink-0" />
+                      <Skeleton className="w-24 h-4 shrink-0" />
                       <Skeleton className="flex-1 h-4" />
                     </div>
                   ))}
@@ -674,46 +603,13 @@ export default function DashboardPage() {
                     Connecter Google Calendar
                   </a>
                 </div>
-              ) : calEvents.length === 0 ? (
-                <div className="px-5 py-8 text-center">
-                  <p className="text-sm" style={{ color: '#9B9B9B' }}>Aucun événement à venir (7 prochains jours)</p>
-                </div>
-              ) : (
-                <div className="divide-y" style={{ borderColor: '#F5F5F5' }}>
-                  {(() => {
-                    const groups: { label: string; events: CalendarEventRow[] }[] = []
-                    const seen: Record<string, number> = {}
-                    for (const ev of calEvents) {
-                      const key = new Date(ev.start_time).toDateString()
-                      if (seen[key] === undefined) { seen[key] = groups.length; groups.push({ label: fmtEventDateLabel(ev.start_time), events: [] }) }
-                      groups[seen[key]].events.push(ev)
-                    }
-                    return groups.map((group) => (
-                      <div key={group.label}>
-                        <p className="px-5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#9B9B9B' }}>{group.label}</p>
-                        {group.events.map((ev) => (
-                          <div key={ev.id} className="flex items-start gap-3 px-5 py-2.5">
-                            <div className="flex items-center gap-1 shrink-0 mt-0.5" style={{ color: '#9B9B9B', minWidth: 90 }}>
-                              <Clock className="w-3 h-3" />
-                              <span className="text-xs">{fmtEventTime(ev.start_time)}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate" style={{ color: '#0A0A0A' }}>{ev.title}</p>
-                              {ev.account_name && ev.account_id && (
-                                <button onClick={() => router.push(`/app/accounts/${ev.account_id}`)}
-                                  className="text-xs transition-colors hover:underline"
-                                  style={{ color: '#6B6B6B' }}>
-                                  {ev.account_name}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))
-                  })()}
-                </div>
-              )}
+              ) : profile ? (
+                <CalendarWidget
+                  userId={profile.id}
+                  workspaceId={wsId}
+                  companyId={profile.company_id}
+                />
+              ) : null}
             </div>
 
             {/* ROW 2 — Portfolio + Team */}
