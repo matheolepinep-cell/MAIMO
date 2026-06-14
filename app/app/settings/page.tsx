@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { Building2, User, LogOut, Palette, Layers, Settings2, CalendarDays, RefreshCw, CheckCircle2, XCircle } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
@@ -16,7 +16,7 @@ import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModa
 import { ManageWorkspaceModal } from '@/components/workspace/ManageWorkspaceModal'
 import type { Company, Workspace } from '@/types/database'
 
-export default function SettingsPage() {
+function SettingsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { profile, loading: profileLoading } = useUser()
@@ -504,5 +504,13 @@ export default function SettingsPage() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsContent />
+    </Suspense>
   )
 }
