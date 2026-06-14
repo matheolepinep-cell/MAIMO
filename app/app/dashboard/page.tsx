@@ -386,18 +386,26 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (profileLoading || !profile) return
-    const connected = !!profile.google_calendar_connected
-    setCalConnected(connected)
-    setCalLoading(false)
-    if (!connected) return
-    // Initial load + sync
-    loadCalEvents(profile.id)
-    handleCalSync()
+    // Read google_calendar_connected directly from DB — not from cached profile
+    const supabase = createClient()
+    supabase
+      .from('users')
+      .select('google_calendar_connected')
+      .eq('id', profile.id)
+      .single()
+      .then(({ data }) => {
+        const connected = !!data?.google_calendar_connected
+        setCalConnected(connected)
+        setCalLoading(false)
+        if (!connected) return
+        loadCalEvents(profile.id)
+        handleCalSync()
+      })
     // Auto-sync every 30 min
     const interval = setInterval(() => handleCalSync(), 30 * 60 * 1000)
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileLoading, profile?.id, profile?.google_calendar_connected])
+  }, [profileLoading, profile?.id])
 
   const firstName = profile?.full_name?.split(' ')[0] ?? ''
   const clientSearchBox = (

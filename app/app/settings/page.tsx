@@ -19,7 +19,7 @@ import type { Company, Workspace } from '@/types/database'
 function SettingsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { profile, loading: profileLoading } = useUser()
+  const { profile, loading: profileLoading, refresh: refreshProfile } = useUser()
   const { accentColor, setAccentColor } = useAccentColor()
   const { userWorkspaces, isSuperAdmin, wsId } = useWorkspace()
   const [company, setCompany] = useState<Company | null>(null)
@@ -147,6 +147,15 @@ function SettingsContent() {
   }
 
   const isAdmin = profile?.role === 'admin'
+
+  // Force profile refresh when OAuth redirects back with ?google=connected or disconnected
+  useEffect(() => {
+    const status = searchParams.get('google')
+    if (status === 'connected' || status === 'disconnected') {
+      refreshProfile()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // Google Calendar
   const [calSyncing, setCalSyncing] = useState(false)

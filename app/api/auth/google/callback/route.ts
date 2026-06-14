@@ -37,13 +37,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const { tokens } = await client.getToken(code)
+    console.log('[GOOGLE CALLBACK] userId:', user.id)
+    console.log('[GOOGLE CALLBACK] tokens reçus:', !!tokens.access_token, !!tokens.refresh_token)
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    await supabase.from('users').update({
+    const { error: updateError } = await supabase.from('users').update({
       google_access_token: tokens.access_token,
       google_refresh_token: tokens.refresh_token ?? null,
       google_token_expiry: tokens.expiry_date
@@ -52,8 +54,15 @@ export async function GET(req: NextRequest) {
       google_calendar_connected: true,
     }).eq('id', user.id)
 
+    if (updateError) {
+      console.error('[GOOGLE CALLBACK] update error:', updateError.message)
+      return NextResponse.redirect(new URL('/app/settings?google=error', req.url))
+    }
+
+    console.log('[GOOGLE CALLBACK] update OK pour userId:', user.id)
     return NextResponse.redirect(new URL('/app/settings?google=connected', req.url))
-  } catch {
+  } catch (e) {
+    console.error('[GOOGLE CALLBACK] exception:', e)
     return NextResponse.redirect(new URL('/app/settings?google=error', req.url))
   }
 }
