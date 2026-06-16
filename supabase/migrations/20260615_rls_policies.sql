@@ -28,7 +28,10 @@ $$;
 
 -- ─── Enable RLS on all tables ───
 
-ALTER TABLE users                ENABLE ROW LEVEL SECURITY;
+-- users: RLS désactivé — source de vérité pour get_my_company_id(),
+-- activer le RLS ici crée une récursion même avec SECURITY DEFINER sur Supabase.
+-- La table est protégée par les policies service_role sur toutes les autres tables.
+ALTER TABLE users                DISABLE ROW LEVEL SECURITY;
 ALTER TABLE companies            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workspaces           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workspace_members    ENABLE ROW LEVEL SECURITY;
