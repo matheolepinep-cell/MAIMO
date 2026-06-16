@@ -64,31 +64,31 @@ CREATE POLICY "portfolio_access_delete" ON portfolio_access
     )
   );
 
--- ─── clients (legacy table, same company_id isolation as accounts) ───
+-- ─── accounts ───
 
-ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "service_role_clients" ON clients;
-CREATE POLICY "service_role_clients" ON clients
+DROP POLICY IF EXISTS "service_role_accounts" ON accounts;
+CREATE POLICY "service_role_accounts" ON accounts
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "clients_select" ON clients;
-CREATE POLICY "clients_select" ON clients
+DROP POLICY IF EXISTS "accounts_select" ON accounts;
+CREATE POLICY "accounts_select" ON accounts
   FOR SELECT TO authenticated
   USING (company_id = private.get_my_company_id());
 
-DROP POLICY IF EXISTS "clients_insert" ON clients;
-CREATE POLICY "clients_insert" ON clients
+DROP POLICY IF EXISTS "accounts_insert" ON accounts;
+CREATE POLICY "accounts_insert" ON accounts
   FOR INSERT TO authenticated
   WITH CHECK (company_id = private.get_my_company_id());
 
-DROP POLICY IF EXISTS "clients_update" ON clients;
-CREATE POLICY "clients_update" ON clients
+DROP POLICY IF EXISTS "accounts_update" ON accounts;
+CREATE POLICY "accounts_update" ON accounts
   FOR UPDATE TO authenticated
   USING (company_id = private.get_my_company_id());
 
-DROP POLICY IF EXISTS "clients_delete" ON clients;
-CREATE POLICY "clients_delete" ON clients
+DROP POLICY IF EXISTS "accounts_delete" ON accounts;
+CREATE POLICY "accounts_delete" ON accounts
   FOR DELETE TO authenticated
   USING (company_id = private.get_my_company_id());
 
@@ -112,5 +112,5 @@ CREATE POLICY "permissions_select" ON permissions
 SELECT tablename, policyname, cmd, roles
 FROM pg_policies
 WHERE schemaname = 'public'
-  AND tablename IN ('search_conversations', 'portfolio_access', 'clients', 'permissions')
+  AND tablename IN ('search_conversations', 'portfolio_access', 'accounts', 'permissions')
 ORDER BY tablename, policyname;
