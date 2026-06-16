@@ -1,4 +1,4 @@
-export function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
+export function chunkText(text: string, chunkSize = 800, overlap = 100): string[] {
   const words = text.split(/\s+/).filter(Boolean)
   const chunks: string[] = []
 

@@ -23,12 +23,14 @@ export async function POST(request: Request) {
   )
 
   // Fetch metadata for chunk enrichment (parallel)
-  const [{ data: account }, { data: note }] = await Promise.all([
+  const [{ data: account }, { data: note }, { data: workspace }] = await Promise.all([
     supabase.from('accounts').select('name').eq('id', account_id).single(),
     supabase.from('notes').select('created_at').eq('id', note_id).single(),
+    workspace_id ? supabase.from('workspaces').select('name').eq('id', workspace_id).single() : Promise.resolve({ data: null }),
   ])
   const accountName = account?.name ?? 'Inconnu'
   const authorName = user.full_name ?? 'Inconnu'
+  const workspaceName = (workspace as { name?: string } | null)?.name ?? ''
   const noteDate = note?.created_at
     ? new Date(note.created_at).toLocaleDateString('fr-FR')
     : new Date().toLocaleDateString('fr-FR')
@@ -40,10 +42,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, chunks: 0 })
   }
 
-  // Prefix each chunk with metadata for richer semantic embeddings
-  const enrichedChunks = rawChunks.map(
-    (chunk) => `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note]\n\n${chunk}`
-  )
+  const notePrefix = workspaceName
+    ? `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note | Workspace: ${workspaceName}]`
+    : `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note]`
+  const enrichedChunks = rawChunks.map((chunk) => `${notePrefix}\n\n${chunk}`)
 
   let embeddings: number[][]
   try {
@@ -73,5 +75,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  console.log('[INDEX] Note indexée:', note_id, 'chunks créés:', rows.length)
   return NextResponse.json({ success: true, chunks: rows.length })
 }

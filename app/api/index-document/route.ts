@@ -85,20 +85,22 @@ export async function POST(request: Request) {
     }
 
     // Fetch metadata for chunk enrichment (parallel with existing flow)
-    const [{ data: accountRow }, { data: docRow }] = await Promise.all([
+    const [{ data: accountRow }, { data: docRow }, { data: wsRow }] = await Promise.all([
       supabase.from('accounts').select('name').eq('id', account_id).single(),
       supabase.from('documents').select('title, file_name, created_at').eq('id', document_id).single(),
+      workspace_id ? supabase.from('workspaces').select('name').eq('id', workspace_id).single() : Promise.resolve({ data: null }),
     ])
     const accountName = accountRow?.name ?? 'Inconnu'
     const fileName = docRow?.title ?? docRow?.file_name ?? file_url.split('/').pop() ?? 'Document'
+    const workspaceName = (wsRow as { name?: string } | null)?.name ?? ''
     const importDate = docRow?.created_at
       ? new Date(docRow.created_at).toLocaleDateString('fr-FR')
       : new Date().toLocaleDateString('fr-FR')
 
-    // Prefix each chunk with metadata for richer semantic embeddings
-    const enrichedChunks = chunks.map(
-      (chunk) => `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document]\n\n${chunk}`
-    )
+    const docPrefix = workspaceName
+      ? `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document | Workspace: ${workspaceName}]`
+      : `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document]`
+    const enrichedChunks = chunks.map((chunk) => `${docPrefix}\n\n${chunk}`)
 
     // Remove old chunks
     await supabase.from('chunks').delete().eq('source_id', document_id).eq('source_type', 'document')
@@ -117,6 +119,7 @@ export async function POST(request: Request) {
     }))
 
     await supabase.from('chunks').insert(rows)
+    console.log('[INDEX] Document indexé:', document_id, 'chunks créés:', rows.length)
 
     // Trigger auto-extraction in background (non-blocking)
     fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/extract-account-info`, {

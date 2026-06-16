@@ -74,12 +74,14 @@ export async function GET(request: Request) {
   }
 
   // Load metadata maps
-  const [{ data: allAccounts }, { data: allUsers }] = await Promise.all([
+  const [{ data: allAccounts }, { data: allUsers }, { data: allWorkspaces }] = await Promise.all([
     supabase.from('accounts').select('id, name'),
     supabase.from('users').select('id, full_name'),
+    supabase.from('workspaces').select('id, name'),
   ])
   const accountMap = Object.fromEntries((allAccounts ?? []).map((a) => [a.id, a.name]))
   const userMap = Object.fromEntries((allUsers ?? []).map((u) => [u.id, u.full_name]))
+  const workspaceMap = Object.fromEntries((allWorkspaces ?? []).map((w) => [w.id, w.name]))
 
   let reindexed = 0
   let errors = 0
@@ -108,9 +110,11 @@ export async function GET(request: Request) {
         const rawChunks = chunkText(note.content)
         if (rawChunks.length === 0) continue
 
-        const enrichedChunks = rawChunks.map(
-          (chunk) => `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note]\n\n${chunk}`
-        )
+        const workspaceName = note.workspace_id ? (workspaceMap[note.workspace_id] ?? '') : ''
+        const notePrefix = workspaceName
+          ? `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note | Workspace: ${workspaceName}]`
+          : `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note]`
+        const enrichedChunks = rawChunks.map((chunk) => `${notePrefix}\n\n${chunk}`)
         const embeddings = await embedBatch(enrichedChunks)
 
         const rows = enrichedChunks.map((chunk, j) => ({
@@ -163,9 +167,11 @@ export async function GET(request: Request) {
         const rawChunks = chunkText(text)
         if (rawChunks.length === 0) continue
 
-        const enrichedChunks = rawChunks.map(
-          (chunk) => `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document]\n\n${chunk}`
-        )
+        const workspaceName = doc.workspace_id ? (workspaceMap[doc.workspace_id] ?? '') : ''
+        const docPrefix = workspaceName
+          ? `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document | Workspace: ${workspaceName}]`
+          : `[Entreprise: ${accountName} | Fichier: ${fileName} | Date: ${importDate} | Type: Document]`
+        const enrichedChunks = rawChunks.map((chunk) => `${docPrefix}\n\n${chunk}`)
         const embeddings = await embedBatch(enrichedChunks)
 
         const rows = enrichedChunks.map((chunk, j) => ({
