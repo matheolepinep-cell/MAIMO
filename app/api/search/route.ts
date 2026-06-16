@@ -98,6 +98,34 @@ function buildContextString(chunks: ChunkUsed[]): string {
   }).join('\n\n---\n\n')
 }
 
+// ── RERANKING: vector 60% + freshness 25% + keyword 15% ──
+function rerankChunks(
+  chunks: SearchChunk[],
+  query: string,
+  notesMap: Record<string, { created_at: string }>,
+  docsMap: Record<string, { created_at: string }>
+): SearchChunk[] {
+  const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 3)
+  const nowMs = Date.now()
+  const TWELVE_MONTHS_MS = 365 * 24 * 3600 * 1000
+
+  const score = (chunk: SearchChunk) => {
+    const vectorScore = chunk.similarity
+    const dateStr = chunk.source_type === 'note'
+      ? notesMap[chunk.source_id]?.created_at
+      : docsMap[chunk.source_id]?.created_at
+    const ageMs = dateStr ? nowMs - new Date(dateStr).getTime() : TWELVE_MONTHS_MS
+    const freshnessScore = Math.max(0, 1 - ageMs / TWELVE_MONTHS_MS)
+    const contentLower = chunk.content.toLowerCase()
+    const keywordScore = queryWords.length > 0
+      ? queryWords.filter((w) => contentLower.includes(w)).length / queryWords.length
+      : 0
+    return vectorScore * 0.6 + freshnessScore * 0.25 + keywordScore * 0.15
+  }
+
+  return [...chunks].sort((a, b) => score(b) - score(a))
+}
+
 function buildSourcesFromChunks(chunks: ChunkUsed[]): SearchSource[] {
   const seen = new Set<string>()
   const sources: SearchSource[] = []
@@ -202,36 +230,38 @@ Utilise ce contexte pour :
     }
   }
 
-  const buildSystemPrompt = (chunksFormatted: string, companyContext: string, followUp = false) => {
-    const followUpNote = followUp
-      ? `\n\nL'utilisateur pose une question de suivi. Explique ton raisonnement en citant précisément les extraits qui t'ont permis de donner ta réponse précédente.`
+  const currentYear = now.getFullYear()
+  const userName = user.full_name ?? 'l\'utilisateur'
+
+  const buildSystemPrompt = (chunksFormatted: string, detectedCompanyName: string | null, followUp = false) => {
+    const wsSection = workspaceProfile ? `${workspaceProfile}\n\n` : ''
+    const clientContext = detectedCompanyName
+      ? `Entreprise ciblée : ${detectedCompanyName}`
+      : account_id ? 'Consultation de la fiche d\'une entreprise spécifique' : 'Recherche globale sur tout le portefeuille'
+    const followUpInstruction = followUp
+      ? '\n\nQUESTION DE SUIVI DÉTECTÉE : explique ton raisonnement en citant précisément les extraits qui ont servi à ta réponse précédente. Ne relance pas de recherche.'
       : ''
 
-    const wsSection = workspaceProfile ? `${workspaceProfile}\n\n` : ''
+    return `${wsSection}Tu es l'assistant commercial de ${userName}, aujourd'hui le ${dateActuelle}.
 
-    return `${wsSection}Tu es un assistant commercial intelligent et conversationnel. Tu as accès aux notes et documents de l'équipe sur leurs clients. Aujourd'hui nous sommes le ${dateActuelle}.
+RÈGLES ABSOLUES — NE JAMAIS VIOLER :
 
-Comportement attendu :
-- Réponds naturellement comme dans une vraie conversation — pas de format rigide
-- Déduis et interprète : si quelqu'un demande 'des news' sur un client, donne un résumé naturel de la situation actuelle
-- Raisonne sur le contexte : 'l'année dernière' = ${lastYear}, 'récemment' = ces 30 derniers jours, 'bientôt' = dans les 2 prochaines semaines
-- Si une information est partielle, déduis ce qui est logique et signale ce qui est une déduction
-- Reformule les informations techniques en langage naturel et accessible
-- Sois proactif : si tu vois quelque chose d'important dans les notes que l'utilisateur n'a pas demandé mais devrait savoir, mentionne-le
+1. Tu ne réponds QUE sur la base des sources fournies ci-dessous. Si l'information n'est pas dans les sources, tu dis exactement : "Je n'ai pas cette information dans les notes disponibles." Tu n'inventes jamais, tu ne complètes jamais avec des connaissances générales.
 
-Ce que tu ne fais jamais :
-- Inventer des faits qui ne sont pas dans les sources
-- Refuser de répondre parce que la question est vague — interprète-la intelligemment
-- Répéter 'Je n'ai pas cette information' si des informations partielles existent
-- Utiliser un format markdown, des astérisques ou des tirets
-- Commencer par 'Je' ou reformuler la question
+2. Raisonnement temporel : "l'année dernière" = ${lastYear}, "cette année" = ${currentYear}, "récemment" = ces 30 derniers jours. Convertis toujours avant de répondre.
 
-Si les sources sont insuffisantes, dis-le naturellement en une phrase et propose ce que tu peux faire à la place.
+3. Tolérance orthographique : si un nom dans les sources ressemble au nom demandé (ex: "Ferrettire" ≈ "Ferretti"), traite-les comme identiques. Ne rejette jamais une info à cause d'une faute dans une note.
 
-Sources disponibles :
-${chunksFormatted}
+4. Contexte entreprise : chaque source est préfixée par [Entreprise: X]. Même si le nom n'est pas dans le texte, cette source appartient à cette entreprise.
 
-Contexte : ${companyContext || 'Recherche globale sur tous les clients'}${followUpNote}`
+5. Questions de suivi : si la question fait référence à ta réponse précédente ("pourquoi tu dis ça", "explique", "développe"), utilise uniquement les sources de ta réponse précédente pour expliquer.
+
+6. Format : réponse directe sans introduction. Si plusieurs éléments : liste avec tiret, ligne vide entre chaque. Pas de markdown. Maximum 2 phrases par élément. Si une seule info : une phrase.
+
+CONTEXTE CLIENT DÉTECTÉ : ${clientContext}
+
+SOURCES DISPONIBLES (triées par pertinence) :
+${chunksFormatted}${followUpInstruction}`
   }
 
   // ── FOLLOW-UP: skip vector search, reuse previous chunks ──
@@ -241,14 +271,11 @@ Contexte : ${companyContext || 'Recherche globale sur tous les clients'}${follow
   if (followUp) {
     const contextStr = buildContextString(prevChunks)
     const sources = buildSourcesFromChunks(prevChunks)
-    const companyContext = account_id
-      ? 'Contexte : fiche entreprise spécifique'
-      : 'Recherche globale sur tout le portefeuille'
 
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
-      system: buildSystemPrompt(contextStr, companyContext, true),
+      system: buildSystemPrompt(contextStr, null, true),
       messages: [
         ...historySlice,
         { role: 'user' as const, content: query },
@@ -424,6 +451,9 @@ Contexte : ${companyContext || 'Recherche globale sur tous les clients'}${follow
     })
   }
 
+  // ── RERANKING: vector 60% + freshness 25% + keyword 15% ──
+  chunks = rerankChunks(chunks, query, notesMap, docsMap)
+
   const fmtDate = (d: string) =>
     new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
 
@@ -493,14 +523,12 @@ Contexte : ${companyContext || 'Recherche globale sur tous les clients'}${follow
     }
   }
 
-  const companyContext = detectedCompany
-    ? `Entreprise ciblée : ${detectedCompany.account.name} (confiance : ${detectedCompany.confidence})`
-    : account_id ? 'Contexte : fiche entreprise spécifique' : 'Recherche globale sur tout le portefeuille'
+  const detectedCompanyName = detectedCompany?.account.name ?? null
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: buildSystemPrompt(contextStr + recentNotesSection, companyContext, false),
+    system: buildSystemPrompt(contextStr + recentNotesSection, detectedCompanyName, false),
     messages: [
       ...historySlice,
       { role: 'user' as const, content: query },
