@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   const offset = parseInt(url.searchParams.get('offset') ?? '0', 10)
-  const limit = parseInt(url.searchParams.get('limit') ?? '15', 10)
+  const limit = parseInt(url.searchParams.get('limit') ?? '10', 10)
   const phase = url.searchParams.get('phase') ?? 'notes'
 
   const supabase = createSupabaseAdmin(
