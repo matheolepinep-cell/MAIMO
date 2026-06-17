@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu, X } from 'lucide-react'
+import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -284,6 +284,7 @@ function SearchPageContent() {
   const [drawerChunks, setDrawerChunks] = useState<ChunkUsed[]>([])
 
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false)
+  const [confirmDeleteMsgIndex, setConfirmDeleteMsgIndex] = useState<number | null>(null)
 
   const openSourceDrawer = useCallback((source: SearchSource, chunks: ChunkUsed[]) => {
     setDrawerSource(source)
@@ -473,6 +474,29 @@ function SearchPageContent() {
       return remaining
     })
     setConfirmDeleteId(null)
+  }
+
+  const doDeleteMessagePair = async (userMsgIndex: number) => {
+    if (!activeConversationId) return
+    const endIdx = conversation[userMsgIndex + 1]?.role === 'assistant' ? userMsgIndex + 2 : userMsgIndex + 1
+    const snapshot = conversation
+    const newConv = [...conversation.slice(0, userMsgIndex), ...conversation.slice(endIdx)]
+    setConversation(newConv)
+    setConfirmDeleteMsgIndex(null)
+    const supabase = createClient()
+    if (newConv.length === 0) {
+      await supabase.from('search_conversations').delete().eq('id', activeConversationId)
+      setConversations(prev => prev.filter(c => c.id !== activeConversationId))
+      setActiveConversationId(null)
+      setPreviousChunks([])
+    } else {
+      const now = new Date().toISOString()
+      const { error } = await supabase.from('search_conversations').update({ messages: newConv, updated_at: now }).eq('id', activeConversationId)
+      if (error) { setConversation(snapshot); return }
+      setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: newConv, updated_at: now } : c))
+      const lastAss = [...newConv].reverse().find(m => m.role === 'assistant')
+      setPreviousChunks(lastAss?.chunks ?? [])
+    }
   }
 
   const handleSubmit = () => {
@@ -683,28 +707,50 @@ function SearchPageContent() {
     </div>
   ) : null
 
-  // ── Messages list ──
+  // ── Messages list (grouped pairs) ──
+  const messagePairs: Array<{ userIdx: number; assIdx: number | null }> = []
+  {
+    let i = 0
+    while (i < conversation.length) {
+      if (conversation[i].role === 'user') {
+        const assIdx = conversation[i + 1]?.role === 'assistant' ? i + 1 : null
+        messagePairs.push({ userIdx: i, assIdx })
+        i += assIdx !== null ? 2 : 1
+      } else { i++ }
+    }
+  }
+
   const messagesList = (
     <>
-      {conversation.map((msg, i) => {
-        if (msg.role === 'user') return (
-          <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
-            <div style={{
-              background: '#2563EB', color: 'white',
-              borderRadius: '18px 18px 4px 18px',
-              padding: '12px 18px', maxWidth: '65%',
-              fontSize: 15, lineHeight: 1.5,
-            }}>
-              {msg.content}
-            </div>
-          </div>
-        )
+      {messagePairs.map(({ userIdx, assIdx }) => {
+        const userMsg = conversation[userIdx]
+        const assMsg = assIdx !== null ? conversation[assIdx] : null
         return (
-          <div key={i} style={{ marginBottom: 24 }}>
-            <div style={{ maxWidth: '100%' }}>
-              {renderMarkdown(msg.content)}
-              {msg.sources && msg.sources.length > 0 && <SourcesList sources={msg.sources} chunks={msg.chunks ?? []} onOpen={openSourceDrawer} />}
+          <div key={userIdx} className="group relative" style={{ marginBottom: 32 }}>
+            <button
+              onClick={() => setConfirmDeleteMsgIndex(userIdx)}
+              title="Supprimer cet échange"
+              className="opacity-30 md:opacity-0 md:group-hover:opacity-100 transition-opacity absolute top-0 right-0"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, zIndex: 2 }}
+            >
+              <Trash2 style={{ width: 14, height: 14, color: '#9B9B9B' }} />
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <div style={{
+                background: '#2563EB', color: 'white',
+                borderRadius: '18px 18px 4px 18px',
+                padding: '12px 18px', maxWidth: '65%',
+                fontSize: 15, lineHeight: 1.5,
+              }}>
+                {userMsg.content}
+              </div>
             </div>
+            {assMsg && (
+              <div style={{ maxWidth: '100%' }}>
+                {renderMarkdown(assMsg.content)}
+                {assMsg.sources && assMsg.sources.length > 0 && <SourcesList sources={assMsg.sources} chunks={assMsg.chunks ?? []} onOpen={openSourceDrawer} />}
+              </div>
+            )}
           </div>
         )
       })}
@@ -1007,6 +1053,20 @@ function SearchPageContent() {
               >
                 Supprimer
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message delete confirmation */}
+      {confirmDeleteMsgIndex !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setConfirmDeleteMsgIndex(null)}>
+          <div style={{ background: 'white', borderRadius: 16, padding: 24, maxWidth: 360, width: 'calc(100% - 32px)', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0F172A', margin: '0 0 8px' }}>Supprimer ce message ?</h3>
+            <p style={{ fontSize: 14, color: '#64748B', margin: 0, lineHeight: 1.5 }}>Cette action est irréversible.</p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button onClick={() => setConfirmDeleteMsgIndex(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid #E2E8F0', background: 'white', color: '#0A0A0A', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Annuler</button>
+              <button onClick={() => doDeleteMessagePair(confirmDeleteMsgIndex)} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', background: '#EF4444', color: 'white', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Supprimer</button>
             </div>
           </div>
         </div>
