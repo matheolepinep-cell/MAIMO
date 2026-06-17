@@ -76,7 +76,7 @@ export function MobileSidebar() {
               key={href}
               href={href}
               className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
-              style={{ padding: '12px 16px', background: isActive(href) ? '#1A1A1A' : 'transparent' }}
+              style={{ padding: '12px 16px', background: isActive(href) ? '#1A1A1A' : 'transparent', boxShadow: isActive(href) ? 'inset 3px 0 0 #2563EB' : 'none' }}
               onClick={close}
             >
               <div className="relative shrink-0">

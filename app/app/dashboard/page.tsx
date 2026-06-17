@@ -370,7 +370,7 @@ export default function DashboardPage() {
           placeholder="Trouver une entreprise..."
           value={clientQuery}
           onChange={(e) => { setClientQuery(e.target.value); setShowClientDrop(true) }}
-          onFocus={(e) => { setShowClientDrop(true); e.target.style.borderColor = '#0A0A0A'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.08)' }}
+          onFocus={(e) => { setShowClientDrop(true); e.target.style.borderColor = '#2563EB'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)' }}
           onBlur={(e) => { e.target.style.borderColor = '#E5E5E5'; e.target.style.boxShadow = 'none'; setTimeout(() => setShowClientDrop(false), 150) }}
           className="w-full pl-10 pr-9 py-2.5 rounded-xl text-sm focus:outline-none transition-all duration-150"
           style={{
@@ -406,7 +406,7 @@ export default function DashboardPage() {
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F5F5F5' }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                  style={{ background: '#0A0A0A' }}>
+                  style={{ background: '#2563EB' }}>
                   {getInitials(acc.name)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -431,7 +431,7 @@ export default function DashboardPage() {
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F5F5F5' }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                    style={{ background: '#0A0A0A' }}>
+                    style={{ background: '#2563EB' }}>
                     {getInitials(acc.name)}
                   </div>
                   <p className="text-sm font-medium truncate" style={{ color: '#0A0A0A' }}>{acc.name}</p>
@@ -447,25 +447,25 @@ export default function DashboardPage() {
   const statCards = [
     {
       label: 'Entreprises', value: stats.accounts,
-      icon: Building2, iconColor: '#0A0A0A', iconBg: '#F5F5F5',
+      icon: Building2, iconColor: '#2563EB', iconBg: '#EFF6FF',
       delta: stats.accountsWeek > 0 ? `+${stats.accountsWeek} cette semaine` : null,
       href: '/app/accounts',
     },
     {
       label: 'Notes', value: stats.notes,
-      icon: FileText, iconColor: '#0A0A0A', iconBg: '#F5F5F5',
+      icon: FileText, iconColor: '#2563EB', iconBg: '#EFF6FF',
       delta: stats.notesWeek > 0 ? `+${stats.notesWeek} cette semaine` : null,
       href: '/app/notes',
     },
     {
       label: 'Documents', value: stats.docs,
-      icon: Upload, iconColor: '#0A0A0A', iconBg: '#F5F5F5',
+      icon: Upload, iconColor: '#2563EB', iconBg: '#EFF6FF',
       delta: null,
       href: '/app/documents',
     },
     {
       label: 'Membres', value: stats.team,
-      icon: Users, iconColor: '#0A0A0A', iconBg: '#F5F5F5',
+      icon: Users, iconColor: '#2563EB', iconBg: '#EFF6FF',
       delta: null,
       href: '/app/team',
     },
@@ -477,7 +477,7 @@ export default function DashboardPage() {
 
         {/* Hero */}
         <div className="relative pl-16 pr-4 md:px-10 pt-5 md:pt-5 pb-8 md:pb-10 overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)' }}>
+          style={{ background: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 60%, #1E3A8A 100%)' }}>
           <div className="absolute inset-0" style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
             backgroundSize: '32px 32px',
@@ -511,7 +511,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => router.push('/app/search')}
                   className="col-span-2 md:col-span-1 text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
-                  style={{ background: '#0A0A0A', borderRadius: 12, padding: 14 }}
+                  style={{ background: '#2563EB', borderRadius: 12, padding: 14 }}
                 >
                   <Sparkles className="w-5 h-5 text-white" />
                   <div>
@@ -565,7 +565,7 @@ export default function DashboardPage() {
                     cursor: 'pointer',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#0A0A0A'
+                    e.currentTarget.style.borderColor = '#2563EB'
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = '#E5E5E5'
@@ -610,7 +610,7 @@ export default function DashboardPage() {
                   <p className="text-xs mb-4" style={{ color: '#9B9B9B' }}>Synchronisez vos RDV pour les voir ici</p>
                   <a href="/api/auth/google"
                     className="px-4 py-2 rounded-xl text-xs font-semibold text-white"
-                    style={{ background: '#0A0A0A' }}>
+                    style={{ background: '#2563EB' }}>
                     Connecter Google Calendar
                   </a>
                 </div>
@@ -634,11 +634,11 @@ export default function DashboardPage() {
                   <h2 className="font-semibold" style={{ color: '#0A0A0A' }}>Mon portefeuille</h2>
                   <div className="flex items-center gap-3">
                     <button onClick={() => router.push('/app/import')} className="flex items-center gap-1 text-xs font-medium transition-colors duration-150" style={{ color: '#9B9B9B' }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#0A0A0A' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#2563EB' }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#9B9B9B' }}>
                       <Upload className="w-3 h-3" />Importer
                     </button>
-                    <button onClick={() => router.push('/app/portfolio')} className="text-xs font-medium transition-colors" style={{ color: '#0A0A0A' }}>Voir tout →</button>
+                    <button onClick={() => router.push('/app/portfolio')} className="text-xs font-medium transition-colors" style={{ color: '#2563EB' }}>Voir tout →</button>
                   </div>
                 </div>
                 {desktopLoading ? (
@@ -653,7 +653,7 @@ export default function DashboardPage() {
                 ) : portfolio.length === 0 ? (
                   <div className="px-5 py-6 text-center">
                     <p className="text-sm" style={{ color: '#9B9B9B' }}>Portefeuille vide</p>
-                    <button onClick={() => router.push('/app/portfolio')} className="mt-2 text-xs font-medium" style={{ color: '#0A0A0A' }}>Ajouter des entreprises →</button>
+                    <button onClick={() => router.push('/app/portfolio')} className="mt-2 text-xs font-medium" style={{ color: '#2563EB' }}>Ajouter des entreprises →</button>
                   </div>
                 ) : (
                   <div>
@@ -667,7 +667,7 @@ export default function DashboardPage() {
                         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                       >
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                          style={{ background: '#0A0A0A' }}>
+                          style={{ background: '#2563EB' }}>
                           {getInitials(item.account_name)}
                         </div>
                         <span className="flex-1 text-sm font-medium truncate" style={{ color: '#0A0A0A' }}>{item.account_name}</span>
@@ -688,7 +688,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between px-5 py-4"
                   style={{ borderBottom: '1px solid #E5E5E5' }}>
                   <h2 className="font-semibold" style={{ color: '#0A0A0A' }}>Équipe</h2>
-                  <button onClick={() => router.push('/app/team')} className="text-xs font-medium" style={{ color: '#0A0A0A' }}>Voir tout →</button>
+                  <button onClick={() => router.push('/app/team')} className="text-xs font-medium" style={{ color: '#2563EB' }}>Voir tout →</button>
                 </div>
                 {desktopLoading ? (
                   <div>
@@ -718,9 +718,9 @@ export default function DashboardPage() {
                           <span
                             className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
                             style={member.role === 'admin' ? {
-                              background: '#0A0A0A',
+                              background: '#2563EB',
                               color: '#fff',
-                              borderColor: '#0A0A0A',
+                              borderColor: '#2563EB',
                             } : {
                               background: '#F5F5F5',
                               color: '#6B6B6B',
@@ -787,7 +787,7 @@ export default function DashboardPage() {
                 style={{ border: '1px solid #E5E5E5', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
                   style={{ background: '#F5F5F5' }}>
-                  <Plus className="w-7 h-7" style={{ color: '#0A0A0A' }} />
+                  <Plus className="w-7 h-7" style={{ color: '#2563EB' }} />
                 </div>
                 <h3 className="text-lg font-semibold mb-1" style={{ color: '#0A0A0A' }}>Commencez votre portefeuille</h3>
                 <p className="text-sm mb-5 max-w-sm" style={{ color: '#6B6B6B' }}>
@@ -796,9 +796,9 @@ export default function DashboardPage() {
                 <button
                   onClick={() => router.push('/app/portfolio')}
                   className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200"
-                  style={{ background: '#0A0A0A' }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1A1A1A' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#0A0A0A' }}
+                  style={{ background: '#2563EB' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1D4ED8' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#2563EB' }}
                 >
                   Ajouter ma première entreprise →
                 </button>
@@ -827,10 +827,10 @@ export default function DashboardPage() {
                   {!r.created
                     ? <svg className="w-4 h-4 shrink-0" style={{ color: '#9B9B9B' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4m0 4h.01" /></svg>
                     : r.type === 'create_company'
-                      ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#0A0A0A" strokeWidth={2}><path strokeLinecap="round" d="M3 21h18M9 21V7l6-4v18M9 9H3v12M15 9h6v12" /></svg>
+                      ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#2563EB" strokeWidth={2}><path strokeLinecap="round" d="M3 21h18M9 21V7l6-4v18M9 9H3v12M15 9h6v12" /></svg>
                       : r.type === 'create_contact'
-                        ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#0A0A0A" strokeWidth={2}><path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" d="M20 8v6m3-3h-6" /></svg>
-                        : <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#0A0A0A" strokeWidth={2}><path strokeLinecap="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#2563EB" strokeWidth={2}><path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" d="M20 8v6m3-3h-6" /></svg>
+                        : <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#2563EB" strokeWidth={2}><path strokeLinecap="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   }
                   <span>{noteSummary[i] ?? ''}</span>
                 </div>
@@ -841,7 +841,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => { setNoteModalOpen(false); router.push(`/app/accounts/${noteResults.find((r) => r.type === 'create_company')?.companyId}`) }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: '#0A0A0A' }}
+                  style={{ background: '#2563EB' }}
                 >
                   Voir la fiche →
                 </button>
@@ -876,7 +876,7 @@ export default function DashboardPage() {
             <div className="space-y-2 pt-1">
               <button onClick={handleNoteExecute}
                 className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                style={{ background: '#0A0A0A' }}>
+                style={{ background: '#2563EB' }}>
                 Confirmer et enregistrer
               </button>
               <button onClick={handleNoteCancel}
@@ -892,7 +892,7 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {(notePhase === 'analyzing' || notePhase === 'executing') ? (
               <div className="flex items-center gap-3 py-4">
-                <span className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: '#0A0A0A', borderTopColor: 'transparent' }} />
+                <span className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: '#2563EB', borderTopColor: 'transparent' }} />
                 <p className="text-sm" style={{ color: '#6B6B6B' }}>
                   {notePhase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}
                 </p>
@@ -911,7 +911,7 @@ export default function DashboardPage() {
                       border: '1px solid #E5E5E5',
                       color: '#0A0A0A',
                     }}
-                    onFocus={(e) => { e.target.style.borderColor = '#0A0A0A'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.08)' }}
+                    onFocus={(e) => { e.target.style.borderColor = '#2563EB'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)' }}
                     onBlur={(e) => { e.target.style.borderColor = '#E5E5E5'; e.target.style.boxShadow = 'none' }}
                   />
                   <button
@@ -927,7 +927,7 @@ export default function DashboardPage() {
                   onClick={handleNoteSave}
                   disabled={!noteText.trim()}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
-                  style={{ background: '#0A0A0A' }}
+                  style={{ background: '#2563EB' }}
                 >
                   Enregistrer la note
                 </button>
@@ -940,7 +940,7 @@ export default function DashboardPage() {
       {/* Toast */}
       {noteToast && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-xl text-sm font-medium text-white shadow-lg"
-          style={{ background: '#0A0A0A' }}>
+          style={{ background: '#2563EB' }}>
           {noteToast}
         </div>
       )}

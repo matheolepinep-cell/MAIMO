@@ -24,7 +24,7 @@ export function Header({ title, actions }: HeaderProps) {
       {profile && (
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
-          style={{ background: 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 100%)' }}
+          style={{ background: '#2563EB' }}
         >
           {profile.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
         </div>

@@ -20,7 +20,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           id={id}
           className={clsx(
             'w-full px-4 py-2.5 rounded-xl border text-[#0A0A0A] placeholder-[#9B9B9B] text-sm transition-all duration-150',
-            'focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A]',
+            'focus:outline-none focus:ring-[3px] focus:ring-[rgba(37,99,235,0.1)] focus:border-[#2563EB]',
             error ? 'border-red-400 bg-red-50' : 'border-[#E5E5E5] bg-white',
             className
           )}

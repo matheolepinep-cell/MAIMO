@@ -68,11 +68,11 @@ export function BottomNav() {
       <Link href={href} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200">
         <Icon
           className="w-6 h-6 transition-all duration-200"
-          style={{ color: active ? '#0A0A0A' : '#CBD5E1' }}
+          style={{ color: active ? '#2563EB' : '#CBD5E1' }}
         />
         <span
           className="text-[10px] font-medium transition-all duration-200"
-          style={{ color: active ? '#0A0A0A' : '#CBD5E1' }}
+          style={{ color: active ? '#2563EB' : '#CBD5E1' }}
         >
           {label}
         </span>
@@ -100,8 +100,8 @@ export function BottomNav() {
             <div
               className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg -mt-3"
               style={{
-                background: 'linear-gradient(135deg, #0A0A0A 0%, #0A0A0A 100%)',
-                boxShadow: '0 4px 14px rgba(30,39,97,0.35)',
+                background: '#2563EB',
+                boxShadow: '0 4px 14px rgba(37,99,235,0.35)',
               }}
             >
               <Plus className="w-5 h-5 text-white" />

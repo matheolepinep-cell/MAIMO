@@ -48,7 +48,7 @@ function NavItem({
     </>
   )
 
-  const activeStyle = active ? { background: '#1A1A1A', borderRadius: 10 } : {}
+  const activeStyle = active ? { background: '#1A1A1A', borderRadius: 10, boxShadow: 'inset 3px 0 0 #2563EB' } : {}
   const className = 'flex items-center gap-3 px-3 py-2.5 mx-2 transition-all duration-150 rounded-[10px] w-[calc(100%-16px)]'
 
   if (href) {
@@ -106,7 +106,7 @@ export function Sidebar() {
           <button
             onClick={() => setPortfolioOpen((v) => !v)}
             className="flex items-center gap-3 px-3 py-2.5 mx-2 transition-all duration-150 rounded-[10px] w-[calc(100%-16px)]"
-            style={isPortfolioActive ? { background: '#1A1A1A' } : {}}
+            style={isPortfolioActive ? { background: '#1A1A1A', boxShadow: 'inset 3px 0 0 #2563EB' } : {}}
           >
             <Briefcase className="w-[18px] h-[18px] shrink-0" style={{ color: isPortfolioActive ? 'white' : '#9B9B9B' }} />
             <span className="flex-1 text-sm text-left truncate" style={{ color: isPortfolioActive ? 'white' : '#9B9B9B' }}>Portefeuille</span>
@@ -137,7 +137,7 @@ export function Sidebar() {
           <NavItem href="/app/settings" icon={Settings} label="Paramètres" active={pathname.startsWith('/app/settings')} />
         )}
         <Link href="/app/profile" className="flex items-center gap-3 px-3 py-2.5 mx-0 transition-all duration-150 rounded-[10px]"
-          style={pathname.startsWith('/app/profile') ? { background: '#1A1A1A' } : {}}>
+          style={pathname.startsWith('/app/profile') ? { background: '#1A1A1A', boxShadow: 'inset 3px 0 0 #2563EB', borderRadius: 10 } : {}}>
           <div className="w-[18px] h-[18px] rounded-md flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)' }}>
             {initials !== '?' ? <span className="text-[9px] font-bold text-white">{initials}</span> : <User className="w-3 h-3" style={{ color: '#9B9B9B' }} />}
           </div>
