@@ -133,9 +133,9 @@ function buildSourcesFromChunks(chunks: ChunkUsed[]): SearchSource[] {
     if (seen.has(chunk.source_id)) continue
     seen.add(chunk.source_id)
     if (chunk.source_type === 'note') {
-      sources.push({ type: 'note', id: chunk.source_id, title: chunk.title ?? 'Note sans titre', date: chunk.date, author: chunk.author })
+      sources.push({ type: 'note', id: chunk.source_id, title: chunk.title ?? 'Note sans titre', date: chunk.date, author: chunk.author, account_id: chunk.account_id })
     } else {
-      sources.push({ type: 'document', id: chunk.source_id, title: chunk.title ?? chunk.file_name ?? 'Document', file_name: chunk.file_name, url: chunk.file_url, date: chunk.date })
+      sources.push({ type: 'document', id: chunk.source_id, title: chunk.title ?? chunk.file_name ?? 'Document', file_name: chunk.file_name, url: chunk.file_url, date: chunk.date, account_id: chunk.account_id })
     }
   }
   return sources

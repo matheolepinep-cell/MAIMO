@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu } from 'lucide-react'
+import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -120,26 +120,82 @@ function renderMarkdown(content: string): React.ReactNode {
   return <div>{elements}</div>
 }
 
+// ── Source drawer ──
+
+function SourceDrawer({ open, onClose, source, chunks }: {
+  open: boolean; onClose: () => void
+  source: SearchSource | null; chunks: ChunkUsed[]
+}) {
+  const router = useRouter()
+  if (!source) return null
+  const sourceChunks = chunks.filter((c) => c.source_id === source.id)
+  const excerpt = sourceChunks.map((c) => c.content).join('\n\n')
+  const fmtD = (d?: string) => d ? new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(d)) : ''
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-[70]"
+        style={{ background: open ? 'rgba(0,0,0,0.3)' : 'transparent', pointerEvents: open ? 'auto' : 'none', transition: 'background 0.2s' }}
+        onClick={onClose}
+      />
+      <div
+        className="fixed top-0 right-0 bottom-0 z-[70] flex flex-col bg-white"
+        style={{ width: 'min(480px, 100vw)', transform: open ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)', boxShadow: '-8px 0 32px rgba(0,0,0,0.12)' }}
+      >
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #E5E5E5', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <FileText style={{ width: 13, height: 13, color: '#2563EB', flexShrink: 0 }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {source.type === 'note' ? 'Note' : 'Document'}
+              </span>
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#0A0A0A', margin: 0, lineHeight: 1.35 }}>
+              {source.title ?? (source.type === 'note' ? 'Note' : source.file_name ?? 'Document')}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 6 }}>
+              {source.date && <span style={{ fontSize: 12, color: '#9B9B9B' }}>{fmtD(source.date)}</span>}
+              {source.author && <span style={{ fontSize: 12, color: '#9B9B9B' }}>par {source.author}</span>}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #E5E5E5', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <X style={{ width: 15, height: 15, color: '#6B6B6B' }} />
+          </button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+          {excerpt ? (
+            <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.75, whiteSpace: 'pre-wrap', margin: 0 }}>{excerpt}</p>
+          ) : (
+            <p style={{ fontSize: 14, color: '#9B9B9B' }}>Aucun extrait disponible.</p>
+          )}
+        </div>
+
+        {source.account_id && (
+          <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E5E5' }}>
+            <button
+              onClick={() => { onClose(); router.push(`/app/accounts/${source.account_id}`) }}
+              style={{ width: '100%', padding: '12px', borderRadius: 12, background: '#2563EB', color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', border: 'none' }}
+            >
+              Voir la fiche client →
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
 // ── Sources pills ──
 
-function SourcesList({ sources }: { sources: SearchSource[] }) {
+function SourcesList({ sources, chunks, onOpen }: {
+  sources: SearchSource[]; chunks: ChunkUsed[]
+  onOpen: (source: SearchSource, chunks: ChunkUsed[]) => void
+}) {
   const [expanded, setExpanded] = useState(false)
-  const router = useRouter()
   const visible = expanded ? sources : sources.slice(0, 4)
   const extra = sources.length - 4
-
-  const handleClick = async (s: SearchSource) => {
-    if (s.type === 'note' && s.account_id) {
-      router.push(`/app/accounts/${s.account_id}`)
-    } else if (s.type === 'document') {
-      if (s.url) { window.open(s.url, '_blank'); return }
-      const res = await fetch(`/api/documents/${s.id}/url`).catch(() => null)
-      if (res?.ok) {
-        const { url } = await res.json()
-        if (url) window.open(url, '_blank')
-      }
-    }
-  }
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -148,7 +204,7 @@ function SourcesList({ sources }: { sources: SearchSource[] }) {
         {visible.map((s, si) => (
           <button
             key={si}
-            onClick={() => handleClick(s)}
+            onClick={() => onOpen(s, chunks)}
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               padding: '4px 12px', borderRadius: 20,
@@ -169,7 +225,7 @@ function SourcesList({ sources }: { sources: SearchSource[] }) {
             style={{
               padding: '4px 12px', borderRadius: 20,
               background: '#F5F5F5', border: 'none',
-              fontSize: 12, color: '#0A0A0A', cursor: 'pointer',
+              fontSize: 12, color: '#6B6B6B', cursor: 'pointer',
               transition: 'background 0.12s',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = '#E5E5E5')}
@@ -222,6 +278,16 @@ function SearchPageContent() {
   const [previousChunks, setPreviousChunks] = useState<ChunkUsed[]>([])
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawerSource, setDrawerSource] = useState<SearchSource | null>(null)
+  const [drawerChunks, setDrawerChunks] = useState<ChunkUsed[]>([])
+
+  const openSourceDrawer = useCallback((source: SearchSource, chunks: ChunkUsed[]) => {
+    setDrawerSource(source)
+    setDrawerChunks(chunks)
+    setDrawerOpen(true)
+  }, [])
 
   const [isRecording, setIsRecording] = useState(false)
   const mobileTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -619,7 +685,7 @@ function SearchPageContent() {
           <div key={i} style={{ marginBottom: 24 }}>
             <div style={{ maxWidth: '100%' }}>
               {renderMarkdown(msg.content)}
-              {msg.sources && msg.sources.length > 0 && <SourcesList sources={msg.sources} />}
+              {msg.sources && msg.sources.length > 0 && <SourcesList sources={msg.sources} chunks={msg.chunks ?? []} onOpen={openSourceDrawer} />}
             </div>
           </div>
         )
@@ -911,6 +977,13 @@ function SearchPageContent() {
           </div>
         </div>
       )}
+
+      <SourceDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        source={drawerSource}
+        chunks={drawerChunks}
+      />
     </>
   )
 }
