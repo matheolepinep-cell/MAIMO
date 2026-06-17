@@ -283,6 +283,8 @@ function SearchPageContent() {
   const [drawerSource, setDrawerSource] = useState<SearchSource | null>(null)
   const [drawerChunks, setDrawerChunks] = useState<ChunkUsed[]>([])
 
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false)
+
   const openSourceDrawer = useCallback((source: SearchSource, chunks: ChunkUsed[]) => {
     setDrawerSource(source)
     setDrawerChunks(chunks)
@@ -593,7 +595,23 @@ function SearchPageContent() {
       gap: 0,
     }}>
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 20, flex: 1 }}>
+      <div style={{ display: 'flex', gap: 20, flex: 1, alignItems: 'center' }}>
+        <button
+          onClick={() => setHistoryDrawerOpen(true)}
+          className="hidden md:flex"
+          style={{
+            alignItems: 'center', gap: 6, padding: '4px 10px',
+            borderRadius: 8, border: '1px solid #E5E5E5',
+            background: 'white', cursor: 'pointer',
+            fontSize: 12, color: '#6B6B6B', flexShrink: 0,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.color = '#2563EB' }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E5E5E5'; e.currentTarget.style.color = '#6B6B6B' }}
+        >
+          <Menu style={{ width: 13, height: 13 }} />
+          Historique
+        </button>
         {([
           { value: 'portfolio' as const, label: 'Mon portefeuille', icon: Briefcase },
           { value: 'global' as const, label: 'Portefeuille global', icon: Globe },
@@ -889,15 +907,31 @@ function SearchPageContent() {
       {/* ── DESKTOP ── */}
       <div className="hidden md:flex flex-1 overflow-hidden">
 
-        {/* Sidebar */}
-        <ConversationsSidebar
-          conversations={conversations}
-          activeId={activeConversationId}
-          workspaceName={currentWorkspace?.name}
-          onNew={handleNewConversation}
-          onSelect={handleSelectConversation}
-          onDelete={(id) => setConfirmDeleteId(id)}
-        />
+        {/* History drawer overlay */}
+        {historyDrawerOpen && (
+          <div
+            className="fixed inset-0 z-[60]"
+            style={{ background: 'rgba(0,0,0,0.3)' }}
+            onClick={() => setHistoryDrawerOpen(false)}
+          />
+        )}
+        <div
+          className="fixed top-0 left-[200px] bottom-0 z-[60] hidden md:flex flex-col"
+          style={{
+            width: 280,
+            transform: historyDrawerOpen ? 'translateX(0)' : 'translateX(calc(-280px - 200px))',
+            transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+          }}
+        >
+          <ConversationsSidebar
+            conversations={conversations}
+            activeId={activeConversationId}
+            workspaceName={currentWorkspace?.name}
+            onNew={() => { handleNewConversation(); setHistoryDrawerOpen(false) }}
+            onSelect={(id) => { handleSelectConversation(id); setHistoryDrawerOpen(false) }}
+            onDelete={(id) => { setConfirmDeleteId(id); setHistoryDrawerOpen(false) }}
+          />
+        </div>
 
         {/* Main area */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'white' }}>
