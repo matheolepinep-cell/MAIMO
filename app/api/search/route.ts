@@ -349,7 +349,51 @@ ${chunksFormatted}${followUpInstruction}`
     rawChunks = ((data as SearchChunk[]) ?? []).filter((c) => c.similarity >= 0.60)
   }
 
+  const targetAccountId = account_id ?? (detectedCompany?.confidence === 'high' ? detectedCompany.account.id : null)
+  const detectedCompanyName = detectedCompany?.account.name ?? null
+
+  // ── RECENT FULL NOTES ── fetched early so they act as fallback when chunks are missing
+  let recentNotesSection = ''
+  if (targetAccountId) {
+    let notesQ = supabase
+      .from('notes')
+      .select('title, content, created_at, user_id')
+      .eq('account_id', targetAccountId)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    if (workspace_id) notesQ = notesQ.or(`workspace_id.eq.${workspace_id},workspace_id.is.null`)
+    const { data: recentNotes } = await notesQ
+
+    if (recentNotes && recentNotes.length > 0) {
+      const noteUserIds = [...new Set(recentNotes.map((n) => n.user_id).filter(Boolean))]
+      const { data: noteUsers } = noteUserIds.length > 0
+        ? await supabase.from('users').select('id, full_name').in('id', noteUserIds)
+        : { data: [] }
+      const noteUserMap = Object.fromEntries((noteUsers ?? []).map((u) => [u.id, u.full_name]))
+      const companyLabel = detectedCompanyName ?? 'l\'entreprise'
+      recentNotesSection = `\n\nNotes complètes récentes de ${companyLabel} :\n\n` +
+        recentNotes.map((n) => {
+          const d = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(n.created_at))
+          const author = noteUserMap[n.user_id] ?? 'Inconnu'
+          return `--- Note du ${d} par ${author} ---\n${n.title ? `Titre : ${n.title}\n` : ''}${n.content}`
+        }).join('\n\n')
+    }
+  }
+
+  console.log('[search]', { q: query.slice(0, 60), detected: detectedCompanyName, targetAccountId, rawChunks: rawChunks.length, hasNotes: !!recentNotesSection })
+
   if (rawChunks.length === 0) {
+    if (recentNotesSection) {
+      const msgNotes = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: buildSystemPrompt(recentNotesSection, detectedCompanyName, false),
+        messages: [...historySlice, { role: 'user' as const, content: query }],
+      })
+      const answer = msgNotes.content[0].type === 'text' ? msgNotes.content[0].text : ''
+      return NextResponse.json({ answer, sources: [], chunksUsed: [] })
+    }
     return NextResponse.json({
       answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question.",
       sources: [],
@@ -488,42 +532,6 @@ ${chunksFormatted}${followUpInstruction}`
   })
 
   const contextStr = buildContextString(chunksUsed)
-
-  // ── RECENT FULL NOTES ──
-  const targetAccountId = account_id ?? (detectedCompany?.confidence === 'high' ? detectedCompany.account.id : null)
-  let recentNotesSection = ''
-
-  if (targetAccountId) {
-    let notesQ = supabase
-      .from('notes')
-      .select('title, content, created_at, user_id')
-      .eq('account_id', targetAccountId)
-      .eq('is_deleted', false)
-      .order('created_at', { ascending: false })
-      .limit(10)
-    if (workspace_id) notesQ = notesQ.or(`workspace_id.eq.${workspace_id},workspace_id.is.null`)
-    const { data: recentNotes } = await notesQ
-
-    if (recentNotes && recentNotes.length > 0) {
-      const noteUserIds = [...new Set(recentNotes.map((n) => n.user_id).filter(Boolean))]
-      const { data: noteUsers } = noteUserIds.length > 0
-        ? await supabase.from('users').select('id, full_name').in('id', noteUserIds)
-        : { data: [] }
-      const noteUserMap = Object.fromEntries((noteUsers ?? []).map((u) => [u.id, u.full_name]))
-
-      const companyName = detectedCompany?.account.name
-        ?? (account_id ? (notesMap[Object.keys(notesMap)[0]]?.account_id ?? 'l\'entreprise') : 'l\'entreprise')
-
-      recentNotesSection = `\n\nNotes complètes récentes de ${companyName} :\n\n` +
-        recentNotes.map((n) => {
-          const d = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(n.created_at))
-          const author = noteUserMap[n.user_id] ?? 'Inconnu'
-          return `--- Note du ${d} par ${author} ---\n${n.title ? `Titre : ${n.title}\n` : ''}${n.content}`
-        }).join('\n\n')
-    }
-  }
-
-  const detectedCompanyName = detectedCompany?.account.name ?? null
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
