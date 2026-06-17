@@ -38,6 +38,11 @@ export function detectCompanyInQuery(query: string, accounts: Account[]): Compan
     const nameFull = normalizeText(account.name)
     const nameWords = account.name.split(/\s+/).map(normalizeText).filter((w) => w.length >= 2)
 
+    // Short acronym (2-4 chars, e.g. "ACB", "LM", "3M"): exact word match in query
+    if (nameFull.length >= 2 && nameFull.length <= 4 && /^[a-z0-9]{2,4}$/.test(nameFull) && queryWords.includes(nameFull)) {
+      return { account, confidence: 'high' }
+    }
+
     // High confidence: full normalized name included in query string (or vice versa)
     if (nameFull.length >= 4 && (queryFull.includes(nameFull) || nameFull.includes(queryFull) || queryWords.includes(nameFull))) {
       return { account, confidence: 'high' }
