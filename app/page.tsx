@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import { AuthModal } from '@/components/AuthModal'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
+import { CarouselSection } from '@/components/landing/CarouselSection'
 
 type ModalView = 'login' | 'register'
 
@@ -391,13 +392,13 @@ CREATE TABLE IF NOT EXISTS early_access (
               Pas un outil de saisie. Pas un CRM de plus. Une mémoire collective intelligente, connectée à toute votre équipe, interrogeable en langage naturel.
             </motion.p>
           </motion.div>
-          <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid md:grid-cols-3 gap-6">
+          <CarouselSection desktopClass="grid md:grid-cols-3 gap-6">
             {[
               { Icon: MessageSquare, num: '01', title: "Posez n'importe quelle question.", desc: "Quel est le contexte chez ce prospect ? Qui décide vraiment ? Qu'est-ce qui a été promis lors du dernier appel ? Une question naturelle. Une réponse immédiate, précise, sourcée." },
               { Icon: LayoutDashboard, num: '02', title: 'Un dashboard connecté à votre réalité commerciale.', desc: "Portefeuille client vivant, agenda synchronisé, activité équipe en temps réel, carte de vos clients. Tout ce dont un commercial a besoin, au même endroit." },
               { Icon: Users, num: '03', title: "Ce que sait un commercial, toute l'équipe peut le savoir.", desc: "L'information ne disparaît plus avec un départ. Elle grandit avec l'équipe. Elle devient un avantage concurrentiel durable." },
             ].map(({ Icon, num, title, desc }) => (
-              <motion.div key={num} variants={fadeInUp} className="rounded-2xl p-10 relative overflow-hidden bg-white" style={{ border: '1px solid #E5E7EB', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
+              <motion.div key={num} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="rounded-2xl p-10 relative overflow-hidden bg-white" style={{ border: '1px solid #E5E7EB', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
                 <p className="absolute top-6 right-6 font-black select-none" style={{ fontSize: 80, color: '#DBEAFE', lineHeight: 1 }}>{num}</p>
                 <div className="relative">
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: '#EFF6FF' }}>
@@ -408,7 +409,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 </div>
               </motion.div>
             ))}
-          </motion.div>
+          </CarouselSection>
         </div>
       </section>
 
@@ -470,14 +471,14 @@ CREATE TABLE IF NOT EXISTS early_access (
               Maimoo applique les standards de sécurité les plus stricts. Vos données ne quittent jamais l'Europe. Chaque espace est totalement isolé — techniquement impossible d'accéder aux données d'une autre organisation.
             </motion.p>
           </motion.div>
-          <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <CarouselSection desktopClass="grid grid-cols-1 md:grid-cols-2 gap-5">
             {[
               { Icon: Shield, title: 'Chiffrement de bout en bout', desc: 'Vos données sont chiffrées au repos et en transit. Aucune information ne circule en clair.' },
               { Icon: MapPin, title: 'Hébergement souverain Europe', desc: 'Toutes vos données hébergées en Allemagne (Frankfurt). Conformité RGPD native.' },
               { Icon: Lock, title: 'Isolation totale des espaces', desc: 'Chaque organisation est cloisonnée au niveau de la base de données. Aucun accès croisé possible.' },
               { Icon: EyeOff, title: "Vos données n'entraînent aucun modèle", desc: 'Ce que vous écrivez reste chez vous. Jamais utilisé pour entraîner une IA tierce.' },
             ].map(({ Icon, title, desc }) => (
-              <motion.div key={title} variants={fadeInUp} className="rounded-xl p-7 bg-white" style={{ border: '1px solid #E5E7EB' }}>
+              <motion.div key={title} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="rounded-xl p-7 bg-white" style={{ border: '1px solid #E5E7EB' }}>
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ background: '#EFF6FF' }}>
                   <Icon style={{ width: 20, height: 20, color: '#2563EB' }} />
                 </div>
@@ -485,7 +486,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.65 }}>{desc}</p>
               </motion.div>
             ))}
-          </motion.div>
+          </CarouselSection>
         </div>
       </section>
 
@@ -498,25 +499,27 @@ CREATE TABLE IF NOT EXISTS early_access (
               Adopté en un jour.<br />Indispensable en une semaine.
             </motion.h2>
           </motion.div>
-          <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="relative">
-            <div className="absolute hidden md:block" style={{ left: 23, top: 48, bottom: 48, borderLeft: '2px dashed #DBEAFE', zIndex: 0 }} />
-            {[
-              { Icon: Upload, num: '01', title: 'Importez et capturez', desc: "Importez vos clients existants en un fichier. Capturez les nouvelles informations à la voix, par texte ou en important n'importe quel document. L'IA classe automatiquement." },
-              { Icon: Zap, num: '02', title: "L'IA indexe et connecte", desc: "Chaque information est indexée, reliée à son client, rendue accessible à toute votre équipe. En temps réel." },
-              { Icon: Search, num: '03', title: 'Interrogez en langage naturel', desc: "Posez une question comme vous la poseriez à un collègue. Obtenez une réponse précise, sourcée, en quelques secondes." },
-            ].map(({ Icon, num, title, desc }) => (
-              <motion.div key={num} variants={fadeInUp} className="flex gap-6 relative mb-10 last:mb-0">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative z-10" style={{ background: '#2563EB' }}>
-                  <Icon style={{ width: 20, height: 20, color: 'white' }} />
-                </div>
-                <div className="pt-1 pb-2">
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>{num}</p>
-                  <h3 className="font-semibold mb-2" style={{ fontSize: 20, color: '#0A0A0A' }}>{title}</h3>
-                  <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>{desc}</p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
+          <div className="relative">
+            <div className="absolute hidden lg:block" style={{ left: 23, top: 48, bottom: 48, borderLeft: '2px dashed #DBEAFE', zIndex: 0 }} />
+            <CarouselSection desktopClass="">
+              {[
+                { Icon: Upload, num: '01', title: 'Importez et capturez', desc: "Importez vos clients existants en un fichier. Capturez les nouvelles informations à la voix, par texte ou en important n'importe quel document. L'IA classe automatiquement." },
+                { Icon: Zap, num: '02', title: "L'IA indexe et connecte", desc: "Chaque information est indexée, reliée à son client, rendue accessible à toute votre équipe. En temps réel." },
+                { Icon: Search, num: '03', title: 'Interrogez en langage naturel', desc: "Posez une question comme vous la poseriez à un collègue. Obtenez une réponse précise, sourcée, en quelques secondes." },
+              ].map(({ Icon, num, title, desc }) => (
+                <motion.div key={num} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="flex gap-6 relative mb-10 last:mb-0">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative z-10" style={{ background: '#2563EB' }}>
+                    <Icon style={{ width: 20, height: 20, color: 'white' }} />
+                  </div>
+                  <div className="pt-1 pb-2">
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>{num}</p>
+                    <h3 className="font-semibold mb-2" style={{ fontSize: 20, color: '#0A0A0A' }}>{title}</h3>
+                    <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7 }}>{desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </CarouselSection>
+          </div>
         </div>
       </section>
 
@@ -529,13 +532,13 @@ CREATE TABLE IF NOT EXISTS early_access (
               Des équipes qui ne perdent plus rien.
             </motion.h2>
           </motion.div>
-          <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid md:grid-cols-3 gap-6">
+          <CarouselSection desktopClass="grid md:grid-cols-3 gap-6">
             {[
               { initials: 'SM', name: 'Sophie M.', role: 'Directrice Commerciale, PME industrielle', quote: "Avant, chaque départ de commercial était une catastrophe. Aujourd'hui toute la relation client reste dans l'équipe, accessible à tous, immédiatement." },
               { initials: 'TR', name: 'Thomas R.', role: 'Directeur des ventes, secteur BTP', quote: "Je pose une question sur un client en réunion et j'ai la réponse en quelques secondes. Mes équipes n'ont jamais été aussi alignées." },
               { initials: 'PL', name: 'Pierre L.', role: 'Directeur commercial, distribution', quote: "Ce n'est pas un outil de plus. C'est la première fois qu'une technologie s'adapte vraiment à la façon dont travaillent nos commerciaux terrain." },
             ].map(({ initials, name, role, quote }) => (
-              <motion.div key={name} variants={fadeInUp} className="bg-white rounded-2xl p-9 relative" style={{ border: '1px solid #E5E7EB', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
+              <motion.div key={name} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="bg-white rounded-2xl p-9 relative" style={{ border: '1px solid #E5E7EB', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
                 <p className="absolute top-5 right-7 font-black select-none" style={{ fontSize: 64, color: '#DBEAFE', lineHeight: 1 }}>&ldquo;</p>
                 <p className="relative italic mb-8" style={{ fontSize: 15, color: '#374151', lineHeight: 1.7 }}>{quote}</p>
                 <div className="flex items-center gap-3">
@@ -547,7 +550,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 </div>
               </motion.div>
             ))}
-          </motion.div>
+          </CarouselSection>
         </div>
       </section>
 
@@ -581,11 +584,11 @@ CREATE TABLE IF NOT EXISTS early_access (
               ))}
             </motion.div>
           </motion.div>
-          <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid md:grid-cols-3 gap-6 items-start">
+          <CarouselSection desktopClass="grid md:grid-cols-3 gap-6 items-start">
             {PLANS.map((plan) => {
               const price = billing === 'monthly' ? plan.monthlyPrice : plan.annualPrice
               return (
-                <motion.div key={plan.name} variants={fadeInUp} className="rounded-2xl p-9 relative bg-white" style={{ border: plan.highlight ? '2px solid #2563EB' : '1px solid #E5E7EB' }}>
+                <motion.div key={plan.name} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="rounded-2xl p-9 relative bg-white" style={{ border: plan.highlight ? '2px solid #2563EB' : '1px solid #E5E7EB' }}>
                   {plan.highlight && (
                     <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-bold text-white" style={{ background: '#2563EB', whiteSpace: 'nowrap' }}>Populaire</span>
                   )}
@@ -609,7 +612,7 @@ CREATE TABLE IF NOT EXISTS early_access (
                 </motion.div>
               )
             })}
-          </motion.div>
+          </CarouselSection>
         </div>
       </section>
 
