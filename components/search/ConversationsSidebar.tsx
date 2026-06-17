@@ -44,6 +44,7 @@ export function ConversationsSidebar({
   onSelect,
   onDelete,
   workspaceName,
+  mobileMode = false,
 }: {
   conversations: SidebarConvRow[]
   activeId: string | null
@@ -51,12 +52,13 @@ export function ConversationsSidebar({
   onSelect: (id: string) => void
   onDelete: (id: string) => void
   workspaceName?: string | null
+  mobileMode?: boolean
 }) {
   const groups = groupByDate(conversations)
 
   return (
     <div style={{
-      width: 260,
+      width: mobileMode ? '100%' : 260,
       flexShrink: 0,
       background: '#0A0A0A',
       display: 'flex',
@@ -146,7 +148,7 @@ export function ConversationsSidebar({
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(conv.id) }}
-                      className="opacity-0 group-hover:opacity-100"
+                      className={mobileMode ? '' : 'opacity-0 group-hover:opacity-100'}
                       style={{
                         padding: 3, borderRadius: 4,
                         border: 'none', background: 'none',

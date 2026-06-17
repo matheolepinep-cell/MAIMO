@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu, X, Trash2 } from 'lucide-react'
+import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu, X, Trash2, History } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -848,13 +848,23 @@ function SearchPageContent() {
           <button
             onClick={() => setMobileSidebarOpen(true)}
             style={{
-              width: 36, height: 36, borderRadius: 8,
+              height: 36, borderRadius: 8, padding: '0 10px',
               background: 'transparent', border: '1px solid #E5E5E5',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
+              cursor: 'pointer', position: 'relative', flexShrink: 0,
             }}
           >
-            <Menu style={{ width: 18, height: 18, color: '#0A0A0A' }} />
+            <History style={{ width: 16, height: 16, color: '#0A0A0A' }} />
+            <span style={{ fontSize: 12, fontWeight: 500, color: '#0A0A0A' }}>Historique</span>
+            {conversations.length > 0 && (
+              <span style={{
+                minWidth: 16, height: 16, borderRadius: 8, background: '#2563EB',
+                color: 'white', fontSize: 10, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
+              }}>
+                {conversations.length > 9 ? '9+' : conversations.length}
+              </span>
+            )}
           </button>
           <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: '#1A1A2E', textAlign: 'center' }}>
             Recherche IA
@@ -927,28 +937,54 @@ function SearchPageContent() {
         </div>
       </div>
 
-      {/* Mobile sidebar overlay */}
-      {mobileSidebarOpen && (
+      {/* Mobile history drawer */}
+      <div
+        className="md:hidden fixed inset-0 z-[60]"
+        style={{
+          background: mobileSidebarOpen ? 'rgba(0,0,0,0.5)' : 'transparent',
+          pointerEvents: mobileSidebarOpen ? 'auto' : 'none',
+          transition: 'background 0.25s',
+        }}
+        onClick={() => setMobileSidebarOpen(false)}
+      >
         <div
-          className="md:hidden fixed inset-0 z-[60]"
-          style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setMobileSidebarOpen(false)}
+          style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0,
+            width: '100vw', maxWidth: '100vw',
+            transform: mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.25s ease-out',
+          }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div
-            style={{ width: 280, height: '100%' }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          {/* Close button header */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0,
+            height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 16px', background: '#0A0A0A', borderBottom: '1px solid #1A1A1A',
+            zIndex: 1, flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Historique</span>
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+            >
+              <X style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.7)' }} />
+            </button>
+          </div>
+          {/* Sidebar content shifted down by header height */}
+          <div style={{ paddingTop: 52, height: '100%', boxSizing: 'border-box' }}>
             <ConversationsSidebar
               conversations={conversations}
               activeId={activeConversationId}
               workspaceName={currentWorkspace?.name}
+              mobileMode
               onNew={() => { handleNewConversation(); setMobileSidebarOpen(false) }}
               onSelect={(id) => { handleSelectConversation(id); setMobileSidebarOpen(false) }}
               onDelete={(id) => { setConfirmDeleteId(id); setMobileSidebarOpen(false) }}
             />
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── DESKTOP ── */}
       <div className="hidden md:flex flex-1 overflow-hidden">
