@@ -336,7 +336,7 @@ export default function MessagesPage() {
   if (!profile) return null
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh' }}>
+    <div className="flex flex-col" style={{ height: 'calc(100dvh - 4rem)' }}>
       <Header title="Messages" />
 
       <div className="flex flex-1 overflow-hidden">

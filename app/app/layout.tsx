@@ -6,6 +6,7 @@ import { UnreadMessagesProvider } from '@/contexts/UnreadMessagesContext'
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileSidebar } from '@/components/layout/MobileSidebar'
+import { BottomNav } from '@/components/layout/BottomNav'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,9 +19,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <div className="min-h-screen bg-[#F5F5F5]">
                   <MobileSidebar />
                   <Sidebar />
-                  <main className="md:ml-[200px] min-h-screen overflow-y-auto overflow-x-hidden flex flex-col">
+                  <main className="md:ml-[200px] min-h-screen overflow-y-auto overflow-x-hidden flex flex-col pb-16 md:pb-0">
                     {children}
                   </main>
+                  <BottomNav />
                 </div>
               </WorkspaceProvider>
             </UnreadMessagesProvider>

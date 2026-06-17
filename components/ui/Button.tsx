@@ -22,7 +22,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         style={primaryStyle}
         className={clsx(
-          'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed',
+          'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]',
           {
             'text-white hover:bg-[#1D4ED8] active:scale-[0.98]': variant === 'primary',
             'bg-white text-[#0A0A0A] border border-[#E5E5E5] hover:bg-[#F5F5F5] active:scale-[0.98]': variant === 'secondary',

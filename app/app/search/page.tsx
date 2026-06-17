@@ -706,7 +706,7 @@ function SearchPageContent() {
   return (
     <>
       {/* ── MOBILE ── */}
-      <div className="md:hidden flex flex-col" style={{ height: '100dvh', background: 'white' }}>
+      <div className="md:hidden flex flex-col" style={{ height: 'calc(100dvh - 4rem)', background: 'white' }}>
 
         {/* Mobile header */}
         <div style={{
