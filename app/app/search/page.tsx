@@ -22,8 +22,7 @@ type ChunkUsed = {
 }
 
 type SearchTab = 'portfolio' | 'global'
-type StatusFilter = 'all' | 'client' | 'prospect'
-type Message = { role: 'user' | 'assistant'; content: string; sources?: SearchSource[]; chunks?: ChunkUsed[]; timestamp?: string }
+type Message ={ role: 'user' | 'assistant'; content: string; sources?: SearchSource[]; chunks?: ChunkUsed[]; timestamp?: string }
 
 type ConvRow = {
   id: string
@@ -265,9 +264,6 @@ function SearchPageContent() {
   const [portfolioAccounts, setPortfolioAccounts] = useState<{ id: string; name: string }[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
   const [globalAccountIds, setGlobalAccountIds] = useState<string[]>([])
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [city, setCity] = useState('')
-
   const [query, setQuery] = useState('')
   const [conversation, setConversation] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -397,8 +393,7 @@ function SearchPageContent() {
     try {
       const body: Record<string, unknown> = {
         query: q, company_id: profile.company_id,
-        workspace_id: wsId ?? undefined, status: statusFilter,
-        city: city.trim() || undefined, history, previousChunks,
+        workspace_id: wsId ?? undefined, history, previousChunks,
       }
       if (activeTab === 'portfolio') {
         body[selectedAccountId ? 'account_id' : 'account_ids'] = selectedAccountId || portfolioAccounts.map((a) => a.id)
@@ -421,7 +416,7 @@ function SearchPageContent() {
       setConversation(prev => [...prev, { role: 'assistant', content: 'Une erreur est survenue. Veuillez réessayer.', sources: [], timestamp: new Date().toISOString() }])
     }
     setLoading(false)
-  }, [profile, wsId, conversation, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, statusFilter, city, activeConversationId, previousChunks])
+  }, [profile, wsId, conversation, activeTab, selectedAccountId, portfolioAccounts, globalAccountIds, activeConversationId, previousChunks])
 
   useEffect(() => {
     const q = searchParams.get('q')
@@ -660,27 +655,6 @@ function SearchPageContent() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {(['all', 'client', 'prospect'] as const).map((f) => (
-          <button key={f} onClick={() => setStatusFilter(f)}
-            style={{
-              padding: '4px 12px', borderRadius: 20, border: '1px solid #E5E5E5',
-              background: statusFilter === f ? '#2563EB' : 'transparent',
-              color: statusFilter === f ? 'white' : '#6B6B6B',
-              fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
-            }}>
-            {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
-          </button>
-        ))}
-        <input type="text" value={city} onChange={(e) => setCity(e.target.value)}
-          placeholder="Ville..."
-          style={{
-            padding: '4px 10px', borderRadius: 20, border: '1px solid #E5E5E5',
-            fontSize: 12, color: '#0A0A0A', width: 72, background: 'transparent',
-            outline: 'none',
-          }} />
-      </div>
     </div>
   )
 
@@ -900,19 +874,6 @@ function SearchPageContent() {
               {tab === 'portfolio' ? 'Mon portefeuille' : 'Portefeuille global'}
             </button>
           ))}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-            {(['all', 'client', 'prospect'] as const).map((f) => (
-              <button key={f} onClick={() => setStatusFilter(f)}
-                style={{
-                  padding: '3px 10px', borderRadius: 20, border: '1px solid #E5E5E5',
-                  background: statusFilter === f ? '#2563EB' : 'transparent',
-                  color: statusFilter === f ? 'white' : '#6B6B6B',
-                  fontSize: 11, cursor: 'pointer',
-                }}>
-                {f === 'all' ? 'Tous' : f === 'client' ? 'Clients' : 'Prospects'}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Content */}
