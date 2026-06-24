@@ -45,6 +45,7 @@ export function ConversationsSidebar({
   onDelete,
   workspaceName,
   mobileMode = false,
+  light = false,
 }: {
   conversations: SidebarConvRow[]
   activeId: string | null
@@ -53,14 +54,22 @@ export function ConversationsSidebar({
   onDelete: (id: string) => void
   workspaceName?: string | null
   mobileMode?: boolean
+  light?: boolean
 }) {
   const groups = groupByDate(conversations)
+
+  const bg = light ? '#FFFFFF' : '#0A0A0A'
+  const textPrimary = light ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)'
+  const textSecondary = light ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.4)'
+  const hoverBg = light ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)'
+  const activeBg = light ? 'rgba(37,99,235,0.08)' : 'rgba(255,255,255,0.12)'
+  const borderColor = light ? '#E5E5E5' : '#2A2A2A'
 
   return (
     <div style={{
       width: mobileMode ? '100%' : 260,
       flexShrink: 0,
-      background: '#0A0A0A',
+      background: bg,
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
@@ -73,11 +82,11 @@ export function ConversationsSidebar({
         style={{
           width: '100%',
           background: 'transparent',
-          border: '1px solid #2A2A2A',
+          border: `1px solid ${borderColor}`,
           borderRadius: 8,
           padding: '10px 14px',
           fontSize: 14,
-          color: 'white',
+          color: textPrimary,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -85,7 +94,7 @@ export function ConversationsSidebar({
           transition: 'background 0.15s',
           flexShrink: 0,
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+        onMouseEnter={(e) => (e.currentTarget.style.background = hoverBg)}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
         <PenLine style={{ width: 16, height: 16 }} />
@@ -96,7 +105,7 @@ export function ConversationsSidebar({
       <div style={{ flex: 1, overflowY: 'auto', marginTop: 16 }}>
         {groups.length === 0 ? (
           <p style={{
-            fontSize: 12, color: 'rgba(255,255,255,0.3)',
+            fontSize: 12, color: textSecondary,
             textAlign: 'center', marginTop: 24, padding: '0 12px', lineHeight: 1.5,
           }}>
             Aucune conversation.<br />Commencez par poser une question.
@@ -105,7 +114,7 @@ export function ConversationsSidebar({
           groups.map((group) => (
             <div key={group.label}>
               <p style={{
-                fontSize: 11, color: 'rgba(255,255,255,0.4)',
+                fontSize: 11, color: textSecondary,
                 padding: '4px 8px', marginBottom: 4,
                 letterSpacing: '0.02em',
               }}>
@@ -126,20 +135,20 @@ export function ConversationsSidebar({
                       borderRadius: 8,
                       marginBottom: 2,
                       cursor: 'pointer',
-                      background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                      background: isActive ? activeBg : 'transparent',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 8,
                       transition: 'background 0.12s',
                     }}
-                    onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                    onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = hoverBg }}
                     onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                   >
-                    <MessageCircle style={{ width: 13, height: 13, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                    <MessageCircle style={{ width: 13, height: 13, color: textSecondary, flexShrink: 0 }} />
                     <span style={{
                       flex: 1,
                       fontSize: 13,
-                      color: 'rgba(255,255,255,0.85)',
+                      color: textPrimary,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -152,11 +161,11 @@ export function ConversationsSidebar({
                       style={{
                         padding: 3, borderRadius: 4,
                         border: 'none', background: 'none',
-                        cursor: 'pointer', color: 'rgba(255,255,255,0.4)',
+                        cursor: 'pointer', color: textSecondary,
                         flexShrink: 0, transition: 'color 0.12s',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.8)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = textPrimary)}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = textSecondary)}
                       title="Supprimer"
                     >
                       <Trash2 style={{ width: 14, height: 14 }} />
@@ -172,13 +181,13 @@ export function ConversationsSidebar({
       {/* Footer — active workspace */}
       {workspaceName && (
         <>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+          <div style={{ height: 1, background: borderColor, margin: '4px 0' }} />
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 8px', flexShrink: 0,
           }}>
-            <PanelLeft style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <PanelLeft style={{ width: 14, height: 14, color: textSecondary, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: textSecondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {workspaceName}
             </span>
           </div>

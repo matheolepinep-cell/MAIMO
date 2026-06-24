@@ -901,11 +901,11 @@ function SearchPageContent() {
         </div>
       </div>
 
-      {/* Mobile history drawer */}
+      {/* Mobile history bottom-sheet */}
       <div
         className="md:hidden fixed inset-0 z-[60]"
         style={{
-          background: mobileSidebarOpen ? 'rgba(0,0,0,0.5)' : 'transparent',
+          background: mobileSidebarOpen ? 'rgba(0,0,0,0.4)' : 'transparent',
           pointerEvents: mobileSidebarOpen ? 'auto' : 'none',
           transition: 'background 0.25s',
         }}
@@ -913,35 +913,42 @@ function SearchPageContent() {
       >
         <div
           style={{
-            position: 'absolute', top: 0, left: 0, bottom: 0,
-            width: '100vw', maxWidth: '100vw',
-            transform: mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            maxHeight: '70vh',
+            background: 'white',
+            borderRadius: '20px 20px 0 0',
+            display: 'flex', flexDirection: 'column',
+            transform: mobileSidebarOpen ? 'translateY(0)' : 'translateY(100%)',
             transition: 'transform 0.25s ease-out',
+            overflow: 'hidden',
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button header */}
+          {/* Handle */}
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 0' }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: '#E5E5E5' }} />
+          </div>
+          {/* Header */}
           <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0,
-            height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 16px', background: '#0A0A0A', borderBottom: '1px solid #1A1A1A',
-            zIndex: 1, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 16px 8px', borderBottom: '1px solid #E5E5E5', flexShrink: 0,
           }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Historique</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#0A0A0A' }}>Historique</span>
             <button
               onClick={() => setMobileSidebarOpen(false)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', borderRadius: 6 }}
             >
-              <X style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.7)' }} />
+              <X style={{ width: 18, height: 18, color: '#6B6B6B' }} />
             </button>
           </div>
-          {/* Sidebar content shifted down by header height */}
-          <div style={{ paddingTop: 52, height: '100%', boxSizing: 'border-box' }}>
+          {/* Content */}
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <ConversationsSidebar
               conversations={conversations}
               activeId={activeConversationId}
               workspaceName={currentWorkspace?.name}
               mobileMode
+              light
               onNew={() => { handleNewConversation(); setMobileSidebarOpen(false) }}
               onSelect={(id) => { handleSelectConversation(id); setMobileSidebarOpen(false) }}
               onDelete={(id) => { setConfirmDeleteId(id); setMobileSidebarOpen(false) }}
