@@ -43,14 +43,27 @@ export async function POST(request: Request) {
     id: inviteData.user.id,
     email,
     full_name,
-    role,
+    role: role ?? 'commercial',
     company_id: user.company_id,
     is_active: false,
   })
 
   if (profileError) {
     console.error('Profile creation error:', profileError)
-    // Non-fatal: invite was sent, profile can be created on first login
+  }
+
+  // Create workspace_members rows immediately so the invite is visible in team page
+  if (Array.isArray(workspaces) && workspaces.length > 0) {
+    const wmRows = workspaces.map((w: { wsId: string; role: string }) => ({
+      workspace_id: w.wsId,
+      user_id: inviteData.user.id,
+      role: w.role ?? 'member',
+      is_active: false,
+    }))
+    const { error: wmError } = await supabase.from('workspace_members').upsert(wmRows, {
+      onConflict: 'workspace_id,user_id',
+    })
+    if (wmError) console.error('workspace_members insert error:', wmError)
   }
 
   return NextResponse.json({ success: true, user_id: inviteData.user.id })
