@@ -477,21 +477,17 @@ export default function DashboardPage() {
 
         {/* Hero */}
         <div className="relative pl-16 pr-4 md:px-10 pt-5 md:pt-5 pb-8 md:pb-10 overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 60%, #1E3A8A 100%)' }}>
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-          }} />
+          style={{ background: '#FFFFFF', borderBottom: '1px solid #E5E7EB' }}>
           <div className="max-w-7xl mx-auto relative">
             <div className="flex items-end justify-between">
               <div>
-                <h1 className="text-xl md:text-3xl font-semibold text-white tracking-tight">
+                <h1 className="text-xl md:text-3xl font-semibold tracking-tight" style={{ color: '#0A0A0A' }}>
                   {greetingStr}, {firstName}
                 </h1>
-                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>{dateStr} · {time}</p>
+                <p className="text-sm mt-1" style={{ color: '#9CA3AF' }}>{dateStr} · {time}</p>
               </div>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(255,255,255,0.1)' }}>
+                style={{ background: '#2563EB' }}>
                 <span className="text-white text-sm font-semibold">
                   {profile?.full_name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
                 </span>

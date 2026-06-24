@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { MessageCircle, Send, Paperclip, ArrowLeft, FileText, ImageIcon, ExternalLink } from 'lucide-react'
+import { MessageCircle, Send, Paperclip, ArrowLeft, FileText, ImageIcon, ExternalLink, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -66,6 +66,8 @@ export default function MessagesPage() {
   const [companyDocs, setCompanyDocs] = useState<Document[]>([])
   const [docsLoading, setDocsLoading] = useState(false)
   const [mobileView, setMobileView] = useState<'list' | 'conv'>('list')
+  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   /* ─── fetch conversations ─── */
@@ -333,6 +335,25 @@ export default function MessagesPage() {
     }).catch(() => {})
   }
 
+  /* ─── delete message ─── */
+  const handleDeleteMessage = async (msg: Message) => {
+    if (!profile) return
+    const othersRead = msg.read_by.some((id) => id !== profile.id)
+    const prev = messages
+
+    // Optimistic update
+    if (othersRead) {
+      setMessages((m) => m.map((x) => x.id === msg.id ? { ...x, content: '__DELETED__', file_path: null, file_name: null } : x))
+    } else {
+      setMessages((m) => m.filter((x) => x.id !== msg.id))
+    }
+    setDeleteTarget(null)
+
+    const supabase = createClient()
+    const { error } = await supabase.from('messages').delete().eq('id', msg.id).eq('sender_id', profile.id)
+    if (error) setMessages(prev)
+  }
+
   if (!profile) return null
 
   return (
@@ -429,10 +450,34 @@ export default function MessagesPage() {
                   messages.map((msg) => {
                     const isMine = msg.sender_id === profile.id
                     const hasFile = !!msg.file_path
+                    const isDeleted = msg.content === '__DELETED__'
 
                     return (
-                      <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                        {hasFile ? (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isMine ? 'justify-end' : 'justify-start'} relative`}
+                        onMouseEnter={() => { if (isMine && !isDeleted) setHoveredMsgId(msg.id) }}
+                        onMouseLeave={() => setHoveredMsgId(null)}
+                      >
+                        {isMine && hoveredMsgId === msg.id && !isDeleted && (
+                          <button
+                            onClick={() => setDeleteTarget(msg)}
+                            className="absolute top-1 -left-6 p-1 rounded-md transition-colors"
+                            style={{ color: '#9CA3AF' }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#EF4444' }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#9CA3AF' }}
+                          >
+                            <Trash2 style={{ width: 14, height: 14 }} />
+                          </button>
+                        )}
+                        {isDeleted ? (
+                          <div
+                            className="px-3 py-2 rounded-2xl text-sm"
+                            style={{ color: '#9CA3AF', fontStyle: 'italic', border: '1px solid #E2E8F0', background: '#fff' }}
+                          >
+                            Message supprimé
+                          </div>
+                        ) : hasFile ? (
                           <div
                             className="flex items-center gap-2 px-3 py-2.5 rounded-2xl max-w-[240px]"
                             style={{
@@ -519,6 +564,37 @@ export default function MessagesPage() {
           )}
         </div>
       </div>
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold text-[#0F172A] text-base mb-2">Supprimer ce message ?</h3>
+            <p className="text-sm text-[#94A3B8] mb-6">Cette action est irréversible.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-[#1E293B] hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => handleDeleteMessage(deleteTarget)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-colors"
+                style={{ background: '#EF4444' }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomSheet open={attachOpen} onClose={() => setAttachOpen(false)} title="Partager un document">
         {docsLoading ? (
