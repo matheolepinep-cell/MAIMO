@@ -11,6 +11,7 @@ export interface UserProfile {
   is_super_admin?: boolean
   created_at: string
   google_calendar_connected?: boolean
+  has_set_password?: boolean
 }
 
 export interface Workspace {

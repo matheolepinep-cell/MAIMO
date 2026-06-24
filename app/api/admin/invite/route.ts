@@ -19,9 +19,10 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.maimoo.fr'
   const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
     data: { full_name, role, company_id: user.company_id, workspaces: workspaces ?? [] },
-    redirectTo: 'https://www.maimoo.fr/',
+    redirectTo: `${baseUrl}/set-password`,
   })
 
   if (inviteError) {
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create invite' }, { status: 500 })
   }
 
-  // Create users profile row (is_active=false until they set their password)
+  // Create users profile row (is_active=false, has_set_password=false until they set their password)
   const { error: profileError } = await supabase.from('users').upsert({
     id: inviteData.user.id,
     email,
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
     role: role ?? 'commercial',
     company_id: user.company_id,
     is_active: false,
+    has_set_password: false,
   })
 
   if (profileError) {
