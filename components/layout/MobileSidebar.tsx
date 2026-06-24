@@ -59,14 +59,15 @@ export function MobileSidebar() {
         <aside
           className="fixed left-0 top-0 bottom-0 flex flex-col py-5 gap-1 transition-transform duration-200 ease-out"
           style={{
-            background: '#0A0A0A',
+            background: '#FFFFFF',
+            borderRight: '1px solid #E5E7EB',
             width: 220,
             transform: open ? 'translateX(0)' : 'translateX(-100%)',
           }}
           onClick={(e) => e.stopPropagation()}
         >
           <Link href="/app/dashboard" className="flex items-center px-4 mb-4 shrink-0" onClick={close}>
-            <Image src="/logo.png" alt="Maimoo" width={120} height={32} style={{ filter: 'brightness(0) invert(1)' }} />
+            <Image src="/logo.png" alt="Maimoo" width={120} height={32} />
           </Link>
 
           <WorkspaceSelector onCreateClick={() => setShowCreateWorkspace(true)} />
@@ -75,60 +76,68 @@ export function MobileSidebar() {
             <Link
               key={href}
               href={href}
-              className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
-              style={{ padding: '12px 16px', background: isActive(href) ? '#1A1A1A' : 'transparent', boxShadow: isActive(href) ? 'inset 3px 0 0 #2563EB' : 'none' }}
+              className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0 hover:bg-[#F9FAFB]"
+              style={{
+                padding: '12px 16px',
+                background: isActive(href) ? '#EFF6FF' : 'transparent',
+                boxShadow: isActive(href) ? 'inset 3px 0 0 #2563EB' : 'none',
+              }}
               onClick={close}
             >
               <div className="relative shrink-0">
-                <Icon style={{ color: isActive(href) ? 'white' : '#9B9B9B', width: 22, height: 22 }} />
+                <Icon style={{ color: isActive(href) ? '#2563EB' : '#6B7280', width: 22, height: 22 }} />
                 {href === '/app/messages' && hasUnreadMessages && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0A0A0A]" style={{ background: '#DC2626' }} />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white" style={{ background: '#DC2626' }} />
                 )}
               </div>
-              <span style={{ color: isActive(href) ? 'white' : '#9B9B9B', fontSize: 15, fontWeight: 500 }}>{label}</span>
+              <span style={{ color: isActive(href) ? '#2563EB' : '#6B7280', fontSize: 15, fontWeight: 500 }}>{label}</span>
             </Link>
           ))}
 
           <div className="flex-1" />
 
-          <Link
-            href="/app/notifications"
-            className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
-            style={{ padding: '12px 16px', background: pathname.startsWith('/app/notifications') ? '#1A1A1A' : 'transparent' }}
-            onClick={close}
-          >
-            <div className="relative shrink-0">
-              <Bell style={{ color: pathname.startsWith('/app/notifications') ? 'white' : '#9B9B9B', width: 22, height: 22 }} />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ background: '#DC2626' }}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </div>
-            <span style={{ color: pathname.startsWith('/app/notifications') ? 'white' : '#9B9B9B', fontSize: 15, fontWeight: 500 }}>Notifications</span>
-          </Link>
-
-          {profile?.role === 'admin' && (
+          <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 8 }}>
             <Link
-              href="/app/settings"
-              className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
-              style={{ padding: '12px 16px', background: pathname.startsWith('/app/settings') ? '#1A1A1A' : 'transparent' }}
+              href="/app/notifications"
+              className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0 hover:bg-[#F9FAFB]"
+              style={{ padding: '12px 16px', background: pathname.startsWith('/app/notifications') ? '#EFF6FF' : 'transparent' }}
               onClick={close}
             >
-              <Settings style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#9B9B9B', width: 22, height: 22 }} />
-              <span style={{ color: pathname.startsWith('/app/settings') ? 'white' : '#9B9B9B', fontSize: 15, fontWeight: 500 }}>Paramètres</span>
+              <div className="relative shrink-0">
+                <Bell style={{ color: pathname.startsWith('/app/notifications') ? '#2563EB' : '#6B7280', width: 22, height: 22 }} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ background: '#DC2626' }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </div>
+              <span style={{ color: pathname.startsWith('/app/notifications') ? '#2563EB' : '#6B7280', fontSize: 15, fontWeight: 500 }}>Notifications</span>
             </Link>
-          )}
 
-          <Link
-            href="/app/profile"
-            className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0"
-            style={{ padding: '12px 16px', background: pathname.startsWith('/app/profile') ? '#1A1A1A' : 'transparent' }}
-            onClick={close}
-          >
-            <User style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#9B9B9B', width: 22, height: 22 }} />
-            <span style={{ color: pathname.startsWith('/app/profile') ? 'white' : '#9B9B9B', fontSize: 15, fontWeight: 500 }}>Profil</span>
-          </Link>
+            {profile?.role === 'admin' && (
+              <Link
+                href="/app/settings"
+                className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0 hover:bg-[#F9FAFB]"
+                style={{ padding: '12px 16px', background: pathname.startsWith('/app/settings') ? '#EFF6FF' : 'transparent' }}
+                onClick={close}
+              >
+                <Settings style={{ color: pathname.startsWith('/app/settings') ? '#2563EB' : '#6B7280', width: 22, height: 22 }} />
+                <span style={{ color: pathname.startsWith('/app/settings') ? '#2563EB' : '#6B7280', fontSize: 15, fontWeight: 500 }}>Paramètres</span>
+              </Link>
+            )}
+
+            <Link
+              href="/app/profile"
+              className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0 hover:bg-[#F9FAFB]"
+              style={{ padding: '12px 16px', background: pathname.startsWith('/app/profile') ? '#EFF6FF' : 'transparent' }}
+              onClick={close}
+            >
+              <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ background: '#2563EB' }}>
+                <User style={{ color: 'white', width: 14, height: 14 }} />
+              </div>
+              <span style={{ color: pathname.startsWith('/app/profile') ? '#2563EB' : '#6B7280', fontSize: 15, fontWeight: 500 }}>Profil</span>
+            </Link>
+          </div>
         </aside>
       </div>
       <CreateWorkspaceModal open={showCreateWorkspace} onClose={() => setShowCreateWorkspace(false)} />
