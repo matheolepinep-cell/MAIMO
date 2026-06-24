@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X } from 'lucide-react'
+import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -128,6 +128,11 @@ export default function TeamPage() {
   // Disable confirmation
   const [disableTarget, setDisableTarget] = useState<WsMember | null>(null)
 
+  // Invite links
+  const [inviteLinks, setInviteLinks] = useState<{ token: string; link: string; role: WorkspaceRole; expires_at: string }[]>([])
+  const [linkLoading, setLinkLoading] = useState(false)
+  const [showLinks, setShowLinks] = useState(false)
+
   const showToast = (msg: string, error = false) => {
     setToast(msg)
     setToastError(error)
@@ -233,6 +238,37 @@ export default function TeamPage() {
     setPortfolioLoading(false)
   }
 
+  const loadInviteLinks = async () => {
+    if (!wsId) return
+    const res = await fetch(`/api/workspace/invite-link?workspace_id=${wsId}`)
+    if (res.ok) {
+      const data = await res.json()
+      setInviteLinks(data)
+    }
+  }
+
+  const handleGenerateLink = async (role: WorkspaceRole) => {
+    if (!wsId) return
+    setLinkLoading(true)
+    const res = await fetch('/api/workspace/invite-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspace_id: wsId, role }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setInviteLinks((prev) => [data, ...prev])
+      showToast('Lien généré avec succès !')
+    } else {
+      showToast('Erreur lors de la génération du lien.', true)
+    }
+    setLinkLoading(false)
+  }
+
+  const copyLink = (link: string) => {
+    navigator.clipboard.writeText(link).then(() => showToast('Lien copié !'))
+  }
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     setInviteError('')
@@ -278,11 +314,66 @@ export default function TeamPage() {
             )}
           </div>
           {isAdmin && (
-            <Button onClick={() => { setModalOpen(true); setInviteSuccess(''); setInviteError('') }} size="sm" className="ml-auto">
-              <UserPlus className="w-4 h-4 mr-1.5" />Inviter
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                onClick={() => { setShowLinks((v) => !v); if (!showLinks) loadInviteLinks() }}
+                size="sm"
+                variant="secondary"
+              >
+                <Link2 className="w-4 h-4 mr-1.5" />Liens
+              </Button>
+              <Button onClick={() => { setModalOpen(true); setInviteSuccess(''); setInviteError('') }} size="sm">
+                <UserPlus className="w-4 h-4 mr-1.5" />Inviter
+              </Button>
+            </div>
           )}
         </div>
+
+        {/* Invite links panel */}
+        {showLinks && isAdmin && (
+          <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#1E293B]">Liens d'invitation</p>
+              <p className="text-xs text-[#94A3B8]">Valides 7 jours · un usage</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {(['admin', 'member', 'contributeur'] as WorkspaceRole[]).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => handleGenerateLink(r)}
+                  disabled={linkLoading}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:bg-gray-50 disabled:opacity-50"
+                  style={{ borderColor: '#E5E7EB', color: ROLE_CONFIG[r].color }}
+                >
+                  <Link2 style={{ width: 12, height: 12 }} />
+                  Générer lien {ROLE_CONFIG[r].label}
+                </button>
+              ))}
+            </div>
+            {inviteLinks.length > 0 && (
+              <div className="space-y-2">
+                {inviteLinks.map((inv) => (
+                  <div key={inv.token} className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50">
+                    <span
+                      className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
+                      style={{ background: ROLE_CONFIG[inv.role].bg, color: ROLE_CONFIG[inv.role].color }}
+                    >
+                      {ROLE_CONFIG[inv.role].label}
+                    </span>
+                    <p className="flex-1 text-xs text-[#64748B] truncate font-mono">{inv.link}</p>
+                    <button
+                      onClick={() => copyLink(inv.link)}
+                      className="shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-[#64748B]"
+                      title="Copier"
+                    >
+                      <Copy style={{ width: 13, height: 13 }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div className="space-y-3">
