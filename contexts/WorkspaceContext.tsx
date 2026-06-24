@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from './UserContext'
-import type { Workspace } from '@/types/database'
+import type { Workspace, WorkspaceRole } from '@/types/database'
 
 type WorkspaceContextType = {
   currentWorkspace: Workspace | null
@@ -63,7 +63,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       type Row = { role: string; workspaces: Workspace | null }
       workspaces = ((data ?? []) as unknown as Row[])
         .filter((m) => m.workspaces)
-        .map((m) => ({ ...m.workspaces!, role: m.role as 'admin' | 'member' }))
+        .map((m) => ({ ...m.workspaces!, role: m.role as WorkspaceRole }))
     }
 
     // Auto-création de l'espace "Principal" pour les admins sans espace

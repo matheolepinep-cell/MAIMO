@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'commercial'
+export type WorkspaceRole = 'admin' | 'member' | 'contributeur'
 
 export interface UserProfile {
   id: string
@@ -21,7 +22,7 @@ export interface Workspace {
   created_by: string | null
   created_at: string
   is_default: boolean
-  role?: 'admin' | 'member'
+  role?: WorkspaceRole
   company_name?: string | null
   company_sector?: string | null
   company_description?: string | null
@@ -36,7 +37,8 @@ export interface WorkspaceMember {
   id: string
   workspace_id: string
   user_id: string
-  role: 'admin' | 'member'
+  role: WorkspaceRole
+  is_active: boolean
   created_at: string
 }
 

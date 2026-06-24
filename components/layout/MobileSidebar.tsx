@@ -11,6 +11,7 @@ import { useNotificationCount } from '@/contexts/NotificationContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
 import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModal'
+import { useRole } from '@/hooks/useRole'
 
 export function MobileSidebar() {
   const pathname = usePathname()
@@ -18,6 +19,8 @@ export function MobileSidebar() {
   const { open, close, toggle } = useMobileSidebar()
   const unreadCount = useNotificationCount()
   const hasUnreadMessages = useUnreadMessages()
+  const wsRole = useRole()
+  const isContributeur = wsRole === 'contributeur'
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false)
 
   const isActive = (href: string) =>
@@ -27,13 +30,14 @@ export function MobileSidebar() {
       ? pathname.startsWith('/app/portfolio') || pathname.startsWith('/app/accounts')
       : pathname.startsWith(href)
 
-  const navItems = [
-    { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/app/search', icon: Search, label: 'Recherche IA' },
-    { href: '/app/portfolio', icon: Briefcase, label: 'Portefeuille' },
-    { href: '/app/messages', icon: MessageCircle, label: 'Messages' },
-    { href: '/app/team', icon: Users, label: 'Équipe' },
+  const allNavItems = [
+    { href: '/app/dashboard', icon: LayoutDashboard, label: 'Dashboard', hidden: isContributeur },
+    { href: '/app/search', icon: Search, label: 'Recherche IA', hidden: isContributeur },
+    { href: '/app/portfolio', icon: Briefcase, label: 'Portefeuille', hidden: false },
+    { href: '/app/messages', icon: MessageCircle, label: 'Messages', hidden: isContributeur },
+    { href: '/app/team', icon: Users, label: 'Équipe', hidden: isContributeur },
   ]
+  const navItems = allNavItems.filter((i) => !i.hidden)
 
   return (
     <>

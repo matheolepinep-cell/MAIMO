@@ -10,6 +10,7 @@ import { useNotificationCount } from '@/contexts/NotificationContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
 import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModal'
+import { useRole } from '@/hooks/useRole'
 
 function NavItem({
   href,
@@ -73,6 +74,8 @@ export function Sidebar() {
   const { profile } = useUser()
   const unreadCount = useNotificationCount()
   const hasUnreadMessages = useUnreadMessages()
+  const wsRole = useRole()
+  const isContributeur = wsRole === 'contributeur'
   const [portfolioOpen, setPortfolioOpen] = useState(
     pathname.startsWith('/app/portfolio') || pathname.startsWith('/app/accounts')
   )
@@ -101,8 +104,12 @@ export function Sidebar() {
       <CreateWorkspaceModal open={showCreateWorkspace} onClose={() => setShowCreateWorkspace(false)} />
 
       <nav className="flex flex-col gap-0.5 flex-1">
-        <NavItem href="/app/dashboard" icon={LayoutDashboard} label="Dashboard" active={pathname.startsWith('/app/dashboard')} />
-        <NavItem href="/app/search" icon={Search} label="Recherche IA" active={pathname.startsWith('/app/search') || pathname === '/app'} />
+        {!isContributeur && (
+          <NavItem href="/app/dashboard" icon={LayoutDashboard} label="Dashboard" active={pathname.startsWith('/app/dashboard')} />
+        )}
+        {!isContributeur && (
+          <NavItem href="/app/search" icon={Search} label="Recherche IA" active={pathname.startsWith('/app/search') || pathname === '/app'} />
+        )}
 
         <div>
           <button
@@ -121,16 +128,22 @@ export function Sidebar() {
                 style={pathname.startsWith('/app/portfolio') ? { background: '#EFF6FF' } : {}}>
                 <span className="text-xs" style={{ color: pathname.startsWith('/app/portfolio') ? '#2563EB' : '#6B7280' }}>Perso</span>
               </Link>
-              <Link href="/app/accounts" className="flex items-center gap-2 px-3 py-2 mx-2 rounded-lg transition-all duration-150 hover:bg-[#F9FAFB]"
-                style={pathname.startsWith('/app/accounts') ? { background: '#EFF6FF' } : {}}>
-                <span className="text-xs" style={{ color: pathname.startsWith('/app/accounts') ? '#2563EB' : '#6B7280' }}>Global</span>
-              </Link>
+              {!isContributeur && (
+                <Link href="/app/accounts" className="flex items-center gap-2 px-3 py-2 mx-2 rounded-lg transition-all duration-150 hover:bg-[#F9FAFB]"
+                  style={pathname.startsWith('/app/accounts') ? { background: '#EFF6FF' } : {}}>
+                  <span className="text-xs" style={{ color: pathname.startsWith('/app/accounts') ? '#2563EB' : '#6B7280' }}>Global</span>
+                </Link>
+              )}
             </div>
           )}
         </div>
 
-        <NavItem href="/app/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/app/messages')} dot={hasUnreadMessages} />
-        <NavItem href="/app/team" icon={Users} label="Équipe" active={pathname.startsWith('/app/team')} />
+        {!isContributeur && (
+          <NavItem href="/app/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/app/messages')} dot={hasUnreadMessages} />
+        )}
+        {!isContributeur && (
+          <NavItem href="/app/team" icon={Users} label="Équipe" active={pathname.startsWith('/app/team')} />
+        )}
       </nav>
 
       <div className="mt-auto pt-4 mx-2 flex flex-col gap-0.5" style={{ borderTop: '1px solid #E5E7EB' }}>
