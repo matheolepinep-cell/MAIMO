@@ -66,7 +66,6 @@ export default function MessagesPage() {
   const [companyDocs, setCompanyDocs] = useState<Document[]>([])
   const [docsLoading, setDocsLoading] = useState(false)
   const [mobileView, setMobileView] = useState<'list' | 'conv'>('list')
-  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -452,24 +451,25 @@ export default function MessagesPage() {
                     const hasFile = !!msg.file_path
                     const isDeleted = msg.content === '__DELETED__'
 
+                    const trashBtn = isMine && !isDeleted ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(msg) }}
+                        className="absolute -top-2.5 -right-2.5 w-8 h-8 flex items-center justify-center rounded-md transition-all
+                                   opacity-40 md:opacity-0 md:group-hover/msg:opacity-100 hover:!opacity-100"
+                        style={{ background: '#fff', border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
+                        title="Supprimer"
+                        onMouseEnter={(e) => { (e.currentTarget.querySelector('svg') as SVGElement | null)?.setAttribute('style','color:#DC2626') }}
+                        onMouseLeave={(e) => { (e.currentTarget.querySelector('svg') as SVGElement | null)?.setAttribute('style','color:#6B7280') }}
+                      >
+                        <Trash2 style={{ width: 14, height: 14, color: '#6B7280' }} />
+                      </button>
+                    ) : null
+
                     return (
                       <div
                         key={msg.id}
-                        className={`flex ${isMine ? 'justify-end' : 'justify-start'} relative`}
-                        onMouseEnter={() => { if (isMine && !isDeleted) setHoveredMsgId(msg.id) }}
-                        onMouseLeave={() => setHoveredMsgId(null)}
+                        className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                       >
-                        {isMine && hoveredMsgId === msg.id && !isDeleted && (
-                          <button
-                            onClick={() => setDeleteTarget(msg)}
-                            className="absolute top-1 -left-6 p-1 rounded-md transition-colors"
-                            style={{ color: '#9CA3AF' }}
-                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#EF4444' }}
-                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#9CA3AF' }}
-                          >
-                            <Trash2 style={{ width: 14, height: 14 }} />
-                          </button>
-                        )}
                         {isDeleted ? (
                           <div
                             className="px-3 py-2 rounded-2xl text-sm"
@@ -478,54 +478,60 @@ export default function MessagesPage() {
                             Message supprimé
                           </div>
                         ) : hasFile ? (
-                          <div
-                            className="flex items-center gap-2 px-3 py-2.5 rounded-2xl max-w-[240px]"
-                            style={{
-                              background: isMine ? '#3B82F6' : '#fff',
-                              border: isMine ? 'none' : '1px solid #E2E8F0',
-                            }}
-                          >
+                          <div className="relative group/msg">
                             <div
-                              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                              style={{ background: isMine ? 'rgba(255,255,255,0.2)' : '#F5F5F5' }}
+                              className="flex items-center gap-2 px-3 py-2.5 rounded-2xl max-w-[240px]"
+                              style={{
+                                background: isMine ? '#3B82F6' : '#fff',
+                                border: isMine ? 'none' : '1px solid #E2E8F0',
+                              }}
                             >
-                              {msg.file_type === 'image'
-                                ? <ImageIcon className="w-4 h-4" style={{ color: isMine ? 'white' : '#3B82F6' }} />
-                                : <FileText className="w-4 h-4" style={{ color: isMine ? 'white' : '#3B82F6' }} />}
-                            </div>
-                            <div className="min-w-0 flex-1">
+                              <div
+                                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ background: isMine ? 'rgba(255,255,255,0.2)' : '#F5F5F5' }}
+                              >
+                                {msg.file_type === 'image'
+                                  ? <ImageIcon className="w-4 h-4" style={{ color: isMine ? 'white' : '#3B82F6' }} />
+                                  : <FileText className="w-4 h-4" style={{ color: isMine ? 'white' : '#3B82F6' }} />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <a
+                                  href={`/api/documents/by-path?path=${encodeURIComponent(msg.file_path ?? '')}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-medium truncate block hover:underline"
+                                  style={{ color: isMine ? 'white' : '#1E293B' }}
+                                >
+                                  {msg.file_name}
+                                </a>
+                                <p className="text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.7)' : '#94A3B8' }}>
+                                  {msg.file_type?.toUpperCase()}
+                                </p>
+                              </div>
                               <a
                                 href={`/api/documents/by-path?path=${encodeURIComponent(msg.file_path ?? '')}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-xs font-medium truncate block hover:underline"
-                                style={{ color: isMine ? 'white' : '#1E293B' }}
+                                className="shrink-0"
                               >
-                                {msg.file_name}
+                                <ExternalLink className="w-3.5 h-3.5" style={{ color: isMine ? 'rgba(255,255,255,0.7)' : '#94A3B8' }} />
                               </a>
-                              <p className="text-[10px]" style={{ color: isMine ? 'rgba(255,255,255,0.7)' : '#94A3B8' }}>
-                                {msg.file_type?.toUpperCase()}
-                              </p>
                             </div>
-                            <a
-                              href={`/api/documents/by-path?path=${encodeURIComponent(msg.file_path ?? '')}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="shrink-0"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" style={{ color: isMine ? 'rgba(255,255,255,0.7)' : '#94A3B8' }} />
-                            </a>
+                            {trashBtn}
                           </div>
                         ) : (
-                          <div
-                            className="px-3 py-2 rounded-2xl max-w-[75%] text-sm leading-relaxed"
-                            style={{
-                              background: isMine ? '#3B82F6' : '#fff',
-                              color: isMine ? 'white' : '#1E293B',
-                              border: isMine ? 'none' : '1px solid #E2E8F0',
-                            }}
-                          >
-                            {msg.content}
+                          <div className="relative group/msg">
+                            <div
+                              className="px-3 py-2 rounded-2xl max-w-[75%] text-sm leading-relaxed"
+                              style={{
+                                background: isMine ? '#3B82F6' : '#fff',
+                                color: isMine ? 'white' : '#1E293B',
+                                border: isMine ? 'none' : '1px solid #E2E8F0',
+                              }}
+                            >
+                              {msg.content}
+                            </div>
+                            {trashBtn}
                           </div>
                         )}
                       </div>
