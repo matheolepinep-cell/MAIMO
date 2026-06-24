@@ -812,45 +812,48 @@ function SearchPageContent() {
       {/* ── MOBILE ── */}
       <div className="md:hidden flex flex-col" style={{ height: 'calc(100dvh - 4rem)', background: 'white' }}>
 
-        {/* Mobile header */}
+        {/* Mobile header — burger (from MobileSidebar) is fixed at left-3(12px), 40px wide → 56px spacer */}
         <div style={{
           flexShrink: 0,
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '12px 16px 12px 16px',
+          display: 'flex', alignItems: 'center',
+          padding: '12px 16px',
+          paddingLeft: 56,
           background: 'white', borderBottom: '1px solid #E5E5E5',
         }}>
-          <button
-            onClick={() => setMobileSidebarOpen(true)}
-            style={{
-              height: 36, borderRadius: 8, padding: '0 10px',
-              background: 'transparent', border: '1px solid #E5E5E5',
-              display: 'flex', alignItems: 'center', gap: 5,
-              cursor: 'pointer', position: 'relative', flexShrink: 0,
-            }}
-          >
-            <History style={{ width: 16, height: 16, color: '#0A0A0A' }} />
-            <span style={{ fontSize: 12, fontWeight: 500, color: '#0A0A0A' }}>Historique</span>
-            {conversations.length > 0 && (
-              <span style={{
-                minWidth: 16, height: 16, borderRadius: 8, background: '#2563EB',
-                color: 'white', fontSize: 10, fontWeight: 700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
-              }}>
-                {conversations.length > 9 ? '9+' : conversations.length}
-              </span>
-            )}
-          </button>
-          <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: '#1A1A2E', textAlign: 'center' }}>
+          <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: '#1A1A2E' }}>
             Recherche IA
           </span>
-          <button onClick={() => router.push('/app/import')}
-            style={{
-              width: 36, height: 36, borderRadius: 8,
-              background: 'transparent', border: '1px solid #E5E5E5',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-            }}>
-            <Upload style={{ width: 16, height: 16, color: '#6B6B6B' }} />
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              style={{
+                position: 'relative', width: 36, height: 36, borderRadius: 8,
+                background: 'transparent', border: '1px solid #E5E5E5',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              <History style={{ width: 16, height: 16, color: '#0A0A0A' }} />
+              {conversations.length > 0 && (
+                <span style={{
+                  position: 'absolute', top: -5, right: -5,
+                  minWidth: 16, height: 16, borderRadius: 8, background: '#2563EB',
+                  color: 'white', fontSize: 10, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+                }}>
+                  {conversations.length > 9 ? '9+' : conversations.length}
+                </span>
+              )}
+            </button>
+            <button onClick={() => router.push('/app/import')}
+              style={{
+                width: 36, height: 36, borderRadius: 8,
+                background: 'transparent', border: '1px solid #E5E5E5',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+              }}>
+              <Upload style={{ width: 16, height: 16, color: '#6B6B6B' }} />
+            </button>
+          </div>
         </div>
 
         {/* Mobile tabs */}
