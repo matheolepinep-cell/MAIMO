@@ -152,10 +152,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   /* ─── fetch ─── */
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
-    let notesQ = supabase.from('notes').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false })
-    if (wsId) notesQ = notesQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
-    let docsQ = supabase.from('documents').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false })
-    if (wsId) docsQ = docsQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+    // Account detail shows ALL notes/docs for this account regardless of which workspace
+    // they were created in. Filtering by workspace_id here caused notes to disappear
+    // when the active workspace differed from the one used at note-creation time.
+    // RLS (company_id = get_my_company_id()) already handles data isolation.
+    const notesQ = supabase.from('notes').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false })
+    const docsQ = supabase.from('documents').select('*').eq('account_id', id).eq('is_deleted', false).order('created_at', { ascending: false })
     const [
       { data: acc },
       { data: ctcs },
