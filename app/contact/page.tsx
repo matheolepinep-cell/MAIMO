@@ -2,12 +2,19 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Send, Check } from 'lucide-react'
-import { FormMessage } from '@/components/ui/FormMessage'
+import Image from 'next/image'
+import { ArrowLeft, Check } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+const inputClass = "w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-[16px] md:text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all bg-white"
+const labelClass = "block text-sm font-medium text-[#334155] mb-1.5"
 
 export default function ContactPage() {
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [company, setCompany] = useState('')
+  const [teamSize, setTeamSize] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -16,37 +23,37 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!name.trim()) { setError('Veuillez entrer votre nom.'); return }
+    if (!firstName.trim()) { setError('Veuillez entrer votre prénom.'); return }
+    if (!lastName.trim()) { setError('Veuillez entrer votre nom.'); return }
     if (!email.trim()) { setError('Veuillez entrer votre email.'); return }
-    if (!message.trim()) { setError('Veuillez écrire votre message.'); return }
+    if (!company.trim()) { setError("Veuillez entrer le nom de votre entreprise."); return }
+
     setLoading(true)
-    const res = await fetch('/api/contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, message }),
+    const supabase = createClient()
+    const { error: dbError } = await supabase.from('demo_requests').insert({
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      email: email.trim(),
+      company: company.trim(),
+      team_size: teamSize || null,
+      message: message.trim() || null,
     })
-    if (res.ok) {
-      setSent(true)
-    } else {
-      const data = await res.json()
-      setError(data.error ?? "Une erreur est survenue.")
+
+    if (dbError) {
+      setError("Une erreur est survenue. Réessayez ou écrivez-nous à contact@maimoo.fr")
+      setLoading(false)
+      return
     }
+
+    setSent(true)
     setLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ background: '#FFFFFF', backgroundImage: 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
       {/* Header */}
-      <header className="border-b border-slate-100 px-6 py-4 flex items-center justify-between max-w-4xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-bold text-sm"
-            style={{ background: 'linear-gradient(135deg, #0A0A0A, #0A0A0A)' }}
-          >
-            M
-          </div>
-          <span className="font-bold text-[#0A0A0A]">Maimoo</span>
-        </div>
+      <header className="border-b border-slate-100 bg-white px-6 py-4 flex items-center justify-between max-w-4xl mx-auto">
+        <Image src="/logo.png" alt="Maimoo" height={28} width={104} style={{ height: 28, width: 'auto' }} />
         <Link
           href="/"
           className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#0A0A0A] transition-colors"
@@ -57,99 +64,135 @@ export default function ContactPage() {
       </header>
 
       <main className="max-w-lg mx-auto px-6 py-12">
-        <h1 className="text-3xl font-black text-[#0F172A] mb-2">Contact</h1>
-        <p className="text-[#64748B] mb-10">
-          Une question, une suggestion ? Écrivez-nous, nous vous répondrons rapidement.
-        </p>
-
         {sent ? (
-          <div className="flex flex-col items-center text-center py-12">
-            <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-4">
-              <Check className="w-8 h-8 text-green-600" />
+          <div className="flex flex-col items-center text-center py-16">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{ background: '#DBEAFE' }}>
+              <Check className="w-8 h-8" style={{ color: '#2563EB' }} />
             </div>
-            <h2 className="text-xl font-bold text-[#0F172A] mb-2">Message envoyé !</h2>
-            <p className="text-[#64748B] mb-6">
-              Nous avons bien reçu votre message et vous répondrons sous 48h.
+            <h2 className="text-2xl font-bold text-[#0F172A] mb-3">Merci !</h2>
+            <p className="text-[#64748B] mb-8 leading-relaxed">
+              Nous vous recontactons sous 24h pour vous présenter Maimoo et répondre à vos questions.
             </p>
-            <Link
-              href="/"
-              className="text-sm font-medium text-[#0A0A0A] hover:underline"
-            >
+            <Link href="/" className="text-sm font-medium text-[#2563EB] hover:underline">
               Retour à l&apos;accueil
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-[#334155] mb-1.5" htmlFor="c-name">
-                Nom complet
-              </label>
-              <input
-                id="c-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Jean Dupont"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/30 focus:border-[#0A0A0A] transition-all"
-              />
+          <>
+            <div className="mb-10">
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase mb-4" style={{ background: '#DBEAFE', color: '#2563EB', letterSpacing: '0.08em' }}>Démo gratuite</span>
+              <h1 className="text-3xl font-black text-[#0F172A] mb-3" style={{ letterSpacing: '-0.02em' }}>Demandez une démo</h1>
+              <p className="text-[#64748B] leading-relaxed">
+                Notre équipe vous contacte sous 24h pour vous présenter Maimoo et répondre à vos questions.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#334155] mb-1.5" htmlFor="c-email">
-                Email
-              </label>
-              <input
-                id="c-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onInvalid={(e) => e.preventDefault()}
-                placeholder="vous@exemple.com"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/30 focus:border-[#0A0A0A] transition-all"
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass} htmlFor="d-first">Prénom</label>
+                  <input
+                    id="d-first"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Jean"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="d-last">Nom</label>
+                  <input
+                    id="d-last"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Dupont"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#334155] mb-1.5" htmlFor="c-message">
-                Message
-              </label>
-              <textarea
-                id="c-message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={6}
-                placeholder="Votre message..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[#0F172A] text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/30 focus:border-[#0A0A0A] transition-all resize-none"
-              />
-            </div>
+              <div>
+                <label className={labelClass} htmlFor="d-email">Email professionnel</label>
+                <input
+                  id="d-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onInvalid={(e) => e.preventDefault()}
+                  placeholder="jean@entreprise.com"
+                  className={inputClass}
+                />
+              </div>
 
-            {error && <FormMessage type="error" message={error} />}
+              <div>
+                <label className={labelClass} htmlFor="d-company">Nom de l&apos;entreprise</label>
+                <input
+                  id="d-company"
+                  type="text"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="Acme SAS"
+                  className={inputClass}
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #0A0A0A, #0A0A0A)' }}
-            >
-              {loading ? (
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
+              <div>
+                <label className={labelClass} htmlFor="d-size">Taille de l&apos;équipe commerciale</label>
+                <select
+                  id="d-size"
+                  value={teamSize}
+                  onChange={(e) => setTeamSize(e.target.value)}
+                  className={inputClass}
+                  style={{ appearance: 'none' }}
+                >
+                  <option value="">Sélectionner...</option>
+                  <option value="1-5">1 à 5 commerciaux</option>
+                  <option value="6-20">6 à 20 commerciaux</option>
+                  <option value="21-50">21 à 50 commerciaux</option>
+                  <option value="50+">Plus de 50 commerciaux</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass} htmlFor="d-message">Message <span className="text-slate-400 font-normal">(optionnel)</span></label>
+                <textarea
+                  id="d-message"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={4}
+                  placeholder="Décrivez votre contexte, vos questions..."
+                  className={inputClass}
+                  style={{ resize: 'none' }}
+                />
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-600">{error}</p>
               )}
-              {loading ? 'Envoi...' : 'Envoyer le message'}
-            </button>
-          </form>
-        )}
 
-        <div className="mt-10 pt-8 border-t border-slate-100 text-sm text-[#64748B]">
-          <p>Ou contactez-nous directement par email :</p>
-          <a href="mailto:contact@maimoo.fr" className="text-[#0A0A0A] font-medium hover:underline">
-            contact@maimoo.fr
-          </a>
-        </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                style={{ background: '#2563EB', border: 'none', cursor: loading ? 'default' : 'pointer' }}
+              >
+                {loading ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : null}
+                {loading ? 'Envoi...' : 'Envoyer ma demande'}
+              </button>
+
+              <p className="text-xs text-center text-slate-400">
+                En soumettant ce formulaire, vous acceptez d&apos;être recontacté par notre équipe.
+              </p>
+            </form>
+          </>
+        )}
       </main>
 
-      <footer className="border-t border-slate-100 px-6 py-6 text-center">
+      <footer className="border-t border-slate-100 bg-white px-6 py-6 text-center mt-12">
         <p className="text-xs text-[#94A3B8]">© 2026 Maimoo. Tous droits réservés.</p>
       </footer>
     </div>

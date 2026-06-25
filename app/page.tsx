@@ -310,11 +310,11 @@ CREATE TABLE IF NOT EXISTS early_access (
               <button onClick={openRegister} className="font-bold transition-opacity hover:opacity-90" style={{ background: '#2563EB', color: 'white', borderRadius: 24, padding: '14px 32px', fontSize: 16, border: 'none', cursor: 'pointer' }}>
                 Commencer gratuitement
               </button>
-              <button onClick={openLogin} className="font-medium transition-colors" style={{ background: 'transparent', color: '#374151', borderRadius: 24, padding: '13px 32px', fontSize: 16, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}
+              <a href="/contact" className="font-medium transition-colors" style={{ background: 'transparent', color: '#374151', borderRadius: 24, padding: '13px 32px', fontSize: 16, border: '1.5px solid #E5E7EB', cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#2563EB'; (e.currentTarget as HTMLElement).style.color = '#2563EB' }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#E5E7EB'; (e.currentTarget as HTMLElement).style.color = '#374151' }}>
                 Voir une démo
-              </button>
+              </a>
             </motion.div>
           </motion.div>
 
