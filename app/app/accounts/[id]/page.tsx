@@ -721,8 +721,78 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         ]} />
       </div>
 
-      {/* Header */}
-      <div className="bg-white px-4 pl-16 md:pl-4 py-3 flex items-center gap-3 sticky top-0 z-30"
+      {/* ─── Mobile header ─── */}
+      <div className="md:hidden bg-white sticky top-0 z-30" style={{ borderBottom: '1px solid #F3F4F6' }}>
+        {/* Row 1 — right actions (back button is fixed below, overlaying the burger slot) */}
+        <div className="flex items-center justify-end px-3 pt-2 pb-1 gap-0.5 min-h-[52px]">
+          <button
+            onClick={handleToggleMute}
+            className="w-11 h-11 flex items-center justify-center rounded-full transition-colors hover:bg-gray-50"
+            title={isMuted ? 'Réactiver les notifications' : 'Désactiver les notifications'}
+          >
+            {isMuted
+              ? <BellOff className="w-[18px] h-[18px] text-[#94A3B8]" />
+              : <Bell className="w-[18px] h-[18px] text-[#0A0A0A]" />}
+          </button>
+          {(profile?.role === 'admin' || portfolioEntry !== null) && (
+            <div className="relative">
+              <button
+                onClick={() => setMoreMenuOpen((v) => !v)}
+                className="w-11 h-11 flex items-center justify-center rounded-full transition-colors hover:bg-gray-50"
+              >
+                <MoreVertical className="w-[18px] h-[18px] text-[#0A0A0A]" />
+              </button>
+              {moreMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setMoreMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-40 bg-white rounded-xl border border-gray-100 shadow-xl overflow-hidden min-w-[180px]">
+                    <button
+                      onClick={() => { setMoreMenuOpen(false); setDeleteConfirmName(''); setDeleteModalOpen(true) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-[#EF4444] hover:bg-red-50 transition-colors text-left"
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />Supprimer la fiche
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Row 2 — centered avatar + name + status */}
+        <div className="flex flex-col items-center gap-2 pb-5 px-8">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+            style={{ background: '#2563EB' }}
+          >
+            {getInitials(account.name)}
+          </div>
+          <h1
+            className="text-[20px] font-bold text-[#0A0A0A] text-center leading-tight"
+            style={{ wordBreak: 'break-word', maxWidth: 280 }}
+          >
+            {account.name}
+          </h1>
+          <button
+            onClick={handleStatusToggle}
+            className="px-3 py-1 rounded-full text-[12px] font-medium transition-all"
+            style={{ background: '#EFF6FF', color: '#2563EB' }}
+          >
+            {account.status === 'prospect' ? 'Prospect' : 'Client'}
+          </button>
+        </div>
+      </div>
+
+      {/* Back button — fixed, overlays the mobile burger button slot */}
+      <button
+        onClick={() => router.back()}
+        className="md:hidden fixed top-3 left-3 z-[51] w-10 h-10 flex items-center justify-center rounded-xl"
+        style={{ background: 'rgba(255,255,255,0.95)', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}
+      >
+        <ArrowLeft className="w-5 h-5 text-[#0A0A0A]" />
+      </button>
+
+      {/* ─── Desktop header ─── */}
+      <div className="hidden md:flex bg-white px-4 py-3 items-center gap-3 sticky top-0 z-30"
         style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
         <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-[#F5F5F5] transition-all duration-200 shrink-0">
           <ArrowLeft className="w-5 h-5" />
@@ -733,18 +803,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="font-bold text-[#0F172A] truncate text-[18px] md:text-[22px]" style={{ wordBreak: 'break-word' }}>{account.name}</h1>
+            <h1 className="font-bold text-[#0F172A] truncate text-[22px]" style={{ wordBreak: 'break-word' }}>{account.name}</h1>
             <button
               onClick={handleStatusToggle}
               className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-200 border"
               style={account.status === 'prospect' ? {
-                background: 'rgba(0,0,0,0.05)',
-                color: 'rgba(30,39,97,0.5)',
-                borderColor: 'rgba(30,39,97,0.1)',
+                background: 'rgba(0,0,0,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)',
               } : {
-                background: 'rgba(0,0,0,0.12)',
-                color: '#0A0A0A',
-                borderColor: 'rgba(30,39,97,0.2)',
+                background: 'rgba(0,0,0,0.12)', color: '#0A0A0A', borderColor: 'rgba(30,39,97,0.2)',
               }}
             >
               {account.status === 'prospect' ? 'Prospect' : 'Client'}
@@ -762,47 +828,19 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         >
           {isMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
         </button>
-
-        {/* Delete — desktop: trash icon; mobile: 3-dot menu */}
         {(profile?.role === 'admin' || portfolioEntry !== null) && (
-          <>
-            {/* Desktop trash icon */}
-            <button
-              onClick={() => { setDeleteConfirmName(''); setDeleteModalOpen(true) }}
-              title="Supprimer la fiche"
-              className="hidden md:flex p-2 rounded-xl transition-all duration-200 shrink-0 text-[#EF4444] hover:bg-red-50"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            {/* Mobile 3-dot menu */}
-            <div className="relative md:hidden">
-              <button
-                onClick={() => setMoreMenuOpen((v) => !v)}
-                className="p-2 rounded-xl text-slate-400 hover:bg-[#F5F5F5] transition-all duration-200 shrink-0"
-              >
-                <MoreVertical className="w-5 h-5" />
-              </button>
-              {moreMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setMoreMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-40 bg-white rounded-xl border border-gray-100 shadow-xl overflow-hidden min-w-[180px]">
-                    <button
-                      onClick={() => { setMoreMenuOpen(false); setDeleteConfirmName(''); setDeleteModalOpen(true) }}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-[#EF4444] hover:bg-red-50 transition-colors text-left"
-                    >
-                      <Trash2 className="w-4 h-4 shrink-0" />
-                      Supprimer la fiche
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </>
+          <button
+            onClick={() => { setDeleteConfirmName(''); setDeleteModalOpen(true) }}
+            title="Supprimer la fiche"
+            className="p-2 rounded-xl transition-all duration-200 shrink-0 text-[#EF4444] hover:bg-red-50"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         )}
       </div>
 
       {/* Mobile tabs */}
-      <div className="md:hidden flex gap-1.5 px-4 py-2.5 bg-white border-b border-slate-100 sticky top-[57px] z-20">
+      <div className="md:hidden flex gap-2 px-3 py-3 bg-white" style={{ borderBottom: '1px solid #F3F4F6' }}>
         {([
           { value: 'info', label: 'Info' },
           { value: 'notes', label: 'Notes' },
@@ -811,9 +849,11 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           <button
             key={value}
             onClick={() => { setMobileTab(value); if (value !== 'info') setTab(value as Tab) }}
-            className={`flex-1 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-              mobileTab === value ? 'bg-[#0A0A0A] text-white' : 'text-[#64748B] bg-[#F5F5F5]'
-            }`}
+            className="py-2 px-5 rounded-full text-[14px] font-medium transition-all duration-200 whitespace-nowrap"
+            style={mobileTab === value
+              ? { background: '#0A0A0A', color: '#fff' }
+              : { background: '#F3F4F6', color: '#6B7280' }
+            }
           >
             {label}
           </button>
@@ -824,23 +864,29 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 min-h-0">
 
         {/* ── LEFT COLUMN ── */}
-        <div className={`border-b md:border-b-0 md:border-r border-slate-100 overflow-auto p-4 md:p-6 space-y-6 ${mobileTab !== 'info' ? 'hidden md:block' : ''}`}>
+        <div className={`border-b md:border-b-0 md:border-r border-slate-100 overflow-auto px-4 pt-5 pb-24 md:p-6 md:pb-6 space-y-6 ${mobileTab !== 'info' ? 'hidden md:block' : ''}`}>
 
           {/* Account Info */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-[#1E293B]">Informations</h2>
+              <h2 className="text-[18px] md:text-sm font-bold md:font-semibold text-[#1E293B]">Informations</h2>
               {editing ? (
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={cancelEdit}><X className="w-4 h-4" /></Button>
                   <Button size="sm" loading={saving} onClick={saveEdit}><Save className="w-4 h-4 mr-1" />Sauvegarder</Button>
                 </div>
               ) : (
-                <Button variant="secondary" size="sm" onClick={startEdit} className="shrink-0"><Edit2 className="w-4 h-4 mr-1" />Modifier</Button>
+                <button
+                  onClick={startEdit}
+                  className="shrink-0 px-[14px] py-1.5 rounded-full text-[13px] font-medium transition-colors hover:bg-gray-50"
+                  style={{ border: '1px solid #E5E7EB', color: '#0A0A0A' }}
+                >
+                  Modifier
+                </button>
               )}
             </div>
 
-            <div className="space-y-3">
+            <div>
               {infoFields.map(({ key, label, placeholder }) => (
                 editing ? (
                   key === 'city' ? (
@@ -860,15 +906,15 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                       onChange={(e) => setEditData((prev) => ({ ...prev, [key]: e.target.value || null }))} />
                   )
                 ) : (account[key] ? (
-                  <div key={key}>
-                    <p className="text-xs text-[#94A3B8] mb-0.5">{label}</p>
+                  <div key={key} className="py-3 border-b border-[#F3F4F6] last:border-b-0">
+                    <p className="text-[11px] md:text-xs font-medium uppercase tracking-[0.05em] text-[#9CA3AF] mb-1">{label}</p>
                     {key === 'email'
-                      ? <a href={`mailto:${account[key] as string}`} className="text-sm text-[#0A0A0A] hover:underline">{account[key] as string}</a>
+                      ? <a href={`mailto:${account[key] as string}`} className="text-[15px] md:text-sm text-[#2563EB] hover:underline">{account[key] as string}</a>
                       : key === 'phone'
-                      ? <a href={`tel:${(account[key] as string).replace(/\s/g, '')}`} className="text-sm text-[#1E293B] hover:text-[#0A0A0A] transition-colors">{account[key] as string}</a>
+                      ? <a href={`tel:${(account[key] as string).replace(/\s/g, '')}`} className="text-[15px] md:text-sm text-[#0A0A0A] transition-colors">{account[key] as string}</a>
                       : key === 'website'
-                      ? <a href={(account[key] as string).startsWith('http') ? account[key] as string : `https://${account[key] as string}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-[#0A0A0A] hover:underline">{account[key] as string}<ExternalLink className="w-3 h-3 shrink-0 ml-0.5" /></a>
-                      : <p className="text-sm text-[#1E293B]">{account[key] as string}</p>
+                      ? <a href={(account[key] as string).startsWith('http') ? account[key] as string : `https://${account[key] as string}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[15px] md:text-sm text-[#0A0A0A] hover:underline">{account[key] as string}<ExternalLink className="w-3 h-3 shrink-0 ml-0.5" /></a>
+                      : <p className="text-[15px] md:text-sm text-[#0A0A0A] md:text-[#1E293B]">{account[key] as string}</p>
                     }
                   </div>
                 ) : null)
@@ -889,9 +935,9 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   />
                 </div>
               ) : account.notes_general ? (
-                <div>
-                  <p className="text-xs text-[#94A3B8] mb-0.5">Notes générales</p>
-                  <p className="text-sm text-[#1E293B] whitespace-pre-wrap">{account.notes_general}</p>
+                <div className="py-3 border-b border-[#F3F4F6]">
+                  <p className="text-[11px] md:text-xs font-medium uppercase tracking-[0.05em] text-[#9CA3AF] mb-1">Notes générales</p>
+                  <p className="text-[15px] md:text-sm text-[#0A0A0A] md:text-[#1E293B] whitespace-pre-wrap">{account.notes_general}</p>
                 </div>
               ) : null}
             </div>
@@ -900,16 +946,20 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           {/* Contacts */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-[#1E293B]">Interlocuteurs</h2>
+              <h2 className="text-[18px] md:text-sm font-bold md:font-semibold text-[#1E293B]">Interlocuteurs</h2>
               <div className="flex items-center gap-2">
-                <select value={contactSort} onChange={(e) => setContactSort(e.target.value as 'az' | 'za' | 'recent')} className="text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
+                <select value={contactSort} onChange={(e) => setContactSort(e.target.value as 'az' | 'za' | 'recent')} className="hidden md:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                   <option value="az">A → Z</option>
                   <option value="za">Z → A</option>
                   <option value="recent">Date d'ajout</option>
                 </select>
-                <Button size="sm" variant="secondary" onClick={() => setContactModal(true)}>
-                  <Plus className="w-4 h-4 mr-1" />Ajouter
-                </Button>
+                <button
+                  onClick={() => setContactModal(true)}
+                  className="flex items-center gap-1 px-[14px] py-1.5 rounded-full text-[13px] font-medium text-white transition-colors"
+                  style={{ background: '#2563EB' }}
+                >
+                  <Plus className="w-3.5 h-3.5" />Ajouter
+                </button>
               </div>
             </div>
 
@@ -919,33 +969,36 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
               <div className="space-y-2">
                 {sortedContacts.map((c) => (
                   <div key={c.id}
-                    className="bg-white rounded-xl border border-gray-100 p-3 cursor-pointer hover:border-[#E5E5E5] hover:bg-[#F8FAFF] transition-all duration-150"
+                    className="bg-white rounded-[12px] border border-gray-100 p-[14px] md:p-3 cursor-pointer hover:border-[#E5E5E5] hover:bg-[#F8FAFF] transition-all duration-150 mb-2 last:mb-0"
                     onClick={() => setSelectedContact(c)}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(0,0,0,0.06)' }}>
-                          <span className="text-xs font-bold" style={{ color: '#0A0A0A' }}>{getInitials(`${c.first_name} ${c.last_name}`)}</span>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 md:w-8 md:h-8 rounded-full md:rounded-lg flex items-center justify-center shrink-0" style={{ background: '#F3F4F6' }}>
+                          <span className="text-xs font-bold" style={{ color: '#6B7280' }}>{getInitials(`${c.first_name} ${c.last_name}`)}</span>
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-semibold text-[#1E293B]">{c.first_name} {c.last_name}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-[15px] md:text-sm font-semibold text-[#0A0A0A] md:text-[#1E293B]">{c.first_name} {c.last_name}</p>
                             {c.is_main_contact && (
-                              <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 text-amber-600 text-xs font-medium rounded-lg">
+                              <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[11px] md:text-xs font-medium rounded-lg">
                                 <Star className="w-2.5 h-2.5" />Principal
                               </span>
                             )}
                           </div>
-                          {c.phone && <a href={`tel:${c.phone.replace(/\s/g, '')}`} onClick={(e) => e.stopPropagation()} className="text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors block">{c.phone}</a>}
-                          {c.email && <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} className="text-xs text-[#3B82F6] hover:underline block">{c.email}</a>}
-                          {c.role && <p className="text-xs text-slate-500 italic mt-0.5">{c.role}</p>}
+                          {c.phone && <a href={`tel:${c.phone.replace(/\s/g, '')}`} onClick={(e) => e.stopPropagation()} className="text-[13px] md:text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors block mt-0.5">{c.phone}</a>}
+                          {c.email && <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} className="text-[13px] md:text-xs text-[#2563EB] hover:underline block mt-0.5">{c.email}</a>}
+                          {c.role && <p className="text-[12px] md:text-xs text-[#9CA3AF] md:text-slate-500 italic mt-0.5">{c.role}</p>}
                         </div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); handleDeleteContact(c.id) }} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150">
-                        <Trash2 className="w-3.5 h-3.5" />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteContact(c.id) }}
+                        className="w-11 h-11 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150 shrink-0 -mr-2 -mt-1"
+                      >
+                        <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                       </button>
                     </div>
-                    {c.notes && <p className="text-xs text-[#64748B] mt-2 pt-2 border-t border-gray-100">{c.notes}</p>}
+                    {c.notes && <p className="text-[13px] md:text-xs text-[#64748B] mt-2 pt-2 border-t border-gray-100">{c.notes}</p>}
                   </div>
                 ))}
               </div>
@@ -956,17 +1009,20 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           <div>
             {/* Header */}
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-[#1E293B]">Documents ({documents.length})</h2>
+              <h2 className="text-[18px] md:text-sm font-bold md:font-semibold text-[#1E293B]">Documents ({documents.length})</h2>
               <div className="flex items-center gap-2">
-                <select value={docSort} onChange={(e) => setDocSort(e.target.value as 'recent' | 'oldest' | 'az' | 'type')} className="text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
+                <select value={docSort} onChange={(e) => setDocSort(e.target.value as 'recent' | 'oldest' | 'az' | 'type')} className="hidden md:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                   <option value="recent">Date (récent)</option>
                   <option value="oldest">Date (ancien)</option>
                   <option value="az">A → Z</option>
                   <option value="type">Type</option>
                 </select>
-                <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#0A0A0A] bg-[#F5F5F5] hover:bg-[#E8EEFF] cursor-pointer transition-all duration-150">
+                <label
+                  className="flex items-center gap-1 px-[14px] py-1.5 rounded-full text-[13px] font-medium cursor-pointer transition-all duration-150 text-white"
+                  style={{ background: '#2563EB' }}
+                >
                   {docUploading
-                    ? <span className="w-3 h-3 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
+                    ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     : <><Upload className="w-3 h-3 mr-0.5" />Ajouter</>
                   }
                   <input type="file" multiple className="hidden" onChange={handleStandaloneDocUpload} disabled={docUploading} />
@@ -1100,7 +1156,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           {/* Access */}
           {portfolioEntry && (
             <div>
-              <h2 className="text-sm font-semibold text-[#1E293B] mb-3">Accès</h2>
+              <h2 className="text-[18px] md:text-sm font-bold md:font-semibold text-[#1E293B] mb-3">Accès</h2>
               <div className="space-y-2">
                 {([
                   { value: 'team', icon: Globe, label: "Toute l'équipe", desc: 'Tous les membres voient cette fiche' },
@@ -1168,7 +1224,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             ))}
           </div>
 
-          <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
+          <div className="flex-1 overflow-auto p-4 pb-24 md:p-6 md:pb-6 space-y-4">
 
             {/* ── NOTES TAB ── */}
             {tab === 'notes' && (
