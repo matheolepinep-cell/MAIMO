@@ -85,6 +85,7 @@ const FAQS = [
   { question: 'Mes données sont-elles sécurisées ?', answer: "Vos données sont hébergées en Europe, chiffrées, conformes au RGPD. Chaque organisation est isolée au niveau de la base de données. Aucun accès croisé n'est techniquement possible." },
   { question: 'Est-ce accessible sur mobile ?', answer: "Maimoo est une application installable sur iPhone et Android depuis votre navigateur. Elle fonctionne comme une vraie application native — sans passer par l'App Store." },
   { question: 'Puis-je importer mes clients existants ?', answer: "Oui. Un fichier Excel ou CSV suffit. L'IA mappe automatiquement vos colonnes et crée les fiches clients en quelques secondes." },
+  { question: 'Mes données passent-elles par des serveurs américains ?', answer: "Vos données sont stockées en Europe (Frankfurt, Allemagne). Nos fonctionnalités d'IA font appel à des prestataires américains (Anthropic, OpenAI) encadrés par des Clauses Contractuelles Types RGPD. Seul le contenu nécessaire au traitement est transmis temporairement — il n'est jamais utilisé pour entraîner leurs modèles." },
 ]
 
 const gridBgDark = {
@@ -474,7 +475,7 @@ CREATE TABLE IF NOT EXISTS early_access (
           <CarouselSection desktopClass="grid grid-cols-1 md:grid-cols-2 gap-5">
             {[
               { Icon: Shield, title: 'Chiffrement de bout en bout', desc: 'Vos données sont chiffrées au repos et en transit. Aucune information ne circule en clair.' },
-              { Icon: MapPin, title: 'Hébergement souverain Europe', desc: 'Toutes vos données hébergées en Allemagne (Frankfurt). Conformité RGPD native.' },
+              { Icon: MapPin, title: 'Hébergement souverain Europe', desc: 'Stockage des données en Allemagne (Frankfurt). Traitement IA via prestataires américains encadrés par des garanties contractuelles RGPD (Clauses Contractuelles Types).' },
               { Icon: Lock, title: 'Isolation totale des espaces', desc: 'Chaque organisation est cloisonnée au niveau de la base de données. Aucun accès croisé possible.' },
               { Icon: EyeOff, title: "Vos données n'entraînent aucun modèle", desc: 'Ce que vous écrivez reste chez vous. Jamais utilisé pour entraîner une IA tierce.' },
             ].map(({ Icon, title, desc }) => (
