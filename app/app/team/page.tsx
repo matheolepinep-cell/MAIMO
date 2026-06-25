@@ -601,7 +601,8 @@ export default function TeamPage() {
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             placeholder="SUPPRIMER"
-            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+            className="w-full px-3 rounded-xl border border-gray-200 text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+            style={{ fontSize: 16, minHeight: 48 }}
           />
         </div>
         <div className="flex gap-2">

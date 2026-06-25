@@ -1584,7 +1584,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
               onChange={(e) => setDeleteConfirmName(e.target.value)}
               placeholder={account.name}
               autoFocus
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+              className="w-full px-3 rounded-xl border border-gray-200 text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+              style={{ fontSize: 16, minHeight: 48 }}
             />
           </div>
           <div className="flex gap-2 pt-1">

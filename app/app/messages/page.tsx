@@ -496,8 +496,8 @@ export default function MessagesPage() {
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
                   placeholder="Écrire un message..."
                   rows={1}
-                  className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-300 bg-[#F8FAFC]"
-                  style={{ maxHeight: 120 }}
+                  className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:border-blue-300 bg-[#F8FAFC]"
+                  style={{ maxHeight: 120, fontSize: 16 }}
                 />
                 <button
                   onClick={handleSend}
@@ -515,30 +515,36 @@ export default function MessagesPage() {
 
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.4)' }}
           onClick={() => setDeleteTarget(null)}
         >
           <div
-            className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full shadow-xl"
+            className="bg-white rounded-t-[20px] sm:rounded-2xl sm:mx-4 sm:max-w-sm w-full shadow-xl"
             onClick={(e) => e.stopPropagation()}
+            style={{ animation: 'slideUp 0.25s ease-out' }}
           >
-            <h3 className="font-semibold text-[#0F172A] text-base mb-2">Supprimer ce message ?</h3>
-            <p className="text-sm text-[#94A3B8] mb-6">Cette action est irréversible.</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-[#1E293B] hover:bg-gray-50 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => handleDeleteMessage(deleteTarget)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-colors"
-                style={{ background: '#EF4444' }}
-              >
-                Supprimer
-              </button>
+            <div className="sm:hidden flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-200" />
+            </div>
+            <div className="px-6 pt-4 pb-8 sm:py-6">
+              <h3 className="font-semibold text-[#0F172A] text-[17px] mb-2">Supprimer ce message ?</h3>
+              <p className="text-sm text-[#94A3B8] mb-6">Cette action est irréversible.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-medium text-[#1E293B] hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => handleDeleteMessage(deleteTarget)}
+                  className="flex-1 py-3 rounded-xl text-sm font-medium text-white transition-colors"
+                  style={{ background: '#EF4444' }}
+                >
+                  Supprimer
+                </button>
+              </div>
             </div>
           </div>
         </div>
