@@ -209,7 +209,7 @@ export default function NotesPage() {
       </div>
 
       {/* Notes list */}
-      <div className="flex-1 p-4 max-w-4xl mx-auto w-full">
+      <div className="flex-1 p-4 pb-24 md:pb-4 max-w-4xl mx-auto w-full">
         {loading ? (
           <div className="space-y-2">
             {[...Array(6)].map((_, i) => (

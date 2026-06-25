@@ -158,7 +158,7 @@ export default function NotificationsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 md:p-6 max-w-2xl w-full mx-auto">
+      <div className="flex-1 overflow-auto p-4 md:p-6 pb-24 md:pb-6 max-w-2xl w-full mx-auto">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin" />
