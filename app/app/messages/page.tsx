@@ -352,7 +352,7 @@ export default function MessagesPage() {
                     </p>
                   </div>
                   {conv.unread_count > 0 && (
-                    <span className="shrink-0 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#3B82F6' }}>
+                    <span className="shrink-0 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#2563EB' }}>
                       {conv.unread_count}
                     </span>
                   )}
@@ -430,8 +430,8 @@ export default function MessagesPage() {
                             <div
                               className="flex items-center gap-2 px-3 py-2.5 rounded-2xl max-w-[240px]"
                               style={{
-                                background: isMine ? '#3B82F6' : '#fff',
-                                border: isMine ? 'none' : '1px solid #E2E8F0',
+                                background: isMine ? '#2563EB' : '#F3F4F6',
+                                border: 'none',
                               }}
                             >
                               <div
@@ -470,11 +470,11 @@ export default function MessagesPage() {
                         ) : (
                           <div className="relative group/msg">
                             <div
-                              className="px-3 py-2 rounded-2xl max-w-[75%] text-sm leading-relaxed"
+                              className="px-3 py-2 rounded-2xl max-w-[80%] text-[15px] leading-relaxed"
                               style={{
-                                background: isMine ? '#3B82F6' : '#fff',
-                                color: isMine ? 'white' : '#1E293B',
-                                border: isMine ? 'none' : '1px solid #E2E8F0',
+                                background: isMine ? '#2563EB' : '#F3F4F6',
+                                color: isMine ? 'white' : '#0A0A0A',
+                                border: 'none',
                               }}
                             >
                               {msg.content}
@@ -502,8 +502,8 @@ export default function MessagesPage() {
                 <button
                   onClick={handleSend}
                   disabled={!text.trim() || sending}
-                  className="p-2.5 rounded-xl text-white transition-all duration-150 shrink-0 disabled:opacity-50"
-                  style={{ background: '#3B82F6' }}
+                  className="w-11 h-11 flex items-center justify-center rounded-xl text-white transition-all duration-150 shrink-0 disabled:opacity-50"
+                  style={{ background: '#2563EB' }}
                 >
                   <Send className="w-4 h-4" />
                 </button>

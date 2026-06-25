@@ -206,7 +206,7 @@ function SettingsContent() {
                 <textarea id="ws_company_description" rows={2} value={wsProfile.company_description}
                   onChange={(e) => setWsProfile(p => ({ ...p, company_description: e.target.value }))}
                   placeholder="Nous aidons les PME industrielles à réduire leurs arrêts machine"
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
+                  className="w-full px-4 py-2.5 rounded-xl border text-[16px] md:text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
                   style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -214,7 +214,7 @@ function SettingsContent() {
                 <textarea id="ws_company_services" rows={2} value={wsProfile.company_services}
                   onChange={(e) => setWsProfile(p => ({ ...p, company_services: e.target.value }))}
                   placeholder="Contrats de maintenance préventive, interventions curatives, formation opérateurs"
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
+                  className="w-full px-4 py-2.5 rounded-xl border text-[16px] md:text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
                   style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               <Input id="ws_company_zone" label="Zone géographique principale" value={wsProfile.company_zone}
@@ -228,7 +228,7 @@ function SettingsContent() {
                 <textarea id="ws_company_values" rows={2} value={wsProfile.company_values}
                   onChange={(e) => setWsProfile(p => ({ ...p, company_values: e.target.value }))}
                   placeholder="Ex: Proximité client, réactivité, expertise technique, engagement qualité..."
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
+                  className="w-full px-4 py-2.5 rounded-xl border text-[16px] md:text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
                   style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -236,11 +236,11 @@ function SettingsContent() {
                 <textarea id="ws_company_differentiator" rows={2} value={wsProfile.company_differentiator}
                   onChange={(e) => setWsProfile(p => ({ ...p, company_differentiator: e.target.value }))}
                   placeholder="Intervention garantie en moins de 4h, techniciens certifiés constructeur"
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
+                  className="w-full px-4 py-2.5 rounded-xl border text-[16px] md:text-sm text-[#0F172A] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,0,0,0.08)] focus:border-[#0A0A0A] transition-all duration-150"
                   style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(240,244,255,0.8)' }} />
               </div>
               {wsMsg && <FormMessage type={wsMsgType} message={wsMsg} />}
-              <Button type="submit" loading={savingWs} size="sm">Sauvegarder</Button>
+              <Button type="submit" loading={savingWs} size="sm" className="w-full md:w-auto">Sauvegarder</Button>
             </form>
           ) : (
             <div className="space-y-2">
@@ -278,7 +278,7 @@ function SettingsContent() {
                 Créé le {new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(company.created_at))}
               </p>
               {companyMsg && <FormMessage type={companyMsgType} message={companyMsg} />}
-              <Button type="submit" loading={savingCompany} size="sm">Enregistrer</Button>
+              <Button type="submit" loading={savingCompany} size="sm" className="w-full md:w-auto">Enregistrer</Button>
             </form>
           </Card>
         )}
@@ -381,7 +381,7 @@ function SettingsContent() {
               {profile?.role === 'admin' ? 'Admin' : 'Collaborateur'}
             </span>
             {profileMsg && <FormMessage type={profileMsgType} message={profileMsg} />}
-            <Button type="submit" loading={savingProfile} size="sm">Enregistrer</Button>
+            <Button type="submit" loading={savingProfile} size="sm" className="w-full md:w-auto">Enregistrer</Button>
           </form>
         </Card>
 

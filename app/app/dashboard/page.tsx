@@ -554,7 +554,7 @@ export default function DashboardPage() {
                 <button
                   key={label}
                   onClick={() => router.push(href)}
-                  className="text-left bg-white rounded-2xl p-3 md:p-5 transition-all duration-150 hover:-translate-y-0.5"
+                  className="text-left bg-white rounded-2xl p-3.5 md:p-5 transition-all duration-150 hover:-translate-y-0.5"
                   style={{
                     border: '1px solid #E5E5E5',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -567,15 +567,15 @@ export default function DashboardPage() {
                     e.currentTarget.style.borderColor = '#E5E5E5'
                   }}
                 >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center mb-2 md:mb-4"
                     style={{ background: iconBg }}>
-                    <Icon className="w-5 h-5" style={{ color: iconColor }} />
+                    <Icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: iconColor }} />
                   </div>
                   {desktopLoading
-                    ? <Skeleton className="h-9 w-16 mb-1" />
-                    : <p className="text-3xl font-bold tracking-tight" style={{ color: '#0A0A0A' }}>{value}</p>
+                    ? <Skeleton className="h-7 w-14 mb-1 md:h-9 md:w-16" />
+                    : <p className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: '#0A0A0A' }}>{value}</p>
                   }
-                  <p className="text-sm mt-0.5" style={{ color: '#6B6B6B' }}>{label}</p>
+                  <p className="text-xs md:text-sm mt-0.5" style={{ color: '#6B6B6B' }}>{label}</p>
                   {delta && !desktopLoading && (
                     <p className="text-xs font-medium mt-1.5" style={{ color: '#16A34A' }}>{delta}</p>
                   )}
@@ -902,10 +902,11 @@ export default function DashboardPage() {
                     onChange={(e) => setNoteText(e.target.value)}
                     placeholder="Saisir une note ou une instruction…"
                     rows={5}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm resize-none focus:outline-none transition-all duration-150 pr-10"
+                    className="w-full px-3 py-2.5 rounded-xl resize-none focus:outline-none transition-all duration-150 pr-10"
                     style={{
                       border: '1px solid #E5E5E5',
                       color: '#0A0A0A',
+                      fontSize: 16,
                     }}
                     onFocus={(e) => { e.target.style.borderColor = '#2563EB'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)' }}
                     onBlur={(e) => { e.target.style.borderColor = '#E5E5E5'; e.target.style.boxShadow = 'none' }}

@@ -554,7 +554,7 @@ function SearchPageContent() {
             border: 'none',
             outline: 'none',
             resize: 'none',
-            fontSize: isMobile ? 15 : 15,
+            fontSize: isMobile ? 16 : 15,
             color: '#1A1A2E',
             lineHeight: 1.5,
             minHeight: 24,

@@ -500,18 +500,18 @@ export default function TeamPage() {
                         ) : (
                           <button
                             onClick={(e) => { e.stopPropagation(); setDisableTarget(member) }}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
+                            className="w-10 h-10 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
                             title="Désactiver"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-4 h-4 md:w-3.5 md:h-3.5" />
                           </button>
                         )}
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget(member); setDeleteConfirmText('') }}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          className="w-10 h-10 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                           title="Supprimer définitivement"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                         </button>
                       </>
                     )}
