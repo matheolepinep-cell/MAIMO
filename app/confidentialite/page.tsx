@@ -85,6 +85,23 @@ export default function ConfidentialitePage() {
           </p>
         </section>
 
+        <section className="mb-8">
+          <h2 className="text-lg font-bold text-[#0A0A0A] mb-3">Transferts internationaux de données</h2>
+          <p className="text-[#334155] leading-relaxed mb-3">
+            Dans le cadre de nos services d&apos;intelligence artificielle, certaines données sont traitées par des prestataires établis aux États-Unis :
+          </p>
+          <ul className="list-disc pl-5 text-[#334155] space-y-1 leading-relaxed mb-3">
+            <li>Anthropic (analyse et compréhension du texte)</li>
+            <li>OpenAI (transcription vocale)</li>
+          </ul>
+          <p className="text-[#334155] leading-relaxed mb-3">
+            Ces transferts sont encadrés par des <strong>Clauses Contractuelles Types (CCT)</strong> approuvées par la Commission européenne, conformément à l&apos;article 46 du RGPD.
+          </p>
+          <p className="text-[#334155] leading-relaxed">
+            Vos données de stockage (notes, documents, informations clients) restent hébergées en Europe (Frankfurt, Allemagne). Seul le contenu strictement nécessaire au traitement IA est temporairement transmis à ces prestataires, sans conservation ni utilisation pour entraîner leurs modèles.
+          </p>
+        </section>
+
         <section>
           <h2 className="text-lg font-bold text-[#0A0A0A] mb-3">Cookies</h2>
           <p className="text-[#334155] leading-relaxed">
