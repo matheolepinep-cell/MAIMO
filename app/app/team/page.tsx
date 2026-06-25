@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy } from 'lucide-react'
+import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy, Trash2 } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -128,6 +128,11 @@ export default function TeamPage() {
   // Disable confirmation
   const [disableTarget, setDisableTarget] = useState<WsMember | null>(null)
 
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<WsMember | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
   // Invite links
   const [inviteLinks, setInviteLinks] = useState<{ token: string; link: string; role: WorkspaceRole; expires_at: string }[]>([])
   const [linkLoading, setLinkLoading] = useState(false)
@@ -222,6 +227,26 @@ export default function TeamPage() {
       const json = await res.json()
       showToast(json.error ?? 'Erreur.', true)
     }
+  }
+
+  const handleDeleteMember = async (member: WsMember) => {
+    if (!wsId) return
+    setDeleting(true)
+    const res = await fetch('/api/workspace/members', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspace_id: wsId, user_id: member.user.id }),
+    })
+    if (res.ok) {
+      setMembers((prev) => prev.filter((m) => m.user.id !== member.user.id))
+      setDeleteTarget(null)
+      setDeleteConfirmText('')
+      showToast('Membre supprimé définitivement.')
+    } else {
+      const json = await res.json()
+      showToast(json.error ?? 'Erreur lors de la suppression.', true)
+    }
+    setDeleting(false)
   }
 
   const handleViewPortfolio = async (member: UserProfile) => {
@@ -437,23 +462,32 @@ export default function TeamPage() {
                       onSelect={(r) => handleRoleChange(member, r)}
                     />
                     {isAdmin && !isMe && (
-                      inactive ? (
+                      <>
+                        {inactive ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleActive(member, true) }}
+                            className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-green-50"
+                            style={{ color: '#16A34A', border: '1px solid #BBF7D0' }}
+                          >
+                            Réactiver
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDisableTarget(member) }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
+                            title="Désactiver"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleToggleActive(member, true) }}
-                          className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-green-50"
-                          style={{ color: '#16A34A', border: '1px solid #BBF7D0' }}
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(member); setDeleteConfirmText('') }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Supprimer définitivement"
                         >
-                          Réactiver
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      ) : (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDisableTarget(member) }}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          title="Désactiver"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )
+                      </>
                     )}
                   </div>
                 </Card>
@@ -520,6 +554,40 @@ export default function TeamPage() {
           <p className="text-xs text-[#94A3B8] flex items-center gap-1">
             <Lock className="w-3 h-3" />Les entrées privées ne sont pas affichées.
           </p>
+        </div>
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => { if (!deleting) { setDeleteTarget(null); setDeleteConfirmText('') } }}
+        title="Supprimer définitivement ?"
+      >
+        <p className="text-sm text-[#64748B] mb-4">
+          Supprimer définitivement <strong className="text-[#1E293B]">{deleteTarget?.user.full_name}</strong> ? Toutes ses données (notes, messages) seront conservées mais son accès sera supprimé de façon <strong>irréversible</strong>.
+        </p>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
+            Tapez <span className="font-bold text-red-600">SUPPRIMER</span> pour confirmer
+          </label>
+          <input
+            type="text"
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder="SUPPRIMER"
+            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => { setDeleteTarget(null); setDeleteConfirmText('') }} className="flex-1" disabled={deleting}>Annuler</Button>
+          <Button
+            onClick={() => deleteTarget && handleDeleteMember(deleteTarget)}
+            disabled={deleteConfirmText !== 'SUPPRIMER' || deleting}
+            loading={deleting}
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white border-red-600"
+          >
+            Supprimer
+          </Button>
         </div>
       </Modal>
 

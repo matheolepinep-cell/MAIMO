@@ -74,3 +74,63 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({ success: true })
 }
+
+/** DELETE — permanently remove a member from the workspace */
+export async function DELETE(request: Request) {
+  const user = await getAuthenticatedUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { workspace_id, user_id } = await request.json()
+  if (!workspace_id || !user_id) {
+    return NextResponse.json({ error: 'Missing workspace_id or user_id' }, { status: 400 })
+  }
+
+  if (user_id === user.id) {
+    return NextResponse.json({ error: 'Vous ne pouvez pas vous supprimer vous-même.' }, { status: 400 })
+  }
+
+  const supabase = await createClient()
+
+  // Verify caller is admin
+  const { data: callerMember } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspace_id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (callerMember?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Remove from this workspace
+  const { error: delErr } = await supabase
+    .from('workspace_members')
+    .delete()
+    .eq('workspace_id', workspace_id)
+    .eq('user_id', user_id)
+
+  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 })
+
+  // Check if user belongs to any other workspace in the company
+  const { count: otherWsCount } = await supabase
+    .from('workspace_members')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user_id)
+
+  if ((otherWsCount ?? 0) === 0) {
+    // No other workspaces → delete auth account
+    try {
+      await adminClient().auth.admin.deleteUser(user_id)
+    } catch {
+      // Non-fatal if auth deletion fails
+    }
+  } else {
+    // Still in other workspaces → just revoke sessions
+    try {
+      await adminClient().auth.admin.signOut(user_id, 'global')
+    } catch { /* Non-fatal */ }
+  }
+
+  return NextResponse.json({ success: true })
+}
