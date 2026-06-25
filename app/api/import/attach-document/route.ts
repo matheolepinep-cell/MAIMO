@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
 
@@ -18,8 +19,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   // Build public URL for the file (stored in imports bucket)

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 import { analyzeDocument } from '@/lib/document-analyzer'
 import { normalizeText, levenshtein } from '@/lib/search-utils'
 import { chunkText } from '@/lib/chunker'
@@ -49,8 +50,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   const analysis = await analyzeDocument(text, file_name, file_type)

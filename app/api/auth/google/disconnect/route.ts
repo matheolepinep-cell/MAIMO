@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 
 export async function GET(req: NextRequest) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   const { data: profile } = await supabase

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 
 const adminSupabase = () => createSupabaseAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  env.supabaseUrl, env.supabaseServiceRole
 )
 
 export async function PATCH(

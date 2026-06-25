@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 import { detectCompanyInQuery } from '@/lib/search-utils'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const anthropic = new Anthropic({ apiKey: env.anthropicApiKey })
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
@@ -14,8 +15,7 @@ export async function POST(request: Request) {
   if (!text?.trim()) return NextResponse.json({ account_id: null, account_name: null, detected_name: null })
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   const { data: accounts } = await supabase

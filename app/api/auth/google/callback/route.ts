@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 import { cookies } from 'next/headers'
 
 const REDIRECT_URI = 'https://www.maimoo.fr/api/auth/google/callback'
@@ -41,8 +42,7 @@ export async function GET(req: NextRequest) {
     console.log('[GOOGLE CALLBACK] tokens reçus:', !!tokens.access_token, !!tokens.refresh_token)
 
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      env.supabaseUrl, env.supabaseServiceRole
     )
 
     const { error: updateError } = await supabase.from('users').update({

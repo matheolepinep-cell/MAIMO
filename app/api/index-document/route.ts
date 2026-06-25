@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
 
@@ -69,8 +70,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   try {
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     console.log('[INDEX] Document indexé:', document_id, 'chunks créés:', rows.length)
 
     // Trigger auto-extraction in background (non-blocking)
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/extract-account-info`, {
+    fetch(`${env.appUrl}/api/extract-account-info`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: request.headers.get('cookie') ?? '' },
       body: JSON.stringify({ document_id, account_id, company_id }),

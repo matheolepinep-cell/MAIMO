@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { env } from '@/lib/env'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
@@ -58,8 +59,7 @@ export async function GET(request: Request) {
   const phase = url.searchParams.get('phase') ?? 'notes'
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   // On first call: delete all existing chunks

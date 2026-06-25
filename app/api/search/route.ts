@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { embed } from '@/lib/embeddings'
 import { detectCompanyInQuery } from '@/lib/search-utils'
+import { env } from '@/lib/env'
 import type { SearchSource, UserProfile } from '@/types/database'
 
 interface SearchChunk {
@@ -30,7 +31,7 @@ export interface ChunkUsed {
 
 type HistMsg = { role: 'user' | 'assistant'; content: string }
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const anthropic = new Anthropic({ apiKey: env.anthropicApiKey })
 
 // Normalize French typographic apostrophes to ASCII before pattern matching
 function normalizeApostrophes(s: string): string {
@@ -160,10 +161,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabase = createSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRole)
 
   // Validate workspace_id server-side
   let workspace_id: string | null = null

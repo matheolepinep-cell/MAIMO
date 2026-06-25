@@ -3,8 +3,9 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
 import OpenAI from 'openai'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const openai = new OpenAI({ apiKey: env.openaiApiKey ?? '' })
 
 function getExt(filePath: string) {
   return (filePath.split('.').pop() ?? '').toLowerCase()
@@ -59,8 +60,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   const { data: fileBlob, error: dlError } = await supabase.storage.from('imports').download(file_path)

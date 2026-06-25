@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { env } from '@/lib/env'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
 export async function GET(request: Request) {
@@ -8,8 +9,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   // Fetch all indexed source IDs (deduplicated in memory)

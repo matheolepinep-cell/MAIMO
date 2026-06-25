@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 import { createNotification } from '@/lib/notifications'
 
 export async function POST(request: Request) {
@@ -11,8 +12,7 @@ export async function POST(request: Request) {
   if (!workspaceId) return NextResponse.json({ ok: true })
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   // Find workspace admins

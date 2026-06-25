@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 
 function parseBucketAndPath(fileUrl: string): { bucket: string; path: string } {
   if (fileUrl.startsWith('http')) {
@@ -17,8 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!user) return new NextResponse('Unauthorized', { status: 401 })
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   const { data: document, error } = await supabase

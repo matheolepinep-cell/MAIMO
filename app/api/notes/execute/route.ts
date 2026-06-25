@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
+import { env } from '@/lib/env'
 import { normalizeText, levenshtein } from '@/lib/search-utils'
 import { createGoogleEvent } from '@/lib/google-calendar'
 
@@ -40,8 +41,7 @@ async function handleExecute(request: Request) {
   const { actions, workspaceId, companyId, source } = await request.json()
 
   const supabase = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    env.supabaseUrl, env.supabaseServiceRole
   )
 
   // Load all accounts once for fuzzy dedup throughout this request
