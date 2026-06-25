@@ -17,6 +17,7 @@ export type AuditAction =
   | 'member.deleted'
   | 'message.deleted'
   | 'user.login'
+  | 'onboarding.step_clicked'
 
 interface LogActionParams {
   userId: string

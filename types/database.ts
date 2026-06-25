@@ -12,6 +12,8 @@ export interface UserProfile {
   created_at: string
   google_calendar_connected?: boolean
   has_set_password?: boolean
+  onboarding_completed?: boolean
+  onboarding_steps_completed?: number[]
 }
 
 export interface Workspace {
