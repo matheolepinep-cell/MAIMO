@@ -9,6 +9,7 @@ import { MobileSidebar } from '@/components/layout/MobileSidebar'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { SetPasswordBanner } from '@/components/layout/SetPasswordBanner'
 import OnboardingChecklist from '@/components/onboarding/OnboardingChecklist'
+import { QuickNoteModal } from '@/components/notes/QuickNoteModal'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </main>
                   <BottomNav />
                   <OnboardingChecklist />
+                  <QuickNoteModal />
                 </div>
               </WorkspaceProvider>
             </UnreadMessagesProvider>

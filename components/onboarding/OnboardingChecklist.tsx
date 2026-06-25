@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronUp, X, Check, Upload, Pencil, Sparkles, LayoutGrid, History } from 'lucide-react'
+import { ChevronDown, X, Check, Upload, Pencil, Sparkles, LayoutGrid, History } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
 import { useRole } from '@/hooks/useRole'
 
@@ -97,7 +97,12 @@ export default function OnboardingChecklist() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step_click: step.id }),
     }).catch(() => {})
-    router.push(step.link)
+    // Step 2 opens the quick note modal instead of navigating
+    if (step.id === 2) {
+      window.dispatchEvent(new CustomEvent('open:quick-note-modal'))
+    } else {
+      router.push(step.link)
+    }
   }
 
   // Don't render if loading, not logged in, or onboarding already completed

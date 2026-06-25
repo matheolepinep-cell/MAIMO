@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Search, Briefcase, Plus, User, FileSpreadsheet, Building2 } from 'lucide-react'
+import { Search, Briefcase, Plus, User, FileSpreadsheet, Building2, Pencil } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -119,6 +119,20 @@ export function BottomNav() {
       >
         {sheet === 'menu' ? (
           <div className="space-y-3 pb-2">
+            <button
+              onClick={() => { setOpen(false); setSheet('menu'); window.dispatchEvent(new CustomEvent('open:quick-note-modal')) }}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200 hover:bg-[rgba(76,110,245,0.04)]"
+              style={{ border: '1px solid rgba(0,0,0,0.08)' }}
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(37,99,235,0.1)' }}>
+                <Pencil className="w-5 h-5 text-[#2563EB]" />
+              </div>
+              <div>
+                <p className="font-medium text-[#0F172A] text-sm">Nouvelle note</p>
+                <p className="text-xs text-slate-400 mt-0.5">Saisir une information sur un client</p>
+              </div>
+            </button>
             <button
               onClick={() => setSheet('create')}
               className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200 hover:bg-[rgba(76,110,245,0.04)]"
