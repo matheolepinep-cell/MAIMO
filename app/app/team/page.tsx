@@ -229,6 +229,20 @@ export default function TeamPage() {
     }
   }
 
+  const handleResendInvite = async (member: WsMember) => {
+    const res = await fetch('/api/admin/resend-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: member.user.email, full_name: member.user.full_name }),
+    })
+    if (res.ok) {
+      showToast(`Invitation renvoyée à ${member.user.email}`)
+    } else {
+      const json = await res.json()
+      showToast(json.error ?? "Erreur lors de l'envoi.", true)
+    }
+  }
+
   const handleDeleteMember = async (member: WsMember) => {
     if (!wsId) return
     setDeleting(true)
@@ -415,6 +429,7 @@ export default function TeamPage() {
               const pubCount = portfolioCounts[member.user.id] ?? 0
               const isMe = member.user.id === profile?.id
               const inactive = !member.wsIsActive
+              const isPending = inactive && member.user.has_set_password === false
 
               return (
                 <Card
@@ -436,7 +451,10 @@ export default function TeamPage() {
                       {isMe && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Moi</span>
                       )}
-                      {inactive && (
+                      {isPending && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-400" style={{ border: '1px solid #E5E7EB' }}>En attente</span>
+                      )}
+                      {inactive && !isPending && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactif</span>
                       )}
                     </div>
@@ -463,7 +481,15 @@ export default function TeamPage() {
                     />
                     {isAdmin && !isMe && (
                       <>
-                        {inactive ? (
+                        {isPending ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleResendInvite(member) }}
+                            className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-blue-50"
+                            style={{ color: '#2563EB', border: '1px solid #BFDBFE' }}
+                          >
+                            Renvoyer
+                          </button>
+                        ) : inactive ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleToggleActive(member, true) }}
                             className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-green-50"
