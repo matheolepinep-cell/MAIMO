@@ -22,9 +22,8 @@ export async function POST(request: Request) {
     env.supabaseUrl, env.supabaseServiceRole
   )
 
-  // Build public URL for the file (stored in imports bucket)
-  const { data: urlData } = supabase.storage.from('imports').getPublicUrl(file_path)
-  const file_url = urlData?.publicUrl ?? file_path
+  // Store the raw storage path — signed URLs are generated on demand via /api/documents/[id]/url
+  const file_url = file_path
 
   // Map raw extension to documents.file_type enum ('pdf'|'docx'|'xlsx'|'image')
   const ext = file_name.split('.').pop()?.toLowerCase() ?? ''

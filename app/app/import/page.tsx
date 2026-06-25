@@ -6,6 +6,7 @@ import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, Loader2, Chec
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
+import { sanitizeFilename } from '@/lib/file-validation'
 import { Header } from '@/components/layout/Header'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
@@ -108,7 +109,8 @@ export default function ImportPage() {
     setError('')
 
     const supabase = createClient()
-    const ext = file.name.split('.').pop()
+    const safeName = sanitizeFilename(file.name)
+    const ext = safeName.split('.').pop()
     const path = `${profile.company_id}/${Date.now()}.${ext}`
 
     const { error: uploadError } = await supabase.storage.from('imports').upload(path, file)

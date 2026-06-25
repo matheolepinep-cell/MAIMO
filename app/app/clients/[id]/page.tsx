@@ -9,6 +9,7 @@ import { NoteInput } from '@/components/notes/NoteInput'
 import { NoteCard } from '@/components/notes/NoteCard'
 import { Button } from '@/components/ui/Button'
 import type { Account, Note } from '@/types/database'
+import { validateFile, sanitizeFilename } from '@/lib/file-validation'
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -51,16 +52,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const file = e.target.files?.[0]
     if (!file || !profile) return
 
-    const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
-    if (!allowed.includes(file.type)) {
-      alert('Format non supporté. Utilisez PDF, DOCX ou XLSX.')
+    const { valid, error: fileError } = await validateFile(file)
+    if (!valid) {
+      alert(fileError ?? 'Fichier invalide.')
       return
     }
 
     setUploading(true)
     const supabase = createClient()
 
-    const ext = file.name.split('.').pop()
+    const safeName = sanitizeFilename(file.name)
+    const ext = safeName.split('.').pop()
     const path = `${profile.company_id}/${id}/${Date.now()}.${ext}`
 
     const { error: uploadError } = await supabase.storage
@@ -72,8 +74,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       setUploading(false)
       return
     }
-
-    const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path)
 
     const fileTypeMap: Record<string, string> = {
       'application/pdf': 'pdf',
@@ -87,10 +87,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         account_id: id,
         company_id: profile.company_id,
         user_id: profile.id,
-        file_name: file.name,
-        file_url: publicUrl,
+        file_name: safeName,
+        file_url: `documents:${path}`,
         file_type: fileTypeMap[file.type],
-        title: file.name.replace(/\.[^.]+$/, ''),
+        title: safeName.replace(/\.[^.]+$/, ''),
         is_deleted: false,
       })
       .select()
@@ -102,7 +102,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           document_id: doc.id,
-          file_url: publicUrl,
+          file_url: `documents:${path}`,
           file_type: fileTypeMap[file.type],
           client_id: id,
           company_id: profile.company_id,

@@ -8,6 +8,13 @@ function parseBucketAndPath(fileUrl: string): { bucket: string; path: string } {
     const match = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/?]+)\/(.+?)(?:\?.*)?$/)
     if (match) return { bucket: match[1], path: match[2] }
   }
+  const colonIdx = fileUrl.indexOf(':')
+  if (colonIdx > 0) {
+    const prefix = fileUrl.slice(0, colonIdx)
+    if (['documents', 'imports'].includes(prefix)) {
+      return { bucket: prefix, path: fileUrl.slice(colonIdx + 1) }
+    }
+  }
   return { bucket: 'imports', path: fileUrl }
 }
 

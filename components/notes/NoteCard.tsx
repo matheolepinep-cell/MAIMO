@@ -5,6 +5,7 @@ import { Mic, Type, Trash2, Pencil, X, Save, Paperclip, FileText, ImageIcon, Che
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import type { Note, Document } from '@/types/database'
+import { validateFile, sanitizeFilename } from '@/lib/file-validation'
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat('fr-FR', {
@@ -117,7 +118,10 @@ export function NoteCard({
     // 3. Upload new attachments
     if (newAttachments.length > 0 && profile && accountId) {
       for (const item of newAttachments) {
-        const filePath = `${profile.company_id}/${accountId}/${note.id}/${Date.now()}-${item.file.name}`
+        const { valid: fileValid } = await validateFile(item.file)
+        if (!fileValid) continue
+        const safeName = sanitizeFilename(item.file.name)
+        const filePath = `${profile.company_id}/${accountId}/${note.id}/${Date.now()}-${safeName}`
         const { error: storErr } = await supabase.storage.from('imports').upload(filePath, item.file)
         if (storErr) continue
         const isImage = item.file.type.startsWith('image/')
@@ -129,7 +133,7 @@ export function NoteCard({
           company_id: companyId ?? null,
           user_id: profile.id,
           note_id: note.id,
-          file_name: item.file.name,
+          file_name: safeName,
           file_url: filePath,
           file_type: fileType,
           title: item.file.name.replace(/\.[^.]+$/, ''),

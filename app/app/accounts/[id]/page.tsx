@@ -21,6 +21,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet'
 import { NoteCard } from '@/components/notes/NoteCard'
 import type { Account, Contact, Note, Document, SearchSource } from '@/types/database'
 import { detectConflicts, type ConflictResult } from '@/lib/conflicts'
+import { validateFile, sanitizeFilename } from '@/lib/file-validation'
 
 /* ─── helpers ─── */
 function docTypeColor(type: string) {
@@ -414,7 +415,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         const sb = createClient()
         for (const item of attachments) {
           const { file } = item
-          const filePath = `${profile?.company_id}/${id}/${note.id}/${Date.now()}-${file.name}`
+          const { valid: fileValid } = await validateFile(file)
+          if (!fileValid) continue
+          const safeName = sanitizeFilename(file.name)
+          const filePath = `${profile?.company_id}/${id}/${note.id}/${Date.now()}-${safeName}`
           const { error: storErr } = await sb.storage.from('imports').upload(filePath, file)
           if (storErr) continue
           const isImage = file.type.startsWith('image/')
@@ -423,7 +427,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             : file.type.includes('wordprocessing') ? 'docx' : 'xlsx'
           const { data: insertedDoc } = await sb.from('documents').insert({
             account_id: id, company_id: profile?.company_id, user_id: profile?.id,
-            note_id: note.id, file_name: file.name, file_url: filePath, file_type: fileType,
+            note_id: note.id, file_name: safeName, file_url: filePath, file_type: fileType,
             title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false, workspace_id: wsId ?? null,
           }).select().single()
           if (!isImage && insertedDoc) {
@@ -560,7 +564,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
     setDocUploading(true)
     const sb = createClient()
     for (const file of files) {
-      const filePath = `${profile.company_id}/${Date.now()}-${file.name}`
+      const { valid: fileValid } = await validateFile(file)
+      if (!fileValid) continue
+      const safeName = sanitizeFilename(file.name)
+      const filePath = `${profile.company_id}/${Date.now()}-${safeName}`
       const { error: storErr } = await sb.storage.from('documents').upload(filePath, file)
       if (storErr) continue
       const isImage = file.type.startsWith('image/')
@@ -569,13 +576,13 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         : file.type.includes('wordprocessing') ? 'docx' : 'xlsx'
       const { data: standaloneDoc } = await sb.from('documents').insert({
         account_id: id, company_id: profile.company_id, user_id: profile.id,
-        note_id: null, file_name: file.name, file_url: filePath,
-        file_type: fileType, title: file.name.replace(/\.[^.]+$/, ''), is_deleted: false, workspace_id: wsId ?? null,
+        note_id: null, file_name: safeName, file_url: `documents:${filePath}`,
+        file_type: fileType, title: safeName.replace(/\.[^.]+$/, ''), is_deleted: false, workspace_id: wsId ?? null,
       }).select().single()
       if (!isImage && standaloneDoc) {
         fetch('/api/index-document', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ document_id: standaloneDoc.id, file_url: filePath, file_type: fileType, account_id: id, company_id: profile.company_id, workspace_id: wsId }),
+          body: JSON.stringify({ document_id: standaloneDoc.id, file_url: `documents:${filePath}`, file_type: fileType, account_id: id, company_id: profile.company_id, workspace_id: wsId }),
         }).catch(console.error)
       }
       fetch('/api/notifications/document', {

@@ -232,8 +232,8 @@ export async function POST(request: Request) {
   // ── Create document record + index ──────────────────────────────────────────
   let documentId: string | null = null
   if (firstAccountId) {
-    const { data: urlData } = supabase.storage.from('imports').getPublicUrl(file_path)
-    const file_url = urlData?.publicUrl ?? file_path
+    const { data: signedData } = await supabase.storage.from('imports').createSignedUrl(file_path, 3600)
+    const file_url = signedData?.signedUrl ?? file_path
     const ext = file_name.split('.').pop()?.toLowerCase() ?? ''
     const resolvedFileType: 'pdf' | 'docx' | 'xlsx' | 'image' = ['pdf', 'docx', 'xlsx'].includes(ext)
       ? (ext as 'pdf' | 'docx' | 'xlsx')
