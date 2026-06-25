@@ -98,13 +98,13 @@ export function BottomNav() {
 
           <button onClick={() => setOpen(true)} className="flex-1 flex flex-col items-center justify-center">
             <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg -mt-3"
+              className="w-[52px] h-[52px] rounded-full flex items-center justify-center -mt-4"
               style={{
                 background: '#2563EB',
-                boxShadow: '0 4px 14px rgba(37,99,235,0.35)',
+                boxShadow: '0 4px 12px rgba(37,99,235,0.4)',
               }}
             >
-              <Plus className="w-5 h-5 text-white" />
+              <Plus className="w-6 h-6 text-white" />
             </div>
           </button>
 

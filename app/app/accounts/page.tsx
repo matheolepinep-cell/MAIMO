@@ -243,7 +243,7 @@ export default function AccountsPage() {
           </select>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-[10px] py-3">
+        <div className="flex-1 overflow-y-auto px-[10px] py-3 pb-24">
           {loading ? (
             <div className="space-y-[8px]">
               {[...Array(5)].map((_, i) => (

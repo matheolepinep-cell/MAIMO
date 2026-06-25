@@ -31,6 +31,23 @@ body {
   overflow-x: hidden;
 }
 
+/* Prevent iOS auto-zoom on focused inputs (requires font-size >= 16px) */
+@media (max-width: 767px) {
+  input:not([type="color"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area padding utilities */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pb-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
 h1 { font-weight: 800; font-size: 48px; line-height: 1.1; }
 h2 { font-weight: 700; font-size: 32px; line-height: 1.2; }
 h3 { font-weight: 600; font-size: 20px; line-height: 1.3; }

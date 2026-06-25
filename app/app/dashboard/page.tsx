@@ -497,7 +497,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 px-3 md:px-10 pt-11 pb-4 md:py-8 -mt-6" style={{ background: '#F5F5F5' }}>
+        <div className="flex-1 px-3 md:px-10 pt-11 pb-24 md:py-8 -mt-6" style={{ background: '#F5F5F5' }}>
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* Actions rapides */}

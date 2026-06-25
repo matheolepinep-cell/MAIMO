@@ -178,7 +178,7 @@ function SettingsContent() {
   return (
     <div>
       <Header title="Paramètres" />
-      <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 pb-24 md:pb-8 max-w-2xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Paramètres</h1>
 
         {/* Mon entreprise — workspace company profile */}
