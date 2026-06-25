@@ -733,7 +733,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="font-semibold text-[#0F172A] truncate">{account.name}</h1>
+            <h1 className="font-bold text-[#0F172A] truncate text-[18px] md:text-[22px]" style={{ wordBreak: 'break-word' }}>{account.name}</h1>
             <button
               onClick={handleStatusToggle}
               className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-200 border"

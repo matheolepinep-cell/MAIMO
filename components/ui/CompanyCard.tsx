@@ -50,7 +50,7 @@ export function CompanyCard({ name, city, industry, status, visibility, subtitle
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="font-semibold text-[#0F172A] truncate text-sm">{name}</p>
+          <p className="font-semibold text-[#0F172A] text-sm line-clamp-2">{name}</p>
           {/* Status badge — unified navy palette */}
           <span
             className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border"
