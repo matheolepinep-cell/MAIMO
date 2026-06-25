@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { sanitizeFilename } from '@/lib/file-validation'
+import { markOnboardingStep } from '@/lib/onboarding'
 import { Header } from '@/components/layout/Header'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
@@ -176,6 +177,9 @@ export default function ImportPage() {
 
     const result = await analyzeRes.json()
     setAnalysisResult(result)
+    if ((result.companiesCreated?.length ?? 0) > 0 || (result.companiesUpdated?.length ?? 0) > 0) {
+      markOnboardingStep(1)
+    }
   }
 
   // Fallback: manually attach when no companies were detected

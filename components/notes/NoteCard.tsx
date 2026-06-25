@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import type { Note, Document } from '@/types/database'
 import { validateFile, sanitizeFilename } from '@/lib/file-validation'
+import { markOnboardingStep } from '@/lib/onboarding'
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat('fr-FR', {
@@ -164,6 +165,7 @@ export function NoteCard({
     setSaved(true)
     setEditing(false)
     setTimeout(() => setSaved(false), 2000)
+    markOnboardingStep(2)
   }
 
   const authorName = membersMap[note.user_id] ?? null

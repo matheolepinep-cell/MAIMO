@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { ConversationsSidebar } from '@/components/search/ConversationsSidebar'
+import { markOnboardingStep } from '@/lib/onboarding'
 import type { SearchSource } from '@/types/database'
 
 declare global {
@@ -410,6 +411,7 @@ function SearchPageContent() {
         return
       }
       if (typeof data.remaining === 'number') setSearchRemaining(data.remaining)
+      if (data.answer) markOnboardingStep(3)
       const chunks = (data.chunksUsed ?? []) as ChunkUsed[]
       const assistantMsg: Message = { role: 'assistant', content: data.answer ?? '', sources: data.sources ?? [], chunks, timestamp: new Date().toISOString() }
       const finalConv = [...convWithUser, assistantMsg]

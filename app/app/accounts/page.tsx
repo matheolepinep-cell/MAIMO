@@ -16,6 +16,7 @@ import { CompanyCard, getInitials } from '@/components/ui/CompanyCard'
 import { AlphaList } from '@/components/ui/AlphaList'
 import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
+import { markOnboardingStep } from '@/lib/onboarding'
 import type { Account } from '@/types/database'
 
 type Filter = 'all' | 'client' | 'prospect'
@@ -122,6 +123,13 @@ export default function AccountsPage() {
   useEffect(() => {
     if (!profileLoading) fetchAccounts()
   }, [profileLoading, fetchAccounts])
+
+  // Step 1 onboarding: mark as done when the user has at least one account
+  useEffect(() => {
+    if (accounts.length > 0 && profile && !profile.onboarding_steps_completed?.includes(1)) {
+      markOnboardingStep(1)
+    }
+  }, [accounts.length, profile?.onboarding_steps_completed])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
