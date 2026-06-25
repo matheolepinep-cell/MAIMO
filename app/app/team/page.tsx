@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy, Trash2 } from 'lucide-react'
+import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy, Trash2, Activity } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -27,10 +27,68 @@ type PublicEntry = {
   accounts: { name: string; city: string | null; status: 'client' | 'prospect' } | null
 }
 
+type AuditLog = {
+  id: string
+  user_id: string | null
+  action: string
+  resource_type: string | null
+  resource_id: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
 const ROLE_CONFIG: Record<WorkspaceRole, { label: string; bg: string; color: string }> = {
   admin: { label: 'Admin', bg: '#DBEAFE', color: '#2563EB' },
   member: { label: 'Membre', bg: '#DCFCE7', color: '#16A34A' },
   contributeur: { label: 'Contributeur', bg: '#FEF9C3', color: '#CA8A04' },
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  'note.created': 'a créé une note',
+  'note.deleted': 'a supprimé une note',
+  'note.updated': 'a modifié une note',
+  'account.created': 'a créé un client',
+  'account.deleted': 'a supprimé un client',
+  'account.updated': 'a modifié un client',
+  'document.uploaded': 'a importé un document',
+  'document.deleted': 'a supprimé un document',
+  'search.query': 'a effectué une recherche',
+  'member.invited': 'a invité un membre',
+  'member.role_changed': 'a modifié un rôle',
+  'member.deactivated': 'a désactivé un membre',
+  'member.deleted': 'a supprimé un membre',
+  'message.deleted': 'a supprimé un message',
+  'user.login': "s'est connecté",
+}
+
+const ACTION_GROUPS: Record<string, string[]> = {
+  Notes: ['note.created', 'note.deleted', 'note.updated'],
+  Clients: ['account.created', 'account.deleted', 'account.updated'],
+  Recherches: ['search.query'],
+  Membres: ['member.invited', 'member.role_changed', 'member.deactivated', 'member.deleted'],
+  Documents: ['document.uploaded', 'document.deleted'],
+  Messages: ['message.deleted'],
+}
+
+function timeAgo(dateStr: string): string {
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (seconds < 60) return "à l'instant"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `il y a ${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `il y a ${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `il y a ${days}j`
+  return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+}
+
+function getMetaText(log: AuditLog): string | null {
+  const m = log.metadata
+  if (log.action === 'search.query' && m.query) return `"${String(m.query)}"`
+  if (log.action === 'member.role_changed' && m.old_role && m.new_role) return `${m.old_role} → ${m.new_role}`
+  if ((log.action === 'account.created' || log.action === 'account.deleted') && m.name) return String(m.name)
+  if ((log.action === 'document.uploaded' || log.action === 'document.deleted') && m.file_name) return String(m.file_name)
+  return null
 }
 
 function RoleBadge({
@@ -102,7 +160,7 @@ function RoleBadge({
 export default function TeamPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
-  const { currentWorkspace, userWorkspaces, wsId } = useWorkspace()
+  const { currentWorkspace, wsId } = useWorkspace()
   const isAdmin = useIsWorkspaceAdmin()
 
   const [members, setMembers] = useState<WsMember[]>([])
@@ -137,6 +195,15 @@ export default function TeamPage() {
   const [inviteLinks, setInviteLinks] = useState<{ token: string; link: string; role: WorkspaceRole; expires_at: string }[]>([])
   const [linkLoading, setLinkLoading] = useState(false)
   const [showLinks, setShowLinks] = useState(false)
+
+  // Activité tab
+  const [activeTab, setActiveTab] = useState<'membres' | 'activite'>('membres')
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditPage, setAuditPage] = useState(0)
+  const [auditHasMore, setAuditHasMore] = useState(false)
+  const [auditFilterUser, setAuditFilterUser] = useState('')
+  const [auditFilterGroup, setAuditFilterGroup] = useState('Tout')
 
   const showToast = (msg: string, error = false) => {
     setToast(msg)
@@ -188,9 +255,41 @@ export default function TeamPage() {
     setLoading(false)
   }
 
+  const loadAuditLogs = async (page: number, userId: string, group: string) => {
+    if (!wsId) return
+    setAuditLoading(true)
+    const supabase = createClient()
+    const PAGE_SIZE = 20
+
+    let query = supabase
+      .from('audit_logs')
+      .select('id, user_id, action, resource_type, resource_id, metadata, created_at', { count: 'exact' })
+      .eq('workspace_id', wsId)
+      .order('created_at', { ascending: false })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+
+    if (userId) query = query.eq('user_id', userId)
+    if (group !== 'Tout') {
+      const actions = ACTION_GROUPS[group] ?? []
+      if (actions.length > 0) query = query.in('action', actions)
+    }
+
+    const { data, count } = await query
+    setAuditLogs((data as AuditLog[]) ?? [])
+    setAuditHasMore((count ?? 0) > (page + 1) * PAGE_SIZE)
+    setAuditPage(page)
+    setAuditLoading(false)
+  }
+
   useEffect(() => {
     if (!profileLoading && wsId) fetchMembers()
   }, [profileLoading, profile, wsId])
+
+  useEffect(() => {
+    if (activeTab === 'activite' && isAdmin && wsId) {
+      loadAuditLogs(0, auditFilterUser, auditFilterGroup)
+    }
+  }, [activeTab, isAdmin, wsId, auditFilterUser, auditFilterGroup])
 
   const handleRoleChange = async (member: WsMember, newRole: WorkspaceRole) => {
     if (!wsId) return
@@ -341,6 +440,8 @@ export default function TeamPage() {
     setInviting(false)
   }
 
+  const membersMap = Object.fromEntries(members.map((m) => [m.user.id, m.user.full_name]))
+
   return (
     <div>
       <Header title="Équipe" />
@@ -368,157 +469,280 @@ export default function TeamPage() {
           )}
         </div>
 
-        {/* Invite links panel */}
-        {showLinks && isAdmin && (
-          <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#1E293B]">Liens d'invitation</p>
-              <p className="text-xs text-[#94A3B8]">Valides 7 jours · un usage</p>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {(['admin', 'member', 'contributeur'] as WorkspaceRole[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => handleGenerateLink(r)}
-                  disabled={linkLoading}
-                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:bg-gray-50 disabled:opacity-50"
-                  style={{ borderColor: '#E5E7EB', color: ROLE_CONFIG[r].color }}
-                >
-                  <Link2 style={{ width: 12, height: 12 }} />
-                  Générer lien {ROLE_CONFIG[r].label}
-                </button>
-              ))}
-            </div>
-            {inviteLinks.length > 0 && (
-              <div className="space-y-2">
-                {inviteLinks.map((inv) => (
-                  <div key={inv.token} className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50">
-                    <span
-                      className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
-                      style={{ background: ROLE_CONFIG[inv.role].bg, color: ROLE_CONFIG[inv.role].color }}
-                    >
-                      {ROLE_CONFIG[inv.role].label}
-                    </span>
-                    <p className="flex-1 text-xs text-[#64748B] truncate font-mono">{inv.link}</p>
-                    <button
-                      onClick={() => copyLink(inv.link)}
-                      className="shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-[#64748B]"
-                      title="Copier"
-                    >
-                      <Copy style={{ width: 13, height: 13 }} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Tab switcher (admin only) */}
+        {isAdmin && (
+          <div className="flex gap-1 mb-6 border-b border-gray-100">
+            {(['membres', 'activite'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="flex items-center gap-1.5 pb-3 px-1 mr-4 text-sm font-medium transition-colors relative"
+                style={{ color: activeTab === tab ? '#2563EB' : '#64748B' }}
+              >
+                {tab === 'membres' ? <Users className="w-3.5 h-3.5" /> : <Activity className="w-3.5 h-3.5" />}
+                {tab === 'membres' ? 'Membres' : 'Activité'}
+                {activeTab === tab && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ background: '#2563EB' }} />
+                )}
+              </button>
+            ))}
           </div>
         )}
 
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
-          </div>
-        ) : members.length === 0 ? (
-          <div className="text-center py-16">
-            <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-[#64748B]">Aucun membre dans cet espace.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {members.map((member) => {
-              const pubCount = portfolioCounts[member.user.id] ?? 0
-              const isMe = member.user.id === profile?.id
-              const inactive = !member.wsIsActive
-              const isPending = inactive && member.user.has_set_password === false
-
-              return (
-                <Card
-                  key={member.user.id}
-                  className={`flex items-center gap-4 ${inactive ? 'opacity-60' : ''}`}
-                  onClick={() => !inactive && handleViewPortfolio(member.user)}
-                >
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: inactive ? '#F1F5F9' : 'rgba(37,99,235,0.08)' }}
-                  >
-                    <span className="text-sm font-bold" style={{ color: inactive ? '#94A3B8' : '#2563EB' }}>
-                      {member.user.full_name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-[#1E293B] truncate">{member.user.full_name}</p>
-                      {isMe && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Moi</span>
-                      )}
-                      {isPending && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-400" style={{ border: '1px solid #E5E7EB' }}>En attente</span>
-                      )}
-                      {inactive && !isPending && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactif</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <a
-                        href={`mailto:${member.user.email}`}
-                        className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Mail className="w-3 h-3" />{member.user.email}
-                      </a>
-                      {pubCount > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-[#64748B]">
-                          <Briefcase className="w-3 h-3" />{pubCount} client{pubCount !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <RoleBadge
-                      role={member.wsRole}
-                      editable={isAdmin && !isMe}
-                      onSelect={(r) => handleRoleChange(member, r)}
-                    />
-                    {isAdmin && !isMe && (
-                      <>
-                        {isPending ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleResendInvite(member) }}
-                            className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-blue-50"
-                            style={{ color: '#2563EB', border: '1px solid #BFDBFE' }}
-                          >
-                            Renvoyer
-                          </button>
-                        ) : inactive ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleToggleActive(member, true) }}
-                            className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-green-50"
-                            style={{ color: '#16A34A', border: '1px solid #BBF7D0' }}
-                          >
-                            Réactiver
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setDisableTarget(member) }}
-                            className="w-10 h-10 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
-                            title="Désactiver"
-                          >
-                            <X className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(member); setDeleteConfirmText('') }}
-                          className="w-10 h-10 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          title="Supprimer définitivement"
+        {/* ── MEMBRES TAB ── */}
+        {(activeTab === 'membres' || !isAdmin) && (
+          <>
+            {/* Invite links panel */}
+            {showLinks && isAdmin && (
+              <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[#1E293B]">Liens d'invitation</p>
+                  <p className="text-xs text-[#94A3B8]">Valides 7 jours · un usage</p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {(['admin', 'member', 'contributeur'] as WorkspaceRole[]).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => handleGenerateLink(r)}
+                      disabled={linkLoading}
+                      className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:bg-gray-50 disabled:opacity-50"
+                      style={{ borderColor: '#E5E7EB', color: ROLE_CONFIG[r].color }}
+                    >
+                      <Link2 style={{ width: 12, height: 12 }} />
+                      Générer lien {ROLE_CONFIG[r].label}
+                    </button>
+                  ))}
+                </div>
+                {inviteLinks.length > 0 && (
+                  <div className="space-y-2">
+                    {inviteLinks.map((inv) => (
+                      <div key={inv.token} className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50">
+                        <span
+                          className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
+                          style={{ background: ROLE_CONFIG[inv.role].bg, color: ROLE_CONFIG[inv.role].color }}
                         >
-                          <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                          {ROLE_CONFIG[inv.role].label}
+                        </span>
+                        <p className="flex-1 text-xs text-[#64748B] truncate font-mono">{inv.link}</p>
+                        <button
+                          onClick={() => copyLink(inv.link)}
+                          className="shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-[#64748B]"
+                          title="Copier"
+                        >
+                          <Copy style={{ width: 13, height: 13 }} />
                         </button>
-                      </>
-                    )}
+                      </div>
+                    ))}
                   </div>
-                </Card>
-              )
-            })}
+                )}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : members.length === 0 ? (
+              <div className="text-center py-16">
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-[#64748B]">Aucun membre dans cet espace.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {members.map((member) => {
+                  const pubCount = portfolioCounts[member.user.id] ?? 0
+                  const isMe = member.user.id === profile?.id
+                  const inactive = !member.wsIsActive
+                  const isPending = inactive && member.user.has_set_password === false
+
+                  return (
+                    <Card
+                      key={member.user.id}
+                      className={`flex items-center gap-4 ${inactive ? 'opacity-60' : ''}`}
+                      onClick={() => !inactive && handleViewPortfolio(member.user)}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: inactive ? '#F1F5F9' : 'rgba(37,99,235,0.08)' }}
+                      >
+                        <span className="text-sm font-bold" style={{ color: inactive ? '#94A3B8' : '#2563EB' }}>
+                          {member.user.full_name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-[#1E293B] truncate">{member.user.full_name}</p>
+                          {isMe && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Moi</span>
+                          )}
+                          {isPending && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-400" style={{ border: '1px solid #E5E7EB' }}>En attente</span>
+                          )}
+                          {inactive && !isPending && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactif</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <a
+                            href={`mailto:${member.user.email}`}
+                            className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Mail className="w-3 h-3" />{member.user.email}
+                          </a>
+                          {pubCount > 0 && (
+                            <span className="flex items-center gap-1 text-xs text-[#64748B]">
+                              <Briefcase className="w-3 h-3" />{pubCount} client{pubCount !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <RoleBadge
+                          role={member.wsRole}
+                          editable={isAdmin && !isMe}
+                          onSelect={(r) => handleRoleChange(member, r)}
+                        />
+                        {isAdmin && !isMe && (
+                          <>
+                            {isPending ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleResendInvite(member) }}
+                                className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-blue-50"
+                                style={{ color: '#2563EB', border: '1px solid #BFDBFE' }}
+                              >
+                                Renvoyer
+                              </button>
+                            ) : inactive ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleToggleActive(member, true) }}
+                                className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-green-50"
+                                style={{ color: '#16A34A', border: '1px solid #BBF7D0' }}
+                              >
+                                Réactiver
+                              </button>
+                            ) : (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setDisableTarget(member) }}
+                                className="w-10 h-10 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
+                                title="Désactiver"
+                              >
+                                <X className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteTarget(member); setDeleteConfirmText('') }}
+                              className="w-10 h-10 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title="Supprimer définitivement"
+                            >
+                              <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── ACTIVITÉ TAB ── */}
+        {activeTab === 'activite' && isAdmin && (
+          <div>
+            {/* Filters */}
+            <div className="flex flex-col gap-3 mb-5">
+              <div className="flex gap-2 flex-wrap">
+                {['Tout', ...Object.keys(ACTION_GROUPS)].map((group) => (
+                  <button
+                    key={group}
+                    onClick={() => { setAuditFilterGroup(group); setAuditPage(0) }}
+                    className="text-xs font-medium px-3 py-1.5 rounded-full transition-all"
+                    style={auditFilterGroup === group
+                      ? { background: '#2563EB', color: '#fff' }
+                      : { background: '#F1F5F9', color: '#64748B' }
+                    }
+                  >
+                    {group}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={auditFilterUser}
+                onChange={(e) => { setAuditFilterUser(e.target.value); setAuditPage(0) }}
+                className="text-sm px-3 py-2 rounded-xl border border-gray-200 text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white w-full md:w-56"
+              >
+                <option value="">Tous les membres</option>
+                {members.map((m) => (
+                  <option key={m.user.id} value={m.user.id}>{m.user.full_name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Audit log list */}
+            {auditLoading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="text-center py-16">
+                <Activity className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-[#64748B] text-sm">Aucune activité enregistrée.</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {auditLogs.map((log) => {
+                  const userName = log.user_id ? (membersMap[log.user_id] ?? 'Utilisateur inconnu') : 'Système'
+                  const label = ACTION_LABELS[log.action] ?? log.action
+                  const meta = getMetaText(log)
+                  const initial = userName.charAt(0).toUpperCase()
+
+                  return (
+                    <div key={log.id} className="flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                        style={{ background: '#EFF6FF' }}
+                      >
+                        <span className="text-xs font-bold" style={{ color: '#2563EB' }}>{initial}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-[#1E293B]">
+                          <span className="font-medium">{userName}</span>
+                          {' '}
+                          <span className="text-[#64748B]">{label}</span>
+                        </p>
+                        {meta && (
+                          <p className="text-xs text-[#94A3B8] mt-0.5 truncate">{meta}</p>
+                        )}
+                      </div>
+                      <span className="text-xs text-[#94A3B8] shrink-0 mt-0.5">{timeAgo(log.created_at)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {(auditPage > 0 || auditHasMore) && (
+              <div className="flex items-center justify-between mt-6">
+                <button
+                  onClick={() => loadAuditLogs(auditPage - 1, auditFilterUser, auditFilterGroup)}
+                  disabled={auditPage === 0}
+                  className="text-sm font-medium px-4 py-2 rounded-xl border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors text-[#1E293B]"
+                >
+                  Précédent
+                </button>
+                <span className="text-xs text-[#94A3B8]">Page {auditPage + 1}</span>
+                <button
+                  onClick={() => loadAuditLogs(auditPage + 1, auditFilterUser, auditFilterGroup)}
+                  disabled={!auditHasMore}
+                  className="text-sm font-medium px-4 py-2 rounded-xl border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors text-[#1E293B]"
+                >
+                  Suivant
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -688,7 +912,7 @@ export default function TeamPage() {
                 {inviteWsRole === 'contributeur'
                   ? 'Accès limité : portefeuille et saisie de notes uniquement.'
                   : inviteWsRole === 'member'
-                  ? 'Accès standard : tout sauf la gestion de l\'équipe.'
+                  ? "Accès standard : tout sauf la gestion de l'équipe."
                   : 'Accès total : gestion de l\'équipe et des paramètres incluse.'}
               </p>
             </div>
