@@ -585,29 +585,29 @@ CREATE TABLE IF NOT EXISTS early_access (
               ))}
             </motion.div>
           </motion.div>
-          <CarouselSection desktopClass="grid md:grid-cols-3 gap-6 items-start">
+          <CarouselSection desktopClass="grid md:grid-cols-3 gap-6">
             {PLANS.map((plan) => {
               const price = billing === 'monthly' ? plan.monthlyPrice : plan.annualPrice
               return (
-                <motion.div key={plan.name} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="rounded-2xl p-9 relative bg-white" style={{ border: plan.highlight ? '2px solid #2563EB' : '1px solid #E5E7EB' }}>
+                <motion.div key={plan.name} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="rounded-2xl relative bg-white" style={{ border: plan.highlight ? '2px solid #2563EB' : '1px solid #E5E7EB', padding: 28, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 480 }}>
                   {plan.highlight && (
                     <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-bold text-white" style={{ background: '#2563EB', whiteSpace: 'nowrap' }}>Populaire</span>
                   )}
-                  <h3 className="font-bold text-lg mb-1" style={{ color: '#0A0A0A' }}>{plan.name}</h3>
+                  <h3 className="font-bold mb-1" style={{ fontSize: 18, color: '#0A0A0A' }}>{plan.name}</h3>
                   <p className="text-sm mb-6" style={{ color: '#6B7280' }}>{plan.desc}</p>
                   <div className="mb-1">
-                    <span className="font-extrabold" style={{ fontSize: 48, color: '#0A0A0A', lineHeight: 1 }}>{price}€</span>
+                    <span className="font-extrabold" style={{ fontSize: 40, color: '#0A0A0A', lineHeight: 1 }}>{price}€</span>
                   </div>
-                  <p className="text-sm mb-7" style={{ color: '#9CA3AF' }}>{plan.priceNote}</p>
-                  <ul className="space-y-3 mb-8">
+                  <p className="text-sm mb-6" style={{ color: '#9CA3AF' }}>{plan.priceNote}</p>
+                  <ul className="space-y-3 mb-6 flex-1">
                     {plan.features.map((f) => (
                       <li key={f} className="flex items-start gap-3">
                         <Check style={{ width: 15, height: 15, color: '#2563EB', flexShrink: 0, marginTop: 2 }} />
-                        <span style={{ fontSize: 14, color: '#374151', lineHeight: 1.5 }}>{f}</span>
+                        <span style={{ fontSize: 14, color: '#374151', lineHeight: 1.6 }}>{f}</span>
                       </li>
                     ))}
                   </ul>
-                  <button onClick={openRegister} className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: '#2563EB', border: 'none', cursor: 'pointer' }}>
+                  <button onClick={openRegister} className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: '#2563EB', border: 'none', cursor: 'pointer', marginTop: 'auto' }}>
                     Commencer
                   </button>
                 </motion.div>

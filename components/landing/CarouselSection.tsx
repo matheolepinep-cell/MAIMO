@@ -54,6 +54,7 @@ export function CarouselSection({ children, desktopClass = 'grid grid-cols-3 gap
         className="hide-scrollbar"
         style={{
           display: 'flex',
+          alignItems: 'stretch',
           gap: 16,
           overflowX: 'auto',
           scrollSnapType: 'x mandatory',
@@ -66,7 +67,7 @@ export function CarouselSection({ children, desktopClass = 'grid grid-cols-3 gap
         {childArray.map((child, i) => (
           <div
             key={i}
-            style={{ scrollSnapAlign: 'center', flexShrink: 0, width: '82vw', minWidth: 0 }}
+            style={{ scrollSnapAlign: 'center', flexShrink: 0, width: '85vw', minWidth: 0, display: 'flex', alignSelf: 'stretch' }}
           >
             {child}
           </div>
