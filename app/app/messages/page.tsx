@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { MessageCircle, Send, Paperclip, ArrowLeft, FileText, ImageIcon, ExternalLink, Trash2 } from 'lucide-react'
+import { MessageCircle, Send, ArrowLeft, FileText, ImageIcon, ExternalLink, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Header } from '@/components/layout/Header'
-import { BottomSheet } from '@/components/ui/BottomSheet'
-import type { UserProfile, Document } from '@/types/database'
+import type { UserProfile } from '@/types/database'
 
 type TeamMember = Pick<UserProfile, 'id' | 'full_name' | 'email'>
 
@@ -62,9 +61,6 @@ export default function MessagesPage() {
   const [msgLoading, setMsgLoading] = useState(false)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
-  const [attachOpen, setAttachOpen] = useState(false)
-  const [companyDocs, setCompanyDocs] = useState<Document[]>([])
-  const [docsLoading, setDocsLoading] = useState(false)
   const [mobileView, setMobileView] = useState<'list' | 'conv'>('list')
   const [deleteTarget, setDeleteTarget] = useState<Message | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -277,63 +273,6 @@ export default function MessagesPage() {
     setSending(false)
   }
 
-  /* ─── document attachment ─── */
-  const loadCompanyDocs = async () => {
-    if (!profile) return
-    setDocsLoading(true)
-    const supabase = createClient()
-    let q = supabase
-      .from('documents')
-      .select('*')
-      .eq('company_id', profile.company_id)
-      .eq('is_deleted', false)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`) as typeof q
-    const { data } = await q
-    setCompanyDocs((data as Document[]) ?? [])
-    setDocsLoading(false)
-  }
-
-  const handleShareDocument = async (doc: Document) => {
-    if (!profile || !activeConv) return
-    setAttachOpen(false)
-    const convId = await getOrCreateConversation()
-    if (!convId) return
-
-    const supabase = createClient()
-    const preview = `${doc.title ?? doc.file_name} (${doc.file_type?.toUpperCase()})`
-
-    await supabase.from('messages').insert({
-      conversation_id: convId,
-      sender_id: profile.id,
-      content: null,
-      file_path: doc.file_url,
-      file_name: doc.title ?? doc.file_name,
-      file_type: doc.file_type,
-      read_by: [profile.id],
-    })
-
-    await supabase.from('conversations').update({
-      last_message: `📎 ${doc.title ?? doc.file_name}`,
-      last_message_at: new Date().toISOString(),
-    }).eq('id', convId)
-
-    fetchConversations()
-
-    fetch('/api/notifications/message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipientId: activeConv.other_user.id,
-        senderName: profile.full_name,
-        content: `A partagé un document : ${preview}`,
-        conversationId: convId,
-        type: 'document_shared',
-      }),
-    }).catch(() => {})
-  }
-
   /* ─── delete message ─── */
   const handleDeleteMessage = async (msg: Message) => {
     if (!profile) return
@@ -455,7 +394,7 @@ export default function MessagesPage() {
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeleteTarget(msg) }}
                         className="absolute -top-2.5 -right-2.5 w-8 h-8 flex items-center justify-center rounded-md transition-all
-                                   opacity-40 md:opacity-0 md:group-hover/msg:opacity-100 hover:!opacity-100"
+                                   opacity-50 md:opacity-0 md:group-hover/msg:opacity-100 hover:!opacity-100"
                         style={{ background: '#fff', border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
                         title="Supprimer"
                         onMouseEnter={(e) => { (e.currentTarget.querySelector('svg') as SVGElement | null)?.setAttribute('style','color:#DC2626') }}
@@ -542,12 +481,6 @@ export default function MessagesPage() {
               </div>
 
               <div className="px-4 py-3 bg-white border-t border-gray-100 flex items-end gap-2 shrink-0">
-                <button
-                  onClick={() => { setAttachOpen(true); loadCompanyDocs() }}
-                  className="p-2 rounded-xl text-[#94A3B8] hover:text-[#3B82F6] hover:bg-[#EFF6FF] transition-all duration-150 shrink-0"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
                 <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
@@ -602,35 +535,6 @@ export default function MessagesPage() {
         </div>
       )}
 
-      <BottomSheet open={attachOpen} onClose={() => setAttachOpen(false)} title="Partager un document">
-        {docsLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin" />
-          </div>
-        ) : companyDocs.length === 0 ? (
-          <p className="text-sm text-[#94A3B8] text-center py-6">Aucun document disponible</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {companyDocs.map((doc) => (
-              <button
-                key={doc.id}
-                onClick={() => handleShareDocument(doc)}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all duration-150 text-left w-full"
-              >
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#EFF6FF' }}>
-                  {doc.file_type === 'image'
-                    ? <ImageIcon className="w-4 h-4 text-blue-500" />
-                    : <FileText className="w-4 h-4 text-blue-500" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
-                  <p className="text-xs text-[#94A3B8]">{doc.file_type?.toUpperCase()}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </BottomSheet>
     </div>
   )
 }
