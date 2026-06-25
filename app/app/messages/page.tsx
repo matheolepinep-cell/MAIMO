@@ -268,6 +268,15 @@ export default function MessagesPage() {
       last_message_at: new Date().toISOString(),
     }).eq('id', convId)
 
+    // Notify recipient
+    if (activeConv?.other_user.id) {
+      fetch('/api/notifications/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientId: activeConv.other_user.id, conversationId: convId }),
+      }).catch(() => {})
+    }
+
     setText('')
     fetchConversations()
     setSending(false)

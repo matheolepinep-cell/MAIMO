@@ -104,6 +104,13 @@ export default function JoinPage() {
         .update({ used: true })
         .eq('token', token)
 
+      // Notify workspace admins
+      fetch('/api/notifications/invite-accepted', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId: invite.workspace_id, workspaceName: ws.name }),
+      }).catch(() => {})
+
       setStatus('success')
       setTimeout(() => router.push('/app/dashboard'), 2500)
     }

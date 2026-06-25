@@ -6,18 +6,16 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { recipientId, senderName, content, conversationId, type, documentId } = await request.json()
-  if (!recipientId || type !== 'document_shared') {
-    return NextResponse.json({ ok: true })
-  }
+  const { recipientId, conversationId } = await request.json()
+  if (!recipientId) return NextResponse.json({ ok: true })
 
   await createNotification(
     recipientId,
     null,
-    'document_shared',
-    `${senderName} a partagé un document`,
-    content ?? null,
-    { conversation_id: conversationId ?? '', document_id: documentId ?? '' }
+    'message_received',
+    `${user.full_name} vous a envoyé un message`,
+    null,
+    { conversation_id: conversationId ?? '' }
   )
 
   return NextResponse.json({ ok: true })
