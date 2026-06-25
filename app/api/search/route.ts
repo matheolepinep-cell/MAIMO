@@ -6,6 +6,7 @@ import { embed } from '@/lib/embeddings'
 import { detectCompanyInQuery } from '@/lib/search-utils'
 import { env } from '@/lib/env'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logAction } from '@/lib/audit'
 import type { SearchSource, UserProfile } from '@/types/database'
 
 interface SearchChunk {
@@ -169,6 +170,8 @@ export async function POST(request: Request) {
       { status: 429, headers: { 'X-RateLimit-Remaining': '0' } }
     )
   }
+
+  logAction({ userId: user.id, workspaceId: clientWorkspaceId ?? null, action: 'search.query', metadata: { query: query.substring(0, 200) } }).catch(() => {})
 
   const supabase = createSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRole)
 

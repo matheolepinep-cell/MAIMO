@@ -3,6 +3,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logAction } from '@/lib/audit'
 import { normalizeText, levenshtein } from '@/lib/search-utils'
 import { createGoogleEvent } from '@/lib/google-calendar'
 
@@ -101,6 +102,7 @@ async function handleExecute(request: Request) {
     summary.push(`Fiche ${c.name} créée`)
     resolvedCompanies[normalizeText(c.name)] = { id: c.id, name: c.name, created: true }
     await addToPortfolio(c.id)
+    logAction({ userId: user.id, workspaceId: workspaceId ?? null, action: 'account.created', resourceType: 'account', resourceId: c.id, metadata: { name: c.name, auto_created: true } }).catch(() => {})
     return c
   }
 
@@ -142,6 +144,7 @@ async function handleExecute(request: Request) {
           allAccounts.push(c)
 
           await addToPortfolio(c.id)
+          logAction({ userId: user.id, workspaceId: workspaceId ?? null, action: 'account.created', resourceType: 'account', resourceId: c.id, metadata: { name: c.name } }).catch(() => {})
 
           if (action.city) {
             geocodeCity(action.city).then((coords) => {
@@ -309,6 +312,7 @@ async function handleExecute(request: Request) {
         const c = created as { id: string }
         results.push({ type: 'create_note', noteId: c.id, accountId, created: true })
         summary.push('Note enregistrée')
+        logAction({ userId: user.id, workspaceId: workspaceId ?? null, action: 'note.created', resourceType: 'note', resourceId: c.id, metadata: accountId ? { account_id: accountId } : {} }).catch(() => {})
 
         // Fire-and-forget RAG indexing (forward auth cookies)
         const host = request.headers.get('host') ?? 'localhost:3000'

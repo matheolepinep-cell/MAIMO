@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
+import { logAction } from '@/lib/audit'
 import type { WorkspaceRole } from '@/types/database'
 
 const adminClient = () =>
@@ -51,6 +52,12 @@ export async function PATCH(request: Request) {
     }
   }
 
+  let oldRole: string | null = null
+  if (role !== undefined) {
+    const { data: target } = await supabase.from('workspace_members').select('role').eq('workspace_id', workspace_id).eq('user_id', user_id).maybeSingle()
+    oldRole = (target as { role: string } | null)?.role ?? null
+  }
+
   const updates: { role?: WorkspaceRole; is_active?: boolean } = {}
   if (role !== undefined) updates.role = role as WorkspaceRole
   if (is_active !== undefined) updates.is_active = is_active
@@ -62,6 +69,13 @@ export async function PATCH(request: Request) {
     .eq('user_id', user_id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (role !== undefined) {
+    logAction({ userId: user.id, workspaceId: workspace_id, action: 'member.role_changed', resourceType: 'workspace_member', resourceId: user_id, metadata: { old_role: oldRole, new_role: role, target_user_id: user_id } }).catch(() => {})
+  }
+  if (is_active === false) {
+    logAction({ userId: user.id, workspaceId: workspace_id, action: 'member.deactivated', resourceType: 'workspace_member', resourceId: user_id, metadata: { target_user_id: user_id } }).catch(() => {})
+  }
 
   // Revoke active sessions if deactivating
   if (is_active === false) {
@@ -111,6 +125,8 @@ export async function DELETE(request: Request) {
     .eq('user_id', user_id)
 
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 })
+
+  logAction({ userId: user.id, workspaceId: workspace_id, action: 'member.deleted', resourceType: 'workspace_member', resourceId: user_id, metadata: { target_user_id: user_id } }).catch(() => {})
 
   // Check if user belongs to any other workspace in the company
   const { count: otherWsCount } = await supabase

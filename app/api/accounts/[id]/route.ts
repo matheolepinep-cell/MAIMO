@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
+import { logAction } from '@/lib/audit'
 
 function parseBucketAndPath(fileUrl: string): { bucket: string; path: string } {
   if (fileUrl.startsWith('http')) {
@@ -37,7 +38,7 @@ export async function DELETE(
   // Verify account belongs to the same company
   const { data: account } = await supabase
     .from('accounts')
-    .select('id, company_id')
+    .select('id, company_id, name, workspace_id')
     .eq('id', id)
     .single()
   if (!account || account.company_id !== user.company_id) {
@@ -86,6 +87,8 @@ export async function DELETE(
 
   // 8. Delete the account itself
   await supabase.from('accounts').delete().eq('id', id)
+
+  logAction({ userId: user.id, workspaceId: account.workspace_id ?? null, action: 'account.deleted', resourceType: 'account', resourceId: id, metadata: { name: account.name } }).catch(() => {})
 
   return NextResponse.json({ ok: true })
 }
