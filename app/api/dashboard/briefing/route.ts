@@ -3,6 +3,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic({ apiKey: env.anthropicApiKey })
 
@@ -11,6 +12,14 @@ const ACTION_KEYWORDS = ['rappel', 'relancer', 'rdv', 'réunion', 'envoyer', 'ap
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { limited } = await checkRateLimit(user.id, '/api/dashboard/briefing')
+  if (limited) {
+    return NextResponse.json(
+      { error: 'Limite quotidienne atteinte (50 briefings/jour). Réessayez demain.', code: 'RATE_LIMITED' },
+      { status: 429 }
+    )
+  }
 
   const { company_id, workspace_id, first_name } = await request.json()
   if (!company_id || company_id !== user.company_id) {

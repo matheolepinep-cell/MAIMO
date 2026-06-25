@@ -3,12 +3,21 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic({ apiKey: env.anthropicApiKey })
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { limited } = await checkRateLimit(user.id, '/api/conflicts')
+  if (limited) {
+    return NextResponse.json(
+      { error: 'Limite quotidienne atteinte (20 analyses/jour). Réessayez demain.', code: 'RATE_LIMITED' },
+      { status: 429 }
+    )
+  }
 
   const { accountId, newContent } = await request.json()
   if (!accountId || !newContent?.trim()) {

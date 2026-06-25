@@ -268,6 +268,7 @@ function SearchPageContent() {
   const [conversation, setConversation] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [searchRemaining, setSearchRemaining] = useState<number | null>(null)
 
   const [conversations, setConversations] = useState<ConvRow[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
@@ -402,6 +403,13 @@ function SearchPageContent() {
       }
       const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json()
+      if (res.status === 429) {
+        setConversation(prev => [...prev, { role: 'assistant', content: data.error ?? 'Limite quotidienne atteinte. Réessayez demain.', sources: [], timestamp: new Date().toISOString() }])
+        setSearchRemaining(0)
+        setLoading(false)
+        return
+      }
+      if (typeof data.remaining === 'number') setSearchRemaining(data.remaining)
       const chunks = (data.chunksUsed ?? []) as ChunkUsed[]
       const assistantMsg: Message = { role: 'assistant', content: data.answer ?? '', sources: data.sources ?? [], chunks, timestamp: new Date().toISOString() }
       const finalConv = [...convWithUser, assistantMsg]
@@ -597,7 +605,9 @@ function SearchPageContent() {
         </div>
       </div>
       <p style={{ fontSize: 12, color: '#9B9B9B', textAlign: 'center', marginTop: 8 }}>
-        Maimoo peut faire des erreurs. Vérifiez les informations importantes.
+        {searchRemaining !== null && searchRemaining < 10
+          ? `${searchRemaining} recherche${searchRemaining !== 1 ? 's' : ''} restante${searchRemaining !== 1 ? 's' : ''} aujourd'hui`
+          : "Maimoo peut faire des erreurs. Vérifiez les informations importantes."}
       </p>
     </div>
   )

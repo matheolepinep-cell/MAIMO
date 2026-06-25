@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from '@/lib/auth-server'
 import { embed } from '@/lib/embeddings'
 import { detectCompanyInQuery } from '@/lib/search-utils'
 import { env } from '@/lib/env'
+import { checkRateLimit } from '@/lib/rate-limit'
 import type { SearchSource, UserProfile } from '@/types/database'
 
 interface SearchChunk {
@@ -161,6 +162,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const { limited, remaining } = await checkRateLimit(user.id, '/api/search', clientWorkspaceId)
+  if (limited) {
+    return NextResponse.json(
+      { error: 'Limite quotidienne atteinte (50 recherches/jour). Réessayez demain.', code: 'RATE_LIMITED' },
+      { status: 429, headers: { 'X-RateLimit-Remaining': '0' } }
+    )
+  }
+
   const supabase = createSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRole)
 
   // Validate workspace_id server-side
@@ -281,7 +290,7 @@ ${chunksFormatted}${followUpInstruction}`
     })
 
     const answer = message.content[0].type === 'text' ? message.content[0].text : ''
-    return NextResponse.json({ answer, sources, chunksUsed: prevChunks })
+    return NextResponse.json({ answer, sources, chunksUsed: prevChunks, remaining })
   }
 
   // ── INDEPENDENT QUERY: full vector search ──
@@ -390,12 +399,13 @@ ${chunksFormatted}${followUpInstruction}`
         messages: [...historySlice, { role: 'user' as const, content: query }],
       })
       const answer = msgNotes.content[0].type === 'text' ? msgNotes.content[0].text : ''
-      return NextResponse.json({ answer, sources: [], chunksUsed: [] })
+      return NextResponse.json({ answer, sources: [], chunksUsed: [], remaining })
     }
     return NextResponse.json({
       answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question.",
       sources: [],
       chunksUsed: [],
+      remaining,
     })
   }
 
@@ -490,6 +500,7 @@ ${chunksFormatted}${followUpInstruction}`
       answer: "Je n'ai trouvé aucune information pertinente pour répondre à votre question dans ce périmètre.",
       sources: [],
       chunksUsed: [],
+      remaining,
     })
   }
 
@@ -544,5 +555,5 @@ ${chunksFormatted}${followUpInstruction}`
   const answer = message.content[0].type === 'text' ? message.content[0].text : ''
   const sources = buildSourcesFromChunks(chunksUsed)
 
-  return NextResponse.json({ answer, sources, chunksUsed })
+  return NextResponse.json({ answer, sources, chunksUsed, remaining })
 }

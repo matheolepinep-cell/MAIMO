@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx'
 import OpenAI from 'openai'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const openai = new OpenAI({ apiKey: env.openaiApiKey ?? '' })
 
@@ -49,6 +50,14 @@ async function extractText(buffer: Buffer, ext: string, fileName: string): Promi
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { limited } = await checkRateLimit(user.id, '/api/import/analyze')
+  if (limited) {
+    return NextResponse.json(
+      { error: 'Limite quotidienne atteinte (20 analyses/jour). Réessayez demain.', code: 'RATE_LIMITED' },
+      { status: 429 }
+    )
+  }
 
   const { file_path, file_name, company_id } = await request.json()
 

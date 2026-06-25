@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { analyzeDocument } from '@/lib/document-analyzer'
 import { normalizeText, levenshtein } from '@/lib/search-utils'
 import { chunkText } from '@/lib/chunker'
@@ -39,6 +40,14 @@ function findMatchingAccount(name: string, accounts: AccountRow[]): AccountRow |
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { limited } = await checkRateLimit(user.id, '/api/import/analyze-document')
+  if (limited) {
+    return NextResponse.json(
+      { error: 'Limite quotidienne atteinte (20 analyses/jour). Réessayez demain.', code: 'RATE_LIMITED' },
+      { status: 429 }
+    )
+  }
 
   const { text, file_path, file_name, file_type, company_id, workspace_id } = await request.json()
 

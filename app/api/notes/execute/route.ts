@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { normalizeText, levenshtein } from '@/lib/search-utils'
 import { createGoogleEvent } from '@/lib/google-calendar'
 
@@ -37,6 +38,14 @@ export async function POST(request: Request) {
 async function handleExecute(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { limited } = await checkRateLimit(user.id, '/api/notes/execute')
+  if (limited) {
+    return NextResponse.json(
+      { error: 'Limite quotidienne atteinte (30 exécutions/jour). Réessayez demain.', code: 'RATE_LIMITED' },
+      { status: 429 }
+    )
+  }
 
   const { actions, workspaceId, companyId, source } = await request.json()
 
