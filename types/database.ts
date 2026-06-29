@@ -14,6 +14,7 @@ export interface UserProfile {
   has_set_password?: boolean
   onboarding_completed?: boolean
   onboarding_steps_completed?: number[]
+  phone?: string | null
 }
 
 export interface Workspace {

@@ -21,6 +21,7 @@ function RegisterContent() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const [phone, setPhone] = useState('')
   const [passwordFocused, setPasswordFocused] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
@@ -70,6 +71,7 @@ function RegisterContent() {
       role: 'admin',
       company_id: company.id,
       is_active: true,
+      phone: phone.replace(/\s/g, '').trim() || null,
     })
 
     if (userError) {
@@ -166,6 +168,8 @@ function RegisterContent() {
           <Input id="email" type="email" label="Email" placeholder="vous@exemple.com"
             value={email} onChange={(e) => setEmail(e.target.value)}
             onInvalid={(e) => e.preventDefault()} autoComplete="email" />
+          <Input id="phone" type="tel" label="Téléphone (optionnel)" placeholder="+33 6 12 34 56 78"
+            value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
           <div>
             <Input id="password" type="password" label="Mot de passe" placeholder="••••••••"
               value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password"
