@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 interface SupportWidgetProps {
   userName?: string
@@ -20,9 +20,22 @@ export default function SupportWidget({ userName, userEmail, role }: SupportWidg
   const [isSent, setIsSent] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [category, setCategory] = useState('')
+  const [isHidden, setIsHidden] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  if (role === 'contributeur') return null
+  // Hide widget when a note modal is open (avoids overlap on mobile)
+  useEffect(() => {
+    const handleOpen = () => setIsHidden(true)
+    const handleClose = () => setIsHidden(false)
+    window.addEventListener('noteModalOpen', handleOpen)
+    window.addEventListener('noteModalClose', handleClose)
+    return () => {
+      window.removeEventListener('noteModalOpen', handleOpen)
+      window.removeEventListener('noteModalClose', handleClose)
+    }
+  }, [])
+
+  if (isHidden || role === 'contributeur') return null
 
   const handleOpen = () => {
     setIsOpen(v => !v)

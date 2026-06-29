@@ -38,6 +38,11 @@ export function QuickNoteModal() {
     return () => window.removeEventListener('open:quick-note-modal', handler)
   }, [pathname])
 
+  // Notify SupportWidget to hide itself while this modal is open
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(open ? 'noteModalOpen' : 'noteModalClose'))
+  }, [open])
+
   // Fetch accounts when modal opens
   useEffect(() => {
     if (!open || !profile) return
