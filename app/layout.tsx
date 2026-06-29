@@ -26,6 +26,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  // iOS 16+: shrinks the layout viewport when the software keyboard opens,
+  // so position:fixed;bottom:0 elements naturally stay above the keyboard.
+  interactiveWidget: 'resizes-content',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
