@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { isPasswordValid } from '@/lib/password-validation'
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { FormMessage } from '@/components/ui/FormMessage'
@@ -33,6 +35,7 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
   const [companyName, setCompanyName] = useState('')
   const [registerError, setRegisterError] = useState('')
   const [registerLoading, setRegisterLoading] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
 
   // Email confirm
   const [registeredEmail, setRegisteredEmail] = useState('')
@@ -85,7 +88,7 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
     e.preventDefault()
     setRegisterError('')
     if (!fullName.trim() || !email.trim() || !password || !companyName.trim()) { setRegisterError('Veuillez remplir tous les champs.'); return }
-    if (password.length < 8) { setRegisterError('Le mot de passe doit contenir au moins 8 caractères.'); return }
+    if (!isPasswordValid(password)) { setRegisterError('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.'); return }
     setRegisterLoading(true)
     const supabase = createClient()
 
@@ -192,8 +195,12 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
               <Input id="r-email" type="email" label="Email" placeholder="vous@exemple.com"
                 value={email} onChange={(e) => setEmail(e.target.value)}
                 onInvalid={(e) => e.preventDefault()} autoComplete="email" />
-              <Input id="r-pass" type="password" label="Mot de passe" placeholder="••••••••"
-                value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+              <div>
+                <Input id="r-pass" type="password" label="Mot de passe" placeholder="••••••••"
+                  value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password"
+                  onFocus={() => setPasswordFocused(true)} onBlur={() => setPasswordFocused(false)} />
+                <PasswordStrengthIndicator password={password} focused={passwordFocused} />
+              </div>
               <Input id="r-company" label="Nom de votre espace" placeholder="Mon équipe"
                 value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
               {registerError && <FormMessage type="error" message={registerError} />}

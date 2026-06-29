@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { isPasswordValid } from '@/lib/password-validation'
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { FormMessage } from '@/components/ui/FormMessage'
@@ -19,6 +21,7 @@ function RegisterContent() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const [passwordFocused, setPasswordFocused] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
 
@@ -32,7 +35,7 @@ function RegisterContent() {
     e.preventDefault()
     setError('')
     if (!fullName.trim() || !email.trim() || !password || !companyName.trim()) { setError('Veuillez remplir tous les champs.'); return }
-    if (password.length < 8) { setError('Le mot de passe doit contenir au moins 8 caractères.'); return }
+    if (!isPasswordValid(password)) { setError('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.'); return }
     setLoading(true)
     const supabase = createClient()
 
@@ -163,14 +166,18 @@ function RegisterContent() {
           <Input id="email" type="email" label="Email" placeholder="vous@exemple.com"
             value={email} onChange={(e) => setEmail(e.target.value)}
             onInvalid={(e) => e.preventDefault()} autoComplete="email" />
-          <Input id="password" type="password" label="Mot de passe" placeholder="••••••••"
-            value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+          <div>
+            <Input id="password" type="password" label="Mot de passe" placeholder="••••••••"
+              value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password"
+              onFocus={() => setPasswordFocused(true)} onBlur={() => setPasswordFocused(false)} />
+            <PasswordStrengthIndicator password={password} focused={passwordFocused} />
+          </div>
           <Input id="companyName" label="Nom de votre espace" placeholder="Mon espace"
             value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
 
           {error && <FormMessage type="error" message={error} />}
 
-          <Button type="submit" loading={loading} className="w-full" size="lg">
+          <Button type="submit" loading={loading} disabled={loading || (password.length > 0 && !isPasswordValid(password))} className="w-full" size="lg">
             Créer mon espace
           </Button>
         </form>

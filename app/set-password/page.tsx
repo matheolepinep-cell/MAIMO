@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { isPasswordValid } from '@/lib/password-validation'
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 
 export default function SetPasswordPage() {
   const router = useRouter()
@@ -16,6 +18,7 @@ export default function SetPasswordPage() {
   const [done, setDone] = useState(false)
   const [userName, setUserName] = useState('')
   const [authReady, setAuthReady] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -45,7 +48,7 @@ export default function SetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (password.length < 8) { setError('Le mot de passe doit contenir au moins 8 caractères.'); return }
+    if (!isPasswordValid(password)) { setError('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.'); return }
     if (password !== confirm) { setError('Les mots de passe ne correspondent pas.'); return }
 
     setLoading(true)
@@ -67,10 +70,6 @@ export default function SetPasswordPage() {
     setDone(true)
     setTimeout(() => router.push('/app/dashboard'), 2000)
   }
-
-  const strength = password.length === 0 ? 0 : password.length < 8 ? 1 : password.length < 12 ? 2 : 3
-  const strengthColor = ['transparent', '#EF4444', '#F59E0B', '#22C55E'][strength]
-  const strengthLabel = ['', 'Trop court', 'Acceptable', 'Sécurisé'][strength]
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: '#F8FAFC' }}>
@@ -112,6 +111,8 @@ export default function SetPasswordPage() {
                     type={showPwd ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
                     placeholder="Minimum 8 caractères"
                     className="w-full px-4 py-3 pr-11 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
@@ -125,17 +126,7 @@ export default function SetPasswordPage() {
                     {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {password.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{ width: `${(strength / 3) * 100}%`, background: strengthColor }}
-                      />
-                    </div>
-                    <span className="text-xs shrink-0" style={{ color: strengthColor }}>{strengthLabel}</span>
-                  </div>
-                )}
+                <PasswordStrengthIndicator password={password} focused={passwordFocused} />
               </div>
 
               <div>
@@ -160,7 +151,7 @@ export default function SetPasswordPage() {
 
               <button
                 type="submit"
-                disabled={loading || !authReady || !password || password !== confirm}
+                disabled={loading || !authReady || !isPasswordValid(password) || password !== confirm}
                 className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
                 style={{ background: '#2563EB' }}
               >
