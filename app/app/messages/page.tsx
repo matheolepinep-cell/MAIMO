@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { MessageCircle, Send, ArrowLeft, FileText, ImageIcon, ExternalLink, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { Header } from '@/components/layout/Header'
+import { useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import type { UserProfile } from '@/types/database'
 
 type TeamMember = Pick<UserProfile, 'id' | 'full_name' | 'email'>
@@ -49,6 +50,32 @@ function userColor(id: string) {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffffffff
   return COLORS[Math.abs(h) % COLORS.length]
+}
+
+function MessagesUrlHandler({
+  conversations,
+  loading,
+  openConversation,
+}: {
+  conversations: Conversation[]
+  loading: boolean
+  openConversation: (conv: Conversation) => void
+}) {
+  const searchParams = useSearchParams()
+  const router = useNextRouter()
+  const handled = useRef(false)
+
+  useEffect(() => {
+    const userId = searchParams.get('userId')
+    if (!userId || handled.current || loading) return
+    const conv = conversations.find((c) => c.other_user.id === userId)
+    if (!conv) return
+    handled.current = true
+    openConversation(conv)
+    router.replace('/app/messages', { scroll: false } as Parameters<typeof router.replace>[1])
+  }, [conversations, loading, searchParams, openConversation, router])
+
+  return null
 }
 
 export default function MessagesPage() {
@@ -305,6 +332,9 @@ export default function MessagesPage() {
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100dvh - 4rem)' }}>
+      <Suspense fallback={null}>
+        <MessagesUrlHandler conversations={conversations} loading={loading} openConversation={openConversation} />
+      </Suspense>
       <Header title="Messages" />
 
       <div className="flex flex-1 overflow-hidden">
