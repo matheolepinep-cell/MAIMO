@@ -26,6 +26,12 @@ function RegisterContent() {
   const [resendLoading, setResendLoading] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
 
+  const [consentCgu, setConsentCgu] = useState(false)
+  const [consentPrivacy, setConsentPrivacy] = useState(false)
+  const [consentMarketing, setConsentMarketing] = useState(false)
+  const [consentCguError, setConsentCguError] = useState(false)
+  const [consentPrivacyError, setConsentPrivacyError] = useState(false)
+
   useEffect(() => {
     if (resendCooldown <= 0) return
     const t = setTimeout(() => setResendCooldown((v) => v - 1), 1000)
@@ -35,8 +41,14 @@ function RegisterContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setConsentCguError(false)
+    setConsentPrivacyError(false)
     if (!fullName.trim() || !email.trim() || !password || !companyName.trim()) { setError('Veuillez remplir tous les champs.'); return }
     if (!isPasswordValid(password)) { setError('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.'); return }
+    let hasConsentError = false
+    if (!consentCgu) { setConsentCguError(true); hasConsentError = true }
+    if (!consentPrivacy) { setConsentPrivacyError(true); hasConsentError = true }
+    if (hasConsentError) return
     setLoading(true)
     const supabase = createClient()
 
@@ -64,6 +76,7 @@ function RegisterContent() {
       return
     }
 
+    const now = new Date().toISOString()
     const { error: userError } = await supabase.from('users').insert({
       id: authData.user.id,
       email,
@@ -72,6 +85,12 @@ function RegisterContent() {
       company_id: company.id,
       is_active: true,
       phone: phone.replace(/\s/g, '').trim() || null,
+      consent_cgu: true,
+      consent_cgu_date: now,
+      consent_privacy: true,
+      consent_privacy_date: now,
+      consent_marketing: consentMarketing,
+      consent_marketing_date: consentMarketing ? now : null,
     })
 
     if (userError) {
@@ -178,6 +197,62 @@ function RegisterContent() {
           </div>
           <Input id="companyName" label="Nom de votre espace" placeholder="Mon espace"
             value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+
+          {/* Consent checkboxes */}
+          <div className="space-y-3">
+            <div>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={consentCgu}
+                  onChange={(e) => { setConsentCgu(e.target.checked); if (e.target.checked) setConsentCguError(false) }}
+                  className="mt-0.5 w-4 h-4 shrink-0 rounded"
+                  style={{ accentColor: '#2563EB' }}
+                />
+                <span className="text-[13px] text-[#374151] leading-snug">
+                  J&apos;accepte les{' '}
+                  <a href="/cgu" target="_blank" rel="noopener noreferrer" className="text-[#2563EB] underline">
+                    Conditions Générales d&apos;Utilisation
+                  </a>
+                </span>
+              </label>
+              {consentCguError && (
+                <p className="mt-1 text-[12px] text-[#DC2626] ml-[26px]">Vous devez accepter les CGU pour continuer.</p>
+              )}
+            </div>
+            <div>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={consentPrivacy}
+                  onChange={(e) => { setConsentPrivacy(e.target.checked); if (e.target.checked) setConsentPrivacyError(false) }}
+                  className="mt-0.5 w-4 h-4 shrink-0 rounded"
+                  style={{ accentColor: '#2563EB' }}
+                />
+                <span className="text-[13px] text-[#374151] leading-snug">
+                  J&apos;ai lu et j&apos;accepte la{' '}
+                  <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-[#2563EB] underline">
+                    Politique de confidentialité
+                  </a>
+                </span>
+              </label>
+              {consentPrivacyError && (
+                <p className="mt-1 text-[12px] text-[#DC2626] ml-[26px]">Vous devez accepter la politique de confidentialité.</p>
+              )}
+            </div>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consentMarketing}
+                onChange={(e) => setConsentMarketing(e.target.checked)}
+                className="mt-0.5 w-4 h-4 shrink-0 rounded"
+                style={{ accentColor: '#2563EB' }}
+              />
+              <span className="text-[13px] text-[#374151] leading-snug">
+                J&apos;accepte de recevoir des informations et nouveautés de Maimoo
+              </span>
+            </label>
+          </div>
 
           {error && <FormMessage type="error" message={error} />}
 
