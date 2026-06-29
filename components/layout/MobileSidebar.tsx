@@ -35,7 +35,7 @@ export function MobileSidebar() {
     { href: '/app/search', icon: Search, label: 'Recherche IA', hidden: isContributeur },
     { href: '/app/portfolio', icon: Briefcase, label: 'Portefeuille', hidden: false },
     { href: '/app/messages', icon: MessageCircle, label: 'Messages', hidden: isContributeur },
-    { href: '/app/team', icon: Users, label: 'Équipe', hidden: isContributeur },
+    { href: '/app/team', icon: Users, label: 'Équipe', hidden: false },
   ]
   const navItems = allNavItems.filter((i) => !i.hidden)
 
