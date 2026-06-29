@@ -10,7 +10,7 @@ import { BottomNav } from '@/components/layout/BottomNav'
 import { SetPasswordBanner } from '@/components/layout/SetPasswordBanner'
 import OnboardingChecklist from '@/components/onboarding/OnboardingChecklist'
 import { QuickNoteModal } from '@/components/notes/QuickNoteModal'
-import TawkChatLoader from '@/components/TawkChatLoader'
+import SupportWidgetLoader from '@/components/SupportWidgetLoader'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -30,7 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <BottomNav />
                   <OnboardingChecklist />
                   <QuickNoteModal />
-                  <TawkChatLoader />
+                  <SupportWidgetLoader />
                 </div>
               </WorkspaceProvider>
             </UnreadMessagesProvider>

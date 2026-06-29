@@ -2,18 +2,16 @@
 
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
-import TawkChat from '@/components/TawkChat'
+import SupportWidget from '@/components/SupportWidget'
 
-export default function TawkChatLoader() {
+export default function SupportWidgetLoader() {
   const { profile } = useUser()
   const { currentWorkspace } = useWorkspace()
 
   return (
-    <TawkChat
-      userEmail={profile?.email}
+    <SupportWidget
       userName={profile?.full_name}
-      userId={profile?.id}
-      workspaceName={currentWorkspace?.name}
+      userEmail={profile?.email}
       role={currentWorkspace?.role ?? profile?.role}
     />
   )
