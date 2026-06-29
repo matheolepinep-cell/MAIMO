@@ -64,37 +64,24 @@ function RegisterContent() {
       return
     }
 
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .insert({ name: companyName.trim() })
-      .select()
-      .single()
-
-    if (companyError || !company) {
-      setError("Erreur lors de la création de l'espace.")
-      setLoading(false)
-      return
-    }
-
-    const now = new Date().toISOString()
-    const { error: userError } = await supabase.from('users').insert({
-      id: authData.user.id,
-      email,
-      full_name: fullName.trim(),
-      role: 'admin',
-      company_id: company.id,
-      is_active: true,
-      phone: phone.replace(/\s/g, '').trim() || null,
-      consent_cgu: true,
-      consent_cgu_date: now,
-      consent_privacy: true,
-      consent_privacy_date: now,
-      consent_marketing: consentMarketing,
-      consent_marketing_date: consentMarketing ? now : null,
+    // Company + user creation via server-side API (service role bypasses RLS,
+    // works even when there is no active session after signUp)
+    const setupRes = await fetch('/api/auth/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: authData.user.id,
+        email,
+        fullName,
+        companyName,
+        phone,
+        consentMarketing,
+      }),
     })
 
-    if (userError) {
-      setError('Compte créé mais profil incomplet : ' + userError.message)
+    if (!setupRes.ok) {
+      const { error: setupErr } = await setupRes.json().catch(() => ({}))
+      setError(setupErr ?? "Erreur lors de la création de l'espace.")
       setLoading(false)
       return
     }
