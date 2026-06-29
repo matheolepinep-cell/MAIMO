@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy, Trash2, Activity, MessageCircle } from 'lucide-react'
+import Link from 'next/link'
+import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy, Trash2, Activity, MessageCircle, ChevronRight } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -89,6 +90,27 @@ function getMetaText(log: AuditLog): string | null {
   if ((log.action === 'account.created' || log.action === 'account.deleted') && m.name) return String(m.name)
   if ((log.action === 'document.uploaded' || log.action === 'document.deleted') && m.file_name) return String(m.file_name)
   return null
+}
+
+const DELETED_RESOURCE_ACTIONS = new Set(['note.deleted', 'account.deleted', 'document.deleted', 'member.deleted'])
+
+function getActionLink(log: AuditLog): string | null {
+  switch (log.action) {
+    case 'note.created':
+    case 'note.updated':
+      return log.metadata?.account_id ? `/app/accounts/${log.metadata.account_id}?tab=notes` : null
+    case 'account.created':
+    case 'account.updated':
+      return log.resource_id ? `/app/accounts/${log.resource_id}` : null
+    case 'document.uploaded':
+      return log.metadata?.account_id ? `/app/accounts/${log.metadata.account_id}?tab=documents` : null
+    case 'member.invited':
+    case 'member.role_changed':
+    case 'member.deactivated':
+      return '/app/team'
+    default:
+      return null
+  }
 }
 
 function RoleBadge({
@@ -721,9 +743,11 @@ export default function TeamPage() {
                   const label = ACTION_LABELS[log.action] ?? log.action
                   const meta = getMetaText(log)
                   const initial = userName.charAt(0).toUpperCase()
+                  const link = getActionLink(log)
+                  const isDeletedRes = DELETED_RESOURCE_ACTIONS.has(log.action)
 
-                  return (
-                    <div key={log.id} className="flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+                  const rowContent = (
+                    <>
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
                         style={{ background: '#EFF6FF' }}
@@ -737,10 +761,41 @@ export default function TeamPage() {
                           <span className="text-[#64748B]">{label}</span>
                         </p>
                         {meta && (
-                          <p className="text-xs text-[#94A3B8] mt-0.5 truncate">{meta}</p>
+                          <p
+                            className="text-xs text-[#94A3B8] mt-0.5 truncate"
+                            style={log.action === 'search.query' ? { fontStyle: 'italic' } : {}}
+                          >
+                            {meta}
+                          </p>
                         )}
                       </div>
-                      <span className="text-xs text-[#94A3B8] shrink-0 mt-0.5">{timeAgo(log.created_at)}</span>
+                      <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                        <span className="text-xs text-[#94A3B8]">{timeAgo(log.created_at)}</span>
+                        {link && <ChevronRight style={{ width: 12, height: 12, color: '#9CA3AF' }} />}
+                      </div>
+                    </>
+                  )
+
+                  if (link) {
+                    return (
+                      <Link
+                        key={log.id}
+                        href={link}
+                        className="flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-[#F9FAFB] transition-colors cursor-pointer"
+                      >
+                        {rowContent}
+                      </Link>
+                    )
+                  }
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-3 px-3 py-3 rounded-xl transition-colors"
+                      style={{ opacity: isDeletedRes ? 0.6 : 1 }}
+                      title={isDeletedRes ? 'Cette ressource a été supprimée' : undefined}
+                    >
+                      {rowContent}
                     </div>
                   )
                 })}
