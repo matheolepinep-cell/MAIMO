@@ -9,9 +9,9 @@ interface SupportWidgetProps {
 }
 
 const CATEGORIES = [
-  { id: 'bug', label: '🐛 Signaler un bug' },
-  { id: 'suggestion', label: '💡 Faire une suggestion' },
-  { id: 'question', label: "❓ J'ai une question" },
+  { id: 'bug', label: 'Signaler un bug' },
+  { id: 'suggestion', label: 'Faire une suggestion' },
+  { id: 'question', label: "J'ai une question" },
 ]
 
 export default function SupportWidget({ userName, userEmail, role }: SupportWidgetProps) {
@@ -123,10 +123,12 @@ export default function SupportWidget({ userName, userEmail, role }: SupportWidg
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '18px',
+                fontSize: '15px',
+                fontWeight: 700,
+                color: 'white',
               }}
             >
-              👋
+              M
             </div>
             <div>
               <div style={{ color: 'white', fontWeight: 700, fontSize: '14px' }}>Support Maimoo</div>
@@ -149,7 +151,7 @@ export default function SupportWidget({ userName, userEmail, role }: SupportWidg
                     marginBottom: '16px',
                   }}
                 >
-                  Bonjour {userName?.split(' ')[0] ?? ''} 👋 Comment pouvons-nous vous aider ?
+                  Bonjour {userName?.split(' ')[0] ?? ''} ! Comment pouvons-nous vous aider ?
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
@@ -215,12 +217,17 @@ export default function SupportWidget({ userName, userEmail, role }: SupportWidg
                     transition: 'all 0.15s',
                   }}
                 >
-                  {isSending ? 'Envoi...' : 'Envoyer →'}
+                  {isSending ? 'Envoi...' : 'Envoyer'}
                 </button>
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎉</div>
+                <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" fill="#EFF6FF" />
+                    <path d="M8 12l3 3 5-5" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: '#0A0A0A', marginBottom: '8px' }}>
                   Message envoyé !
                 </div>
