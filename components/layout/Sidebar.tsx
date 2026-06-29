@@ -141,9 +141,7 @@ export function Sidebar() {
         {!isContributeur && (
           <NavItem href="/app/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/app/messages')} dot={hasUnreadMessages} />
         )}
-        {!isContributeur && (
-          <NavItem href="/app/team" icon={Users} label="Équipe" active={pathname.startsWith('/app/team')} />
-        )}
+        <NavItem href="/app/team" icon={Users} label="Équipe" active={pathname.startsWith('/app/team')} />
       </nav>
 
       <div className="mt-auto pt-4 mx-2 flex flex-col gap-0.5" style={{ borderTop: '1px solid #E5E7EB' }}>

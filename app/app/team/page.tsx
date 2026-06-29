@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy, Trash2, Activity } from 'lucide-react'
+import { Users, UserPlus, Mail, Briefcase, Building2, Lock, ChevronDown, Check, X, Link2, Copy, Trash2, Activity, MessageCircle } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -548,7 +548,10 @@ export default function TeamPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {members.map((member) => {
+                {members
+                  // Non-admins only see active members
+                  .filter((m) => isAdmin || m.wsIsActive)
+                  .map((member) => {
                   const pubCount = portfolioCounts[member.user.id] ?? 0
                   const isMe = member.user.id === profile?.id
                   const inactive = !member.wsIsActive
@@ -562,7 +565,7 @@ export default function TeamPage() {
                     >
                       <div
                         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: inactive ? '#F1F5F9' : 'rgba(37,99,235,0.08)' }}
+                        style={{ background: inactive ? '#F1F5F9' : '#EFF6FF' }}
                       >
                         <span className="text-sm font-bold" style={{ color: inactive ? '#94A3B8' : '#2563EB' }}>
                           {member.user.full_name.charAt(0).toUpperCase()}
@@ -582,13 +585,15 @@ export default function TeamPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <a
-                            href={`mailto:${member.user.email}`}
-                            className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Mail className="w-3 h-3" />{member.user.email}
-                          </a>
+                          {isAdmin && (
+                            <a
+                              href={`mailto:${member.user.email}`}
+                              className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Mail className="w-3 h-3" />{member.user.email}
+                            </a>
+                          )}
                           {pubCount > 0 && (
                             <span className="flex items-center gap-1 text-xs text-[#64748B]">
                               <Briefcase className="w-3 h-3" />{pubCount} client{pubCount !== 1 ? 's' : ''}
@@ -602,7 +607,7 @@ export default function TeamPage() {
                           editable={isAdmin && !isMe}
                           onSelect={(r) => handleRoleChange(member, r)}
                         />
-                        {isAdmin && !isMe && (
+                        {isAdmin && !isMe ? (
                           <>
                             {isPending ? (
                               <button
@@ -637,6 +642,26 @@ export default function TeamPage() {
                               <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                             </button>
                           </>
+                        ) : !isMe && (
+                          /* Simplified action buttons for members / contributors */
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleViewPortfolio(member.user) }}
+                              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors hover:bg-blue-50"
+                              style={{ color: '#2563EB', border: '1px solid #BFDBFE' }}
+                            >
+                              <Briefcase className="w-3 h-3" />
+                              <span className="hidden sm:inline">Portfolio</span>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); router.push(`/app/messages?userId=${member.user.id}`) }}
+                              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors hover:bg-gray-50"
+                              style={{ color: '#374151', border: '1px solid #E5E7EB' }}
+                            >
+                              <MessageCircle className="w-3 h-3" />
+                              <span className="hidden sm:inline">Message</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </Card>
