@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { markOnboardingStep } from '@/lib/onboarding'
 import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, CalendarDays } from 'lucide-react'
 const CalendarWidget = dynamic(() => import('@/components/calendar/CalendarWidget').then(m => m.CalendarWidget), { ssr: false })
@@ -58,6 +58,7 @@ function Skeleton({ className }: { className?: string }) {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor } = useAccentColor()
   const { wsId } = useWorkspace()
@@ -120,6 +121,15 @@ export default function DashboardPage() {
     return () => window.removeEventListener('open:quick-note-modal', handler)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (searchParams.get('openNote') === 'true') {
+      handleNoteReset()
+      setNoteModalOpen(true)
+      router.replace('/app/dashboard', { scroll: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   useEffect(() => {
     try {

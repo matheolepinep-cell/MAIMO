@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { ChevronDown, X, Check, Upload, Pencil, Sparkles, LayoutGrid, History } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
 import { useRole } from '@/hooks/useRole'
@@ -33,6 +33,7 @@ export default function OnboardingChecklist() {
   const { profile, loading, refresh } = useUser()
   const role = useRole()
   const router = useRouter()
+  const pathname = usePathname()
 
   const [collapsed, setCollapsed] = useState(false)
   const [celebrating, setCelebrating] = useState(false)
@@ -97,9 +98,13 @@ export default function OnboardingChecklist() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step_click: step.id }),
     }).catch(() => {})
-    // Step 2 opens the quick note modal instead of navigating
+    // Step 2 opens the dashboard note modal
     if (step.id === 2) {
-      window.dispatchEvent(new CustomEvent('open:quick-note-modal'))
+      if (pathname === '/app/dashboard') {
+        window.dispatchEvent(new CustomEvent('open:quick-note-modal'))
+      } else {
+        router.push('/app/dashboard?openNote=true')
+      }
     } else {
       router.push(step.link)
     }
