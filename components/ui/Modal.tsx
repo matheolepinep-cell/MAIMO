@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from './Button'
 
@@ -12,20 +12,41 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children }: ModalProps) {
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+
   useEffect(() => {
+    const handleResize = () => {
+      if (window.visualViewport) {
+        setKeyboardHeight(Math.max(0, window.innerHeight - window.visualViewport.height))
+      }
+    }
+    window.visualViewport?.addEventListener('resize', handleResize)
+    return () => window.visualViewport?.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (!open) { setKeyboardHeight(0); return }
     const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
+  }, [open, onClose])
 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center"
+      style={{ zIndex: 9999 }}
+    >
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
-        className="relative bg-white rounded-t-[20px] sm:rounded-2xl w-full sm:max-w-md shadow-xl max-h-[90vh] flex flex-col"
-        style={{ animation: 'slideUp 0.25s ease-out' }}
+        className="relative bg-white rounded-t-[20px] sm:rounded-2xl w-full sm:max-w-md shadow-xl flex flex-col"
+        style={{
+          animation: 'slideUp 0.25s ease-out',
+          maxHeight: `calc(90vh - ${keyboardHeight}px)`,
+          marginBottom: keyboardHeight,
+          transition: 'margin-bottom 0.25s ease-out, max-height 0.25s ease-out',
+        }}
       >
         {/* Drag handle — mobile only */}
         <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">

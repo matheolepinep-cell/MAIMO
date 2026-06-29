@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
 interface BottomSheetProps {
@@ -8,11 +8,27 @@ interface BottomSheetProps {
   onClose: () => void
   title: string
   children: React.ReactNode
+  footer?: React.ReactNode
 }
 
-export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
+export function BottomSheet({ open, onClose, title, children, footer }: BottomSheetProps) {
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+
   useEffect(() => {
-    if (!open) return
+    const handleResize = () => {
+      if (window.visualViewport) {
+        setKeyboardHeight(Math.max(0, window.innerHeight - window.visualViewport.height))
+      }
+    }
+    window.visualViewport?.addEventListener('resize', handleResize)
+    return () => window.visualViewport?.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (!open) {
+      setKeyboardHeight(0)
+      return
+    }
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
@@ -21,25 +37,83 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    <>
+      {/* Overlay — above bottom nav (z-50) */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-[92vh] flex flex-col"
-        style={{ animation: 'slideUp 0.25s ease-out' }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 9999,
+        }}
+      />
+
+      {/* Sheet — rises above keyboard via bottom offset */}
+      <div
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: keyboardHeight,
+          zIndex: 10000,
+          background: '#ffffff',
+          borderRadius: '20px 20px 0 0',
+          maxHeight: `calc(90vh - ${keyboardHeight}px)`,
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'bottom 0.25s ease-out',
+          paddingBottom: keyboardHeight === 0 ? 'env(safe-area-inset-bottom)' : '8px',
+        }}
       >
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-base font-semibold text-[#0F172A]">{title}</h2>
+        {/* Drag handle */}
+        <div style={{ width: 40, height: 4, background: '#E5E7EB', borderRadius: 2, margin: '12px auto 4px', flexShrink: 0 }} />
+
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 20px 12px',
+          borderBottom: '1px solid #F3F4F6',
+          flexShrink: 0,
+        }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0A0A0A' }}>{title}</h3>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+            aria-label="Fermer"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '4px',
+              cursor: 'pointer',
+              color: '#9CA3AF',
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 8,
+            }}
           >
-            <X className="w-5 h-5" />
+            <X style={{ width: 18, height: 18 }} />
           </button>
         </div>
-        <div className="overflow-auto flex-1 px-5 py-4">
+
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
           {children}
         </div>
+
+        {/* Optional sticky footer (submit button, etc.) */}
+        {footer && (
+          <div style={{
+            padding: '12px 20px',
+            borderTop: '1px solid #F3F4F6',
+            background: '#ffffff',
+            flexShrink: 0,
+          }}>
+            {footer}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   )
 }

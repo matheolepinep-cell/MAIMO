@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { markOnboardingStep } from '@/lib/onboarding'
-import { Modal } from '@/components/ui/Modal'
+import { BottomSheet } from '@/components/ui/BottomSheet'
 import { Button } from '@/components/ui/Button'
 
 type AccountOption = { id: string; name: string }
@@ -123,8 +123,23 @@ export function QuickNoteModal() {
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nouvelle note">
-      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+    <BottomSheet
+      open={open}
+      onClose={handleClose}
+      title="Nouvelle note"
+      footer={
+        <Button
+          form="quick-note-form"
+          type="submit"
+          loading={saving}
+          className="w-full"
+          style={{ background: '#2563EB' }}
+        >
+          Enregistrer
+        </Button>
+      }
+    >
+      <form id="quick-note-form" onSubmit={handleSubmit} className="space-y-4">
 
         {/* Searchable account selector */}
         <div>
@@ -156,9 +171,7 @@ export function QuickNoteModal() {
             </div>
 
             {dropdownOpen && (
-              <div
-                className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-lg max-h-48 overflow-y-auto z-10"
-              >
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-lg max-h-48 overflow-y-auto z-10">
                 {filtered.length === 0 ? (
                   <p className="text-sm text-gray-400 px-3 py-3">Aucun résultat</p>
                 ) : (
@@ -193,16 +206,7 @@ export function QuickNoteModal() {
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
-
-        <Button
-          type="submit"
-          loading={saving}
-          className="w-full"
-          style={{ background: '#2563EB', borderColor: '#2563EB' }}
-        >
-          Enregistrer
-        </Button>
       </form>
-    </Modal>
+    </BottomSheet>
   )
 }
