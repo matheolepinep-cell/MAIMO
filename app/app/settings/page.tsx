@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { Building2, User, LogOut, Palette, Layers, Settings2, CalendarDays, RefreshCw, CheckCircle2, XCircle } from 'lucide-react'
+import { Building2, User, LogOut, Palette, Layers, Settings2, CalendarDays, RefreshCw, CheckCircle2, XCircle, Shield } from 'lucide-react'
 import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -14,7 +14,21 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModal'
 import { ManageWorkspaceModal } from '@/components/workspace/ManageWorkspaceModal'
+import { isPasswordValid } from '@/lib/password-validation'
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 import type { Company, Workspace } from '@/types/database'
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@')
+  if (!domain) return email
+  return `${local[0]}***@${domain}`
+}
+
+function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length < 4) return phone
+  return phone.slice(0, 4) + ' ** ** ** ' + phone.slice(-2)
+}
 
 function SettingsContent() {
   const router = useRouter()
@@ -140,6 +154,65 @@ function SettingsContent() {
     setSavingCompany(false)
   }
 
+  const handleChangePw = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!profile) return
+    setPwMsg('')
+    setSavingPw(true)
+    const supabase = createClient()
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: currentPwForPw })
+    if (authErr) {
+      setPwMsgType('error'); setPwMsg('Mot de passe actuel incorrect.'); setSavingPw(false); return
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPw })
+    if (error) { setPwMsgType('error'); setPwMsg(error.message) }
+    else {
+      setPwMsgType('success'); setPwMsg('Mot de passe mis à jour !')
+      setPwOpen(false); setCurrentPwForPw(''); setNewPw(''); setConfirmPw('')
+    }
+    setSavingPw(false)
+  }
+
+  const handleChangeEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!profile) return
+    setEmailMsg('')
+    setSavingEmail(true)
+    const supabase = createClient()
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: currentPwForEmail })
+    if (authErr) {
+      setEmailMsgType('error'); setEmailMsg('Mot de passe incorrect.'); setSavingEmail(false); return
+    }
+    const { error } = await supabase.auth.updateUser({ email: newEmail })
+    if (error) { setEmailMsgType('error'); setEmailMsg(error.message) }
+    else {
+      setEmailMsgType('success'); setEmailMsg('Un email de confirmation a été envoyé à votre nouvelle adresse.')
+      setCurrentPwForEmail(''); setNewEmail(''); setConfirmEmail('')
+    }
+    setSavingEmail(false)
+  }
+
+  const handleChangePhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!profile) return
+    setPhoneMsg('')
+    setSavingPhone(true)
+    const supabase = createClient()
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: currentPwForPhone })
+    if (authErr) {
+      setPhoneMsgType('error'); setPhoneMsg('Mot de passe incorrect.'); setSavingPhone(false); return
+    }
+    const phone = newPhone.replace(/\s/g, '').trim() || null
+    const { error } = await supabase.from('users').update({ phone }).eq('id', profile.id)
+    if (error) { setPhoneMsgType('error'); setPhoneMsg(error.message) }
+    else {
+      setPhoneMsgType('success'); setPhoneMsg('Téléphone mis à jour !')
+      setPhoneOpen(false); setCurrentPwForPhone(''); setNewPhone('')
+      await refreshProfile()
+    }
+    setSavingPhone(false)
+  }
+
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -156,6 +229,31 @@ function SettingsContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
+
+  // Security blocks
+  const [pwOpen, setPwOpen] = useState(false)
+  const [currentPwForPw, setCurrentPwForPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [pwFocused, setPwFocused] = useState(false)
+  const [savingPw, setSavingPw] = useState(false)
+  const [pwMsg, setPwMsg] = useState('')
+  const [pwMsgType, setPwMsgType] = useState<'success' | 'error'>('success')
+
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [currentPwForEmail, setCurrentPwForEmail] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
+  const [savingEmail, setSavingEmail] = useState(false)
+  const [emailMsg, setEmailMsg] = useState('')
+  const [emailMsgType, setEmailMsgType] = useState<'success' | 'error'>('success')
+
+  const [phoneOpen, setPhoneOpen] = useState(false)
+  const [currentPwForPhone, setCurrentPwForPhone] = useState('')
+  const [newPhone, setNewPhone] = useState('')
+  const [savingPhone, setSavingPhone] = useState(false)
+  const [phoneMsg, setPhoneMsg] = useState('')
+  const [phoneMsgType, setPhoneMsgType] = useState<'success' | 'error'>('success')
 
   // Google Calendar
   const [calSyncing, setCalSyncing] = useState(false)
@@ -383,6 +481,153 @@ function SettingsContent() {
             {profileMsg && <FormMessage type={profileMsgType} message={profileMsg} />}
             <Button type="submit" loading={savingProfile} size="sm" className="w-full md:w-auto">Enregistrer</Button>
           </form>
+        </Card>
+
+        {/* Security & Personal Info */}
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
+              <Shield className="w-4 h-4 text-slate-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-[#1E293B] text-sm">Sécurité &amp; Informations personnelles</p>
+              <p className="text-xs text-[#64748B]">Gérez vos accès et coordonnées</p>
+            </div>
+          </div>
+
+          {!profile?.phone && (
+            <div className="mb-4 px-3 py-2.5 rounded-xl text-sm" style={{ background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E' }}>
+              💡 Ajoutez un numéro de téléphone pour faciliter votre identification.
+            </div>
+          )}
+
+          <div className="divide-y divide-[#F1F5F9]">
+            {/* Block 1: Password */}
+            <div className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-[#6B7280]">Mot de passe</p>
+                  <p className="text-sm font-medium text-[#0A0A0A] mt-0.5">••••••••</p>
+                </div>
+                <button
+                  onClick={() => { setPwOpen(v => !v); setPwMsg('') }}
+                  className="text-xs font-medium text-[#2563EB] hover:text-[#1D4ED8] transition-colors shrink-0 ml-4"
+                >
+                  {pwOpen ? 'Annuler' : 'Modifier'}
+                </button>
+              </div>
+              {pwOpen && (
+                <form onSubmit={handleChangePw} className="mt-4 space-y-3">
+                  <Input id="sec-current-pw" type="password" label="Mot de passe actuel" placeholder="••••••••"
+                    value={currentPwForPw} onChange={(e) => setCurrentPwForPw(e.target.value)} autoComplete="current-password" />
+                  <div>
+                    <Input id="sec-new-pw" type="password" label="Nouveau mot de passe" placeholder="••••••••"
+                      value={newPw} onChange={(e) => setNewPw(e.target.value)} autoComplete="new-password"
+                      onFocus={() => setPwFocused(true)} onBlur={() => setPwFocused(false)} />
+                    <PasswordStrengthIndicator password={newPw} focused={pwFocused} />
+                  </div>
+                  <Input id="sec-confirm-pw" type="password" label="Confirmer le mot de passe" placeholder="••••••••"
+                    value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} autoComplete="new-password" />
+                  {confirmPw.length > 0 && newPw !== confirmPw && (
+                    <p className="text-xs text-red-500">Les mots de passe ne correspondent pas.</p>
+                  )}
+                  {pwMsg && <FormMessage type={pwMsgType} message={pwMsg} />}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button type="submit" loading={savingPw} size="sm"
+                      disabled={savingPw || !currentPwForPw || !isPasswordValid(newPw) || newPw !== confirmPw}>
+                      Enregistrer
+                    </Button>
+                    <button type="button"
+                      onClick={() => { setPwOpen(false); setPwMsg(''); setCurrentPwForPw(''); setNewPw(''); setConfirmPw('') }}
+                      className="text-sm text-[#6B7280] hover:text-[#374151] transition-colors px-3 py-2 text-left">
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Block 2: Email */}
+            <div className="py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-[#6B7280]">Adresse email</p>
+                  <p className="text-sm font-medium text-[#0A0A0A] mt-0.5">{profile?.email ? maskEmail(profile.email) : '—'}</p>
+                </div>
+                <button
+                  onClick={() => { setEmailOpen(v => !v); setEmailMsg('') }}
+                  className="text-xs font-medium text-[#2563EB] hover:text-[#1D4ED8] transition-colors shrink-0 ml-4"
+                >
+                  {emailOpen ? 'Annuler' : 'Modifier'}
+                </button>
+              </div>
+              {emailOpen && (
+                <form onSubmit={handleChangeEmail} className="mt-4 space-y-3">
+                  <Input id="sec-current-pw-email" type="password" label="Mot de passe actuel" placeholder="••••••••"
+                    value={currentPwForEmail} onChange={(e) => setCurrentPwForEmail(e.target.value)} autoComplete="current-password" />
+                  <Input id="sec-new-email" type="email" label="Nouvel email" placeholder="nouveau@exemple.com"
+                    value={newEmail} onChange={(e) => setNewEmail(e.target.value)} autoComplete="email"
+                    onInvalid={(e) => e.preventDefault()} />
+                  <Input id="sec-confirm-email" type="email" label="Confirmer l'email" placeholder="nouveau@exemple.com"
+                    value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} autoComplete="email"
+                    onInvalid={(e) => e.preventDefault()} />
+                  {confirmEmail.length > 0 && newEmail !== confirmEmail && (
+                    <p className="text-xs text-red-500">Les adresses email ne correspondent pas.</p>
+                  )}
+                  {emailMsg && <FormMessage type={emailMsgType} message={emailMsg} />}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button type="submit" loading={savingEmail} size="sm"
+                      disabled={savingEmail || !currentPwForEmail || !newEmail.trim() || newEmail !== confirmEmail}>
+                      Enregistrer
+                    </Button>
+                    <button type="button"
+                      onClick={() => { setEmailOpen(false); setEmailMsg(''); setCurrentPwForEmail(''); setNewEmail(''); setConfirmEmail('') }}
+                      className="text-sm text-[#6B7280] hover:text-[#374151] transition-colors px-3 py-2 text-left">
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Block 3: Phone */}
+            <div className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-[#6B7280]">Téléphone</p>
+                  <p className="text-sm font-medium text-[#0A0A0A] mt-0.5">
+                    {profile?.phone ? maskPhone(profile.phone) : <span className="text-[#94A3B8]">Non renseigné</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setPhoneOpen(v => !v); setPhoneMsg('') }}
+                  className="text-xs font-medium text-[#2563EB] hover:text-[#1D4ED8] transition-colors shrink-0 ml-4"
+                >
+                  {phoneOpen ? 'Annuler' : profile?.phone ? 'Modifier' : 'Ajouter'}
+                </button>
+              </div>
+              {phoneOpen && (
+                <form onSubmit={handleChangePhone} className="mt-4 space-y-3">
+                  <Input id="sec-current-pw-phone" type="password" label="Mot de passe actuel" placeholder="••••••••"
+                    value={currentPwForPhone} onChange={(e) => setCurrentPwForPhone(e.target.value)} autoComplete="current-password" />
+                  <Input id="sec-new-phone" type="tel" label="Numéro de téléphone" placeholder="+33 6 12 34 56 78"
+                    value={newPhone} onChange={(e) => setNewPhone(e.target.value)} autoComplete="tel" />
+                  {phoneMsg && <FormMessage type={phoneMsgType} message={phoneMsg} />}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button type="submit" loading={savingPhone} size="sm"
+                      disabled={savingPhone || !currentPwForPhone}>
+                      Enregistrer
+                    </Button>
+                    <button type="button"
+                      onClick={() => { setPhoneOpen(false); setPhoneMsg(''); setCurrentPwForPhone(''); setNewPhone('') }}
+                      className="text-sm text-[#6B7280] hover:text-[#374151] transition-colors px-3 py-2 text-left">
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
         </Card>
 
         {/* Accent color */}
