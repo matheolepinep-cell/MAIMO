@@ -2,48 +2,57 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
-import { checkRateLimit } from '@/lib/rate-limit'
-import { analyzeDocument } from '@/lib/document-analyzer'
 import { findMatchingAccount } from '@/lib/account-matching'
 import type { AccountRow } from '@/lib/account-matching'
 import { normalizeText } from '@/lib/search-utils'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
+import type { DocumentAnalysis } from '@/lib/document-analyzer'
 import type { UserProfile } from '@/types/database'
-
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { limited } = await checkRateLimit(user.id, '/api/import/analyze-document')
-  if (limited) {
-    return NextResponse.json(
-      { error: 'Limite quotidienne atteinte (20 analyses/jour). Réessayez demain.', code: 'RATE_LIMITED' },
-      { status: 429 }
-    )
-  }
+  const {
+    text,
+    file_path,
+    file_name,
+    file_type,
+    company_id,
+    workspace_id,
+    analysis,
+    selectedCompanyNames,
+    includeContacts,
+    indexDocument,
+    createNotes,
+  }: {
+    text: string
+    file_path: string
+    file_name: string
+    file_type: string
+    company_id: string
+    workspace_id: string | null
+    analysis: DocumentAnalysis
+    selectedCompanyNames: string[]
+    includeContacts: boolean
+    indexDocument: boolean
+    createNotes: boolean
+  } = await request.json()
 
-  const { text, file_path, file_name, file_type, company_id, workspace_id } = await request.json()
-
-  if (!text || !file_path || !file_name || !company_id) {
+  if (!text || !file_path || !file_name || !company_id || !analysis) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
   if (company_id !== user.company_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const supabase = createSupabaseAdmin(
-    env.supabaseUrl, env.supabaseServiceRole
-  )
-
-  const analysis = await analyzeDocument(text, file_name, file_type)
+  const supabase = createSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRole)
 
   const { data: existingAccounts } = await supabase
     .from('accounts')
     .select('id, name, phone, website, industry, revenue, description, city')
     .eq('company_id', company_id)
-
   const accountsArr: AccountRow[] = existingAccounts ?? []
 
   const companyAccountMap = new Map<string, string>()
@@ -52,10 +61,11 @@ export async function POST(request: Request) {
   let firstAccountId: string | null = null
   let firstCompanyName: string | null = null
 
-  // ── Process companies ───────────────────────────────────────────────────────
+  const selectedSet = new Set(selectedCompanyNames)
+
   for (const comp of analysis.companies) {
     const compName = comp.name?.trim()
-    if (!compName) continue
+    if (!compName || !selectedSet.has(compName)) continue
 
     const existing = findMatchingAccount(compName, accountsArr)
 
@@ -63,7 +73,6 @@ export async function POST(request: Request) {
       companyAccountMap.set(compName, existing.id)
       if (!firstAccountId) { firstAccountId = existing.id; firstCompanyName = existing.name }
 
-      // ÉTAPE 4 — fill empty fields only
       const updates: Record<string, string> = {}
       if (!existing.phone && comp.phone) updates.phone = comp.phone
       if (!existing.website && comp.website) updates.website = comp.website
@@ -110,103 +119,104 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Process contacts ────────────────────────────────────────────────────────
   const contactsCreated: string[] = []
-  for (const contact of analysis.contacts) {
-    const accountId =
-      companyAccountMap.get(contact.companyName) ??
-      findMatchingAccount(contact.companyName, accountsArr)?.id ??
-      firstAccountId
-    if (!accountId) continue
+  if (includeContacts) {
+    for (const contact of analysis.contacts) {
+      const accountId =
+        companyAccountMap.get(contact.companyName) ??
+        findMatchingAccount(contact.companyName, accountsArr)?.id ??
+        firstAccountId
+      if (!accountId) continue
 
-    const { data: existing } = await supabase
-      .from('contacts')
-      .select('first_name, last_name, email')
-      .eq('account_id', accountId)
+      const { data: existing } = await supabase
+        .from('contacts')
+        .select('first_name, last_name, email')
+        .eq('account_id', accountId)
 
-    const normNew = normalizeText(`${contact.firstName} ${contact.lastName}`)
-    const isDup = (existing ?? []).some((c) => {
-      const normC = normalizeText(`${c.first_name ?? ''} ${c.last_name ?? ''}`.trim())
-      const emailMatch = contact.email && c.email && c.email.toLowerCase() === contact.email.toLowerCase()
-      return normC === normNew || emailMatch
-    })
-
-    if (!isDup) {
-      await supabase.from('contacts').insert({
-        account_id: accountId,
-        first_name: contact.firstName,
-        last_name: contact.lastName,
-        role: contact.position ?? null,
-        phone: contact.phone ?? null,
-        email: contact.email ?? null,
-        is_main_contact: false,
-        company_id,
+      const normNew = normalizeText(`${contact.firstName} ${contact.lastName}`)
+      const isDup = (existing ?? []).some((c) => {
+        const normC = normalizeText(`${c.first_name ?? ''} ${c.last_name ?? ''}`.trim())
+        const emailMatch = contact.email && c.email && c.email.toLowerCase() === contact.email.toLowerCase()
+        return normC === normNew || emailMatch
       })
-      contactsCreated.push(`${contact.firstName} ${contact.lastName}`)
-    }
-  }
 
-  // ── Process notes ───────────────────────────────────────────────────────────
-  const authorName = (user as UserProfile).full_name ?? 'Import'
-  const noteDate = new Date().toLocaleDateString('fr-FR')
-  let notesCreated = 0
-
-  for (const note of analysis.notes) {
-    const accountId =
-      companyAccountMap.get(note.companyName) ??
-      findMatchingAccount(note.companyName, accountsArr)?.id ??
-      firstAccountId
-    if (!accountId) continue
-
-    const accountName = accountsArr.find((a) => a.id === accountId)?.name ?? 'Inconnu'
-
-    const { data: noteRec } = await supabase
-      .from('notes')
-      .insert({
-        account_id: accountId,
-        company_id,
-        user_id: user.id,
-        title: note.title,
-        content: note.content,
-        source: 'import',
-        is_deleted: false,
-        workspace_id: workspace_id ?? null,
-      })
-      .select('id')
-      .single()
-
-    if (noteRec?.id) {
-      notesCreated++
-      try {
-        const rawChunks = chunkText(note.content)
-        if (rawChunks.length > 0) {
-          const enriched = rawChunks.map(
-            (c) => `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note]\n\n${c}`
-          )
-          const embeddings = await embedBatch(enriched)
-          await supabase.from('chunks').insert(
-            enriched.map((c, i) => ({
-              company_id,
-              account_id: accountId,
-              source_type: 'note' as const,
-              source_id: noteRec.id,
-              content: c,
-              embedding: embeddings[i],
-              workspace_id: workspace_id ?? null,
-              company_name: accountName,
-              author_name: authorName,
-            }))
-          )
-        }
-      } catch (err) {
-        console.error('Note indexing error:', err)
+      if (!isDup) {
+        await supabase.from('contacts').insert({
+          account_id: accountId,
+          first_name: contact.firstName,
+          last_name: contact.lastName,
+          role: contact.position ?? null,
+          phone: contact.phone ?? null,
+          email: contact.email ?? null,
+          is_main_contact: false,
+          company_id,
+        })
+        contactsCreated.push(`${contact.firstName} ${contact.lastName}`)
       }
     }
   }
 
-  // ── Create document record + index ──────────────────────────────────────────
+  const authorName = (user as UserProfile).full_name ?? 'Import'
+  const noteDate = new Date().toLocaleDateString('fr-FR')
+  let notesCreated = 0
+
+  if (createNotes) {
+    for (const note of analysis.notes) {
+      const accountId =
+        companyAccountMap.get(note.companyName) ??
+        findMatchingAccount(note.companyName, accountsArr)?.id ??
+        firstAccountId
+      if (!accountId) continue
+
+      const accountName = accountsArr.find((a) => a.id === accountId)?.name ?? 'Inconnu'
+
+      const { data: noteRec } = await supabase
+        .from('notes')
+        .insert({
+          account_id: accountId,
+          company_id,
+          user_id: user.id,
+          title: note.title,
+          content: note.content,
+          source: 'import',
+          is_deleted: false,
+          workspace_id: workspace_id ?? null,
+        })
+        .select('id')
+        .single()
+
+      if (noteRec?.id) {
+        notesCreated++
+        try {
+          const rawChunks = chunkText(note.content)
+          if (rawChunks.length > 0) {
+            const enriched = rawChunks.map(
+              (c) => `[Entreprise: ${accountName} | Date: ${noteDate} | Auteur: ${authorName} | Type: Note]\n\n${c}`
+            )
+            const embeddings = await embedBatch(enriched)
+            await supabase.from('chunks').insert(
+              enriched.map((c, i) => ({
+                company_id,
+                account_id: accountId,
+                source_type: 'note' as const,
+                source_id: noteRec.id,
+                content: c,
+                embedding: embeddings[i],
+                workspace_id: workspace_id ?? null,
+                company_name: accountName,
+                author_name: authorName,
+              }))
+            )
+          }
+        } catch (err) {
+          console.error('Note indexing error:', err)
+        }
+      }
+    }
+  }
+
   let documentId: string | null = null
-  if (firstAccountId) {
+  if (indexDocument && firstAccountId) {
     const { data: signedData } = await supabase.storage.from('imports').createSignedUrl(file_path, 3600)
     const file_url = signedData?.signedUrl ?? file_path
     const ext = file_name.split('.').pop()?.toLowerCase() ?? ''
