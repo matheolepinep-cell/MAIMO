@@ -4,9 +4,8 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown, MessageCircle, Bell } from 'lucide-react'
+import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown, MessageCircle } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
-import { useNotificationCount } from '@/contexts/NotificationContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
 import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModal'
@@ -72,7 +71,6 @@ function NavItem({
 export function Sidebar() {
   const pathname = usePathname()
   const { profile } = useUser()
-  const unreadCount = useNotificationCount()
   const hasUnreadMessages = useUnreadMessages()
   const wsRole = useRole()
   const isContributeur = wsRole === 'contributeur'
@@ -145,7 +143,6 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto pt-4 mx-2 flex flex-col gap-0.5" style={{ borderTop: '1px solid #E5E7EB' }}>
-        <NavItem href="/app/notifications" icon={Bell} label="Notifications" active={pathname.startsWith('/app/notifications')} badge={unreadCount} />
         {profile?.role === 'admin' && (
           <NavItem href="/app/settings" icon={Settings} label="Paramètres" active={pathname.startsWith('/app/settings')} />
         )}

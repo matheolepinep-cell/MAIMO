@@ -4,10 +4,9 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search, LayoutDashboard, Briefcase, Users, Settings, User, Menu, MessageCircle, Bell } from 'lucide-react'
+import { Search, LayoutDashboard, Briefcase, Users, Settings, User, Menu, MessageCircle } from 'lucide-react'
 import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
 import { useUser } from '@/contexts/UserContext'
-import { useNotificationCount } from '@/contexts/NotificationContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
 import { CreateWorkspaceModal } from '@/components/workspace/CreateWorkspaceModal'
@@ -17,7 +16,6 @@ export function MobileSidebar() {
   const pathname = usePathname()
   const { profile } = useUser()
   const { open, close, toggle } = useMobileSidebar()
-  const unreadCount = useNotificationCount()
   const hasUnreadMessages = useUnreadMessages()
   const wsRole = useRole()
   const isContributeur = wsRole === 'contributeur'
@@ -101,23 +99,6 @@ export function MobileSidebar() {
           <div className="flex-1" />
 
           <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 8 }}>
-            <Link
-              href="/app/notifications"
-              className="flex items-center gap-3 mx-2 rounded-xl transition-all duration-150 shrink-0 hover:bg-[#F9FAFB]"
-              style={{ padding: '12px 16px', background: pathname.startsWith('/app/notifications') ? '#EFF6FF' : 'transparent' }}
-              onClick={close}
-            >
-              <div className="relative shrink-0">
-                <Bell style={{ color: pathname.startsWith('/app/notifications') ? '#2563EB' : '#6B7280', width: 22, height: 22 }} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ background: '#DC2626' }}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </div>
-              <span style={{ color: pathname.startsWith('/app/notifications') ? '#2563EB' : '#6B7280', fontSize: 15, fontWeight: 500 }}>Notifications</span>
-            </Link>
-
             {profile?.role === 'admin' && (
               <Link
                 href="/app/settings"
