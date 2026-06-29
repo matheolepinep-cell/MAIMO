@@ -45,6 +45,11 @@ function fmt(d: string) {
 function fmtDay(d: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
 }
+function formatNoteDatetime(d: string) {
+  const date = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d))
+  const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(d))
+  return `${date} · ${time}`
+}
 
 function getInitials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
@@ -57,6 +62,37 @@ declare global {
 type Tab = 'notes' | 'search'
 type MobileTab = 'info' | Tab
 type AttachItem = { id: string; file: File; preview?: string }
+
+/* ─── SectionCard ─── */
+function SectionCard({ title, onEdit, actions, children }: { title: string; onEdit?: () => void; actions?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div style={{
+      background: '#ffffff', borderRadius: 14,
+      border: '1px solid #F3F4F6',
+      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 20px', borderBottom: '1px solid #F9FAFB',
+      }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#0A0A0A' }}>{title}</span>
+        {actions ?? (onEdit ? (
+          <button onClick={onEdit} title="Modifier"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#9CA3AF', padding: 4, borderRadius: 6,
+              fontSize: 14, lineHeight: 1, transition: 'color 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#2563EB' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#9CA3AF' }}
+          >✏️</button>
+        ) : null)}
+      </div>
+      <div style={{ padding: '16px 20px' }}>{children}</div>
+    </div>
+  )
+}
 
 /* ─── main page ─── */
 export default function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -102,6 +138,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   // Attachments (pièces jointes dans les notes)
+  const [noteFocused, setNoteFocused] = useState(false)
   const [attachments, setAttachments] = useState<AttachItem[]>([])
   const [uploadingAttachments, setUploadingAttachments] = useState(false)
 
@@ -782,9 +819,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           <button
             onClick={handleStatusToggle}
             className="px-3 py-1 rounded-full text-[12px] font-medium transition-all"
-            style={{ background: '#EFF6FF', color: '#2563EB' }}
+            style={{
+              background: account.status === 'client' ? '#DCFCE7' : '#EFF6FF',
+              color: account.status === 'client' ? '#16A34A' : '#2563EB',
+            }}
           >
-            {account.status === 'prospect' ? 'Prospect' : 'Client'}
+            {account.status === 'client' ? 'Client' : 'Prospect'}
           </button>
         </div>
       </div>
@@ -799,51 +839,83 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       </button>
 
       {/* ─── Desktop header ─── */}
-      <div className="hidden md:flex bg-white px-4 py-3 items-center gap-3 sticky top-0 z-30"
-        style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-        <button onClick={() => router.back()} className="p-2 rounded-xl text-slate-400 hover:bg-[#F5F5F5] transition-all duration-200 shrink-0">
+      <div className="hidden md:flex bg-white sticky top-0 z-30 items-center gap-3"
+        style={{ borderBottom: '1px solid #F3F4F6', padding: '0 24px', height: 60 }}>
+        <button onClick={() => router.back()}
+          className="p-2 rounded-xl text-slate-400 hover:bg-[#F5F5F5] transition-all shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold text-white"
-          style={{ background: accentColor }}>
+        {/* Avatar */}
+        <div style={{
+          width: 36, height: 36, borderRadius: '50%',
+          background: '#EFF6FF', color: '#2563EB',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, fontWeight: 700, flexShrink: 0,
+        }}>
           {getInitials(account.name)}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="font-bold text-[#0F172A] truncate text-[22px]" style={{ wordBreak: 'break-word' }}>{account.name}</h1>
-            <button
-              onClick={handleStatusToggle}
-              className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-200 border"
-              style={account.status === 'prospect' ? {
-                background: 'rgba(0,0,0,0.05)', color: 'rgba(30,39,97,0.5)', borderColor: 'rgba(30,39,97,0.1)',
-              } : {
-                background: 'rgba(0,0,0,0.12)', color: '#0A0A0A', borderColor: 'rgba(30,39,97,0.2)',
-              }}
-            >
-              {account.status === 'prospect' ? 'Prospect' : 'Client'}
+        {/* Name + badge + city */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: 17, fontWeight: 700, color: '#0A0A0A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {account.name}
+            </h1>
+            <button onClick={handleStatusToggle} style={{
+              fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, border: 'none', cursor: 'pointer',
+              background: account.status === 'client' ? '#DCFCE7' : '#EFF6FF',
+              color: account.status === 'client' ? '#16A34A' : '#2563EB', flexShrink: 0,
+            }}>
+              {account.status === 'client' ? 'Client' : 'Prospect'}
             </button>
+            {account.city && (
+              <span style={{ fontSize: 12, color: '#9CA3AF', flexShrink: 0 }}>· {account.city}</span>
+            )}
           </div>
-          {(account.city || account.industry) && (
-            <p className="text-xs text-slate-400">{[account.city, account.industry].filter(Boolean).join(' · ')}</p>
+        </div>
+        {/* ··· menu */}
+        <div className="relative">
+          <button
+            onClick={() => setMoreMenuOpen((v) => !v)}
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              border: '1px solid #E5E7EB', background: '#ffffff',
+              cursor: 'pointer', color: '#6B7280',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, letterSpacing: 2,
+            }}
+          >···</button>
+          {moreMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setMoreMenuOpen(false)} />
+              <div className="absolute right-0 z-40" style={{
+                top: 40, background: '#ffffff', borderRadius: 12,
+                border: '1px solid #E5E7EB', boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                minWidth: 200, overflow: 'hidden',
+              }}>
+                <button onClick={() => { setMoreMenuOpen(false); handleToggleMute() }} style={{
+                  width: '100%', padding: '12px 16px', background: 'none', border: 'none',
+                  textAlign: 'left', fontSize: 14, color: '#374151', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  {isMuted ? <BellOff className="w-4 h-4 shrink-0" /> : <Bell className="w-4 h-4 shrink-0" />}
+                  {isMuted ? 'Réactiver les notifs' : 'Désactiver les notifs'}
+                </button>
+                {(profile?.role === 'admin' || portfolioEntry !== null) && (
+                  <>
+                    <div style={{ height: 1, background: '#F3F4F6', margin: '0 12px' }} />
+                    <button onClick={() => { setMoreMenuOpen(false); setDeleteConfirmName(''); setDeleteModalOpen(true) }} style={{
+                      width: '100%', padding: '12px 16px', background: 'none', border: 'none',
+                      textAlign: 'left', fontSize: 14, color: '#DC2626', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                    }}>
+                      <Trash2 className="w-4 h-4 shrink-0" /> Supprimer la fiche
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
           )}
         </div>
-        <button
-          onClick={handleToggleMute}
-          title={isMuted ? 'Réactiver les notifications' : 'Désactiver les notifications'}
-          className="p-2 rounded-xl transition-all duration-200 shrink-0"
-          style={{ color: isMuted ? '#94A3B8' : accentColor, background: isMuted ? 'transparent' : `${accentColor}15` }}
-        >
-          {isMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-        </button>
-        {(profile?.role === 'admin' || portfolioEntry !== null) && (
-          <button
-            onClick={() => { setDeleteConfirmName(''); setDeleteModalOpen(true) }}
-            title="Supprimer la fiche"
-            className="p-2 rounded-xl transition-all duration-200 shrink-0 text-[#EF4444] hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
       </div>
 
       {/* Mobile tabs */}
@@ -874,25 +946,16 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         <div className={`border-b md:border-b-0 md:border-r border-slate-100 overflow-auto px-4 pt-5 pb-24 md:p-6 md:pb-6 space-y-6 ${mobileTab !== 'info' ? 'hidden md:block' : ''}`}>
 
           {/* Account Info */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[18px] md:text-sm font-bold md:font-semibold text-[#1E293B]">Informations</h2>
-              {editing ? (
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={cancelEdit}><X className="w-4 h-4" /></Button>
-                  <Button size="sm" loading={saving} onClick={saveEdit}><Save className="w-4 h-4 mr-1" />Sauvegarder</Button>
-                </div>
-              ) : (
-                <button
-                  onClick={startEdit}
-                  className="shrink-0 px-[14px] py-1.5 rounded-full text-[13px] font-medium transition-colors hover:bg-gray-50"
-                  style={{ border: '1px solid #E5E7EB', color: '#0A0A0A' }}
-                >
-                  Modifier
-                </button>
-              )}
-            </div>
-
+          <SectionCard
+            title="Informations"
+            onEdit={editing ? undefined : startEdit}
+            actions={editing ? (
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={cancelEdit}><X className="w-4 h-4" /></Button>
+                <Button size="sm" loading={saving} onClick={saveEdit}><Save className="w-4 h-4 mr-1" />Sauvegarder</Button>
+              </div>
+            ) : undefined}
+          >
             <div>
               {infoFields.map(({ key, label, placeholder }) => (
                 editing ? (
@@ -948,28 +1011,28 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               ) : null}
             </div>
-          </div>
+          </SectionCard>
 
           {/* Contacts */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[18px] md:text-sm font-bold md:font-semibold text-[#1E293B]">Interlocuteurs</h2>
+          <SectionCard
+            title="Interlocuteurs"
+            actions={
               <div className="flex items-center gap-2">
                 <select value={contactSort} onChange={(e) => setContactSort(e.target.value as 'az' | 'za' | 'recent')} className="hidden md:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                   <option value="az">A → Z</option>
                   <option value="za">Z → A</option>
-                  <option value="recent">Date d'ajout</option>
+                  <option value="recent">Date d&apos;ajout</option>
                 </select>
                 <button
                   onClick={() => setContactModal(true)}
-                  className="flex items-center gap-1 px-[14px] py-1.5 rounded-full text-[13px] font-medium text-white transition-colors"
+                  className="flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-medium text-white transition-colors"
                   style={{ background: '#2563EB' }}
                 >
-                  <Plus className="w-3.5 h-3.5" />Ajouter
+                  <Plus className="w-3 h-3" />Ajouter
                 </button>
               </div>
-            </div>
-
+            }
+          >
             {contacts.length === 0 ? (
               <p className="text-sm text-[#64748B]">Aucun interlocuteur.</p>
             ) : (
@@ -1010,13 +1073,12 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 ))}
               </div>
             )}
-          </div>
+          </SectionCard>
 
           {/* Documents */}
-          <div>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-[18px] md:text-sm font-bold md:font-semibold text-[#1E293B]">Documents ({documents.length})</h2>
+          <SectionCard
+            title={`Documents (${documents.length})`}
+            actions={
               <div className="flex items-center gap-2">
                 <select value={docSort} onChange={(e) => setDocSort(e.target.value as 'recent' | 'oldest' | 'az' | 'type')} className="hidden md:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                   <option value="recent">Date (récent)</option>
@@ -1025,7 +1087,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   <option value="type">Type</option>
                 </select>
                 <label
-                  className="flex items-center gap-1 px-[14px] py-1.5 rounded-full text-[13px] font-medium cursor-pointer transition-all duration-150 text-white"
+                  className="flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-medium cursor-pointer transition-all duration-150 text-white"
                   style={{ background: '#2563EB' }}
                 >
                   {docUploading
@@ -1035,8 +1097,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   <input type="file" multiple className="hidden" onChange={handleStandaloneDocUpload} disabled={docUploading} />
                 </label>
               </div>
-            </div>
-
+            }
+          >
             {/* Search bar */}
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
@@ -1158,12 +1220,11 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                 )}
               </>
             )}
-          </div>
+          </SectionCard>
 
           {/* Access */}
           {portfolioEntry && (
-            <div>
-              <h2 className="text-[18px] md:text-sm font-bold md:font-semibold text-[#1E293B] mb-3">Accès</h2>
+            <SectionCard title="Accès">
               <div className="space-y-2">
                 {([
                   { value: 'team', icon: Globe, label: "Toute l'équipe", desc: 'Tous les membres voient cette fiche' },
@@ -1209,7 +1270,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                   ))}
                 </div>
               )}
-            </div>
+            </SectionCard>
           )}
         </div>
 
@@ -1237,114 +1298,136 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             {tab === 'notes' && (
               <>
                 {/* Note input */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
-                  <div className="flex gap-2">
+                <div
+                  onFocusCapture={() => setNoteFocused(true)}
+                  onBlurCapture={() => setNoteFocused(false)}
+                  style={{
+                    background: '#ffffff', borderRadius: 14, overflow: 'hidden',
+                    border: noteFocused ? '1.5px solid #2563EB' : '1.5px solid #E5E7EB',
+                    boxShadow: noteFocused ? '0 0 0 3px rgba(37,99,235,0.08)' : '0 1px 4px rgba(0,0,0,0.04)',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                >
+                  {/* Underline tabs */}
+                  <div style={{ display: 'flex', borderBottom: '1px solid #F3F4F6', paddingLeft: 4 }}>
                     {(['text', 'vocal'] as const).map((m) => (
-                      <button key={m} onClick={() => setNoteMode(m)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${noteMode === m ? 'bg-[#0A0A0A] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}>
-                        {m === 'text' ? <><Type className="w-3.5 h-3.5" />Texte</> : <><Mic className="w-3.5 h-3.5" />Vocal</>}
+                      <button key={m} onClick={() => setNoteMode(m)} style={{
+                        padding: '10px 14px', fontSize: 13, fontWeight: 500,
+                        color: noteMode === m ? '#2563EB' : '#9CA3AF',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        borderBottom: noteMode === m ? '2px solid #2563EB' : '2px solid transparent',
+                        marginBottom: -1,
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        transition: 'color 0.15s',
+                      }}>
+                        {m === 'text' ? <><Type style={{ width: 13, height: 13 }} />Texte</> : <><Mic style={{ width: 13, height: 13 }} />Vocal</>}
                       </button>
                     ))}
                   </div>
-                  <Input placeholder="Titre (optionnel — généré automatiquement si vide)" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} />
-                  {noteMode === 'text' ? (
-                    <form onSubmit={(e) => { e.preventDefault(); saveNote(noteText, 'text') }} className="space-y-2">
-                      <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
-                        placeholder="Contenu de la note..." rows={3}
-                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" />
-                      {noteError && <FormMessage type="error" message={noteError} />}
-                      {conflictChecking && (
-                        <p className="text-xs text-[#64748B] flex items-center gap-1.5">
-                          <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          Analyse en cours…
-                        </p>
-                      )}
-                      {conflictResult ? (
-                        <div className="rounded-xl border px-4 py-3 space-y-2" style={{ background: '#FEF9C3', borderColor: '#EAB308' }}>
-                          <div className="flex items-start gap-2">
-                            {conflictResult.hasConflict
-                              ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />
-                              : <Copy className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />}
-                            <p className="text-xs text-[#713F12] leading-relaxed">
-                              {conflictResult.hasConflict && conflictResult.conflicts[0]
-                                ? <>Information contradictoire : <span className="font-medium">&ldquo;{conflictResult.conflicts[0].existingInfo}&rdquo;</span> → <span className="font-medium">&ldquo;{conflictResult.conflicts[0].newInfo}&rdquo;</span></>
-                                : "Cette information existe déjà dans une note précédente."}
-                            </p>
+
+                  {/* Content */}
+                  <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <Input placeholder="Titre (optionnel — généré automatiquement si vide)" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} />
+                    {noteMode === 'text' ? (
+                      <form id="account-note-form" onSubmit={(e) => { e.preventDefault(); saveNote(noteText, 'text') }}>
+                        <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
+                          placeholder="Contenu de la note..." rows={3}
+                          className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1E293B] placeholder-[#94A3B8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent" />
+                        {noteError && <FormMessage type="error" message={noteError} />}
+                        {conflictChecking && (
+                          <p className="text-xs text-[#64748B] flex items-center gap-1.5 mt-2">
+                            <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            Analyse en cours…
+                          </p>
+                        )}
+                        {conflictResult && (
+                          <div className="rounded-xl border px-4 py-3 space-y-2 mt-2" style={{ background: '#FEF9C3', borderColor: '#EAB308' }}>
+                            <div className="flex items-start gap-2">
+                              {conflictResult.hasConflict
+                                ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />
+                                : <Copy className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#854D0E' }} />}
+                              <p className="text-xs text-[#713F12] leading-relaxed">
+                                {conflictResult.hasConflict && conflictResult.conflicts[0]
+                                  ? <>Information contradictoire : <span className="font-medium">&ldquo;{conflictResult.conflicts[0].existingInfo}&rdquo;</span> → <span className="font-medium">&ldquo;{conflictResult.conflicts[0].newInfo}&rdquo;</span></>
+                                  : "Cette information existe déjà dans une note précédente."}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button type="button"
+                                onClick={() => { if (pendingNote) { forceSaveRef.current = true; saveNote(pendingNote.content, pendingNote.source) } }}
+                                className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#EAB308' }}>
+                                Sauvegarder quand même
+                              </button>
+                              <button type="button"
+                                onClick={() => { setConflictResult(null); setPendingNote(null) }}
+                                className="flex-1 py-1.5 rounded-lg text-xs font-semibold border bg-white" style={{ color: '#713F12', borderColor: '#EAB308' }}>
+                                Annuler
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            <button type="button"
-                              onClick={() => { if (pendingNote) { forceSaveRef.current = true; saveNote(pendingNote.content, pendingNote.source) } }}
-                              className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#EAB308' }}>
-                              Sauvegarder quand même
-                            </button>
-                            <button type="button"
-                              onClick={() => { setConflictResult(null); setPendingNote(null) }}
-                              className="flex-1 py-1.5 rounded-lg text-xs font-semibold border bg-white" style={{ color: '#713F12', borderColor: '#EAB308' }}>
-                              Annuler
-                            </button>
+                        )}
+                      </form>
+                    ) : (
+                      <div className="space-y-2">
+                        {noteText && (
+                          <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-[#1E293B] min-h-[60px]">
+                            {noteText}
+                            {recording && <span className="inline-block w-2 h-4 bg-red-500 ml-1 animate-pulse rounded-sm" />}
                           </div>
-                        </div>
-                      ) : (
-                        <Button type="submit" loading={savingNote || conflictChecking} disabled={!noteText.trim()} className="w-full" size="sm">
-                          <Send className="w-3.5 h-3.5 mr-1.5" />Enregistrer
-                        </Button>
-                      )}
-                    </form>
-                  ) : (
-                    <div className="space-y-2">
-                      {noteText && (
-                        <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-[#1E293B] min-h-[60px]">
-                          {noteText}
-                          {recording && <span className="inline-block w-2 h-4 bg-red-500 ml-1 animate-pulse rounded-sm" />}
-                        </div>
-                      )}
-                      {noteError && <FormMessage type="error" message={noteError} />}
-                      {notePhase === 'done' && noteSummary.length > 0 && (
-                        <div className="rounded-xl px-3 py-2.5 space-y-1.5" style={{ background: 'rgba(34,197,94,0.08)' }}>
-                          {noteActionResults.map((r, i) => (
-                            <p key={i} className="text-xs font-medium" style={{ color: '#065F46' }}>{noteSummary[i] ?? ''}</p>
-                          ))}
-                        </div>
-                      )}
-                      {(notePhase === 'analyzing' || notePhase === 'executing') && (
-                        <div className="flex items-center gap-2 py-1">
-                          <span className="w-4 h-4 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin shrink-0" />
-                          <span className="text-xs text-[#64748B]">{notePhase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}</span>
-                        </div>
-                      )}
-                      {notePhase === 'input' && !recording ? (
-                        <button onClick={startRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 transition-all duration-150">
-                          <Mic className="w-5 h-5" />Démarrer l&apos;enregistrement
-                        </button>
-                      ) : notePhase === 'input' && recording ? (
-                        <button onClick={stopRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 animate-pulse">
-                          <MicOff className="w-5 h-5" />Arrêter l&apos;enregistrement
-                        </button>
-                      ) : null}
-                      {noteText.trim() && !recording && notePhase === 'input' && (
-                        <button
-                          onClick={() => processVocalNote(noteText)}
-                          disabled={savingNote}
-                          className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm transition-all disabled:opacity-50"
-                          style={{ background: '#0A0A0A', borderRadius: 10, height: 44 }}
-                        >
-                          {savingNote
-                            ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            : <Save className="w-4 h-4" />
-                          }
-                          Enregistrer la note
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {/* Pièces jointes */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all">
-                      <Paperclip className="w-3.5 h-3.5" />Fichier
+                        )}
+                        {noteError && <FormMessage type="error" message={noteError} />}
+                        {notePhase === 'done' && noteSummary.length > 0 && (
+                          <div className="rounded-xl px-3 py-2.5 space-y-1.5" style={{ background: 'rgba(34,197,94,0.08)' }}>
+                            {noteActionResults.map((r, i) => (
+                              <p key={i} className="text-xs font-medium" style={{ color: '#065F46' }}>{noteSummary[i] ?? ''}</p>
+                            ))}
+                          </div>
+                        )}
+                        {(notePhase === 'analyzing' || notePhase === 'executing') && (
+                          <div className="flex items-center gap-2 py-1">
+                            <span className="w-4 h-4 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin shrink-0" />
+                            <span className="text-xs text-[#64748B]">{notePhase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}</span>
+                          </div>
+                        )}
+                        {notePhase === 'input' && !recording ? (
+                          <button onClick={startRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 transition-all duration-150">
+                            <Mic className="w-5 h-5" />Démarrer l&apos;enregistrement
+                          </button>
+                        ) : notePhase === 'input' && recording ? (
+                          <button onClick={stopRecording} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 animate-pulse">
+                            <MicOff className="w-5 h-5" />Arrêter l&apos;enregistrement
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                    {/* Attachment previews */}
+                    {attachments.length > 0 && (
+                      <div className="flex gap-2 flex-wrap">
+                        {attachments.map(item => (
+                          <div key={item.id} className="relative group">
+                            {item.preview ? (
+                              <img src={item.preview} alt={item.file.name} className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                            ) : (
+                              <div className="w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                                <FileText className="w-5 h-5 text-gray-300" />
+                              </div>
+                            )}
+                            <p className="text-[10px] text-[#64748B] truncate w-16 mt-0.5">{item.file.name}</p>
+                            <button onClick={() => removeAttachment(item.id)} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px 10px', borderTop: '1px solid #F3F4F6' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500, color: '#6B7280', background: '#F9FAFB', cursor: 'pointer' }}>
+                      <Paperclip style={{ width: 13, height: 13 }} />Fichier
                       <input type="file" multiple className="hidden" onChange={handleAddAttachments} />
                     </label>
-                    <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#64748B] bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all">
-                      <Camera className="w-3.5 h-3.5" />Photo
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500, color: '#6B7280', background: '#F9FAFB', cursor: 'pointer' }}>
+                      <Camera style={{ width: 13, height: 13 }} />Photo
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAddAttachments} />
                     </label>
                     {uploadingAttachments && (
@@ -1352,24 +1435,50 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
                         <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />Upload…
                       </span>
                     )}
+                    <div style={{ flex: 1 }} />
+                    {noteMode === 'text' && !conflictResult && (
+                      <button
+                        form="account-note-form"
+                        type="submit"
+                        disabled={savingNote || conflictChecking || !noteText.trim()}
+                        style={{
+                          background: noteText.trim() && !savingNote && !conflictChecking ? '#2563EB' : '#E5E7EB',
+                          color: noteText.trim() && !savingNote && !conflictChecking ? '#fff' : '#9CA3AF',
+                          border: 'none', borderRadius: 8,
+                          padding: '6px 14px', fontSize: 12, fontWeight: 600,
+                          cursor: noteText.trim() && !savingNote && !conflictChecking ? 'pointer' : 'default',
+                          display: 'flex', alignItems: 'center', gap: 5,
+                          transition: 'background 0.15s',
+                        }}
+                      >
+                        {(savingNote || conflictChecking)
+                          ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          : <Send style={{ width: 12, height: 12 }} />
+                        }
+                        Enregistrer
+                      </button>
+                    )}
+                    {noteMode === 'vocal' && noteText.trim() && !recording && notePhase === 'input' && (
+                      <button
+                        onClick={() => processVocalNote(noteText)}
+                        disabled={savingNote}
+                        style={{
+                          background: savingNote ? '#E5E7EB' : '#2563EB',
+                          color: savingNote ? '#9CA3AF' : '#fff',
+                          border: 'none', borderRadius: 8,
+                          padding: '6px 14px', fontSize: 12, fontWeight: 600,
+                          cursor: savingNote ? 'default' : 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 5,
+                        }}
+                      >
+                        {savingNote
+                          ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          : <Save style={{ width: 12, height: 12 }} />
+                        }
+                        Enregistrer
+                      </button>
+                    )}
                   </div>
-                  {attachments.length > 0 && (
-                    <div className="flex gap-2 flex-wrap">
-                      {attachments.map(item => (
-                        <div key={item.id} className="relative group">
-                          {item.preview ? (
-                            <img src={item.preview} alt={item.file.name} className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
-                          ) : (
-                            <div className="w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
-                              <FileText className="w-5 h-5 text-gray-300" />
-                            </div>
-                          )}
-                          <p className="text-[10px] text-[#64748B] truncate w-16 mt-0.5">{item.file.name}</p>
-                          <button onClick={() => removeAttachment(item.id)} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* Notes list */}
