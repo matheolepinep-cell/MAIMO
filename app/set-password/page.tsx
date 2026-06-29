@@ -19,37 +19,68 @@ export default function SetPasswordPage() {
   const [userName, setUserName] = useState('')
   const [authReady, setAuthReady] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
+  // True when we actually signed out an existing session before setting the invite session
+  const [hadPreviousSession, setHadPreviousSession] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
 
-    // Handle the invite magic link hash fragment
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        // Get display name from user metadata (set by invite)
-        const name = session.user.user_metadata?.full_name ?? session.user.email ?? ''
-        setUserName(name.split(' ')[0])
-        setAuthReady(true)
+    const handleInvite = async () => {
+      // Step 1 — sign out any existing session so we don't inherit the inviter's account
+      const { data: existing } = await supabase.auth.getSession()
+      if (existing.session) {
+        setHadPreviousSession(true)
+        await supabase.auth.signOut()
       }
-    })
 
-    // Also check if already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const name = session.user.user_metadata?.full_name ?? session.user.email ?? ''
-        setUserName(name.split(' ')[0])
-        setAuthReady(true)
+      // Step 2 — parse the URL hash produced by Supabase invite emails
+      const hash = window.location.hash.substring(1)
+      if (!hash) {
+        setError("Lien d'invitation invalide ou manquant.")
+        return
       }
-    })
+      const params = new URLSearchParams(hash)
+      const accessToken = params.get('access_token')
+      const refreshToken = params.get('refresh_token') ?? ''
+      const type = params.get('type')
 
-    return () => subscription.unsubscribe()
+      if (!accessToken || type !== 'invite') {
+        setError("Ce lien n'est pas un lien d'invitation valide.")
+        return
+      }
+
+      // Step 3 — establish the invited user's session with their token
+      const { data, error: sessionErr } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+
+      if (sessionErr || !data.session) {
+        setError("Lien d'invitation invalide ou expiré. Demandez un nouvel envoi.")
+        return
+      }
+
+      // Step 4 — expose the invited user's name
+      const user = data.session.user
+      const name = user.user_metadata?.full_name ?? user.email ?? ''
+      setUserName(name.split(' ')[0])
+      setAuthReady(true)
+    }
+
+    handleInvite()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!isPasswordValid(password)) { setError('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.'); return }
-    if (password !== confirm) { setError('Les mots de passe ne correspondent pas.'); return }
+    if (!isPasswordValid(password)) {
+      setError('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.')
+      return
+    }
+    if (password !== confirm) {
+      setError('Les mots de passe ne correspondent pas.')
+      return
+    }
 
     setLoading(true)
     const supabase = createClient()
@@ -61,7 +92,7 @@ export default function SetPasswordPage() {
       return
     }
 
-    // Mark password as set + activate user
+    // Mark password as set and activate the invited user
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       await supabase.from('users').update({ has_set_password: true, is_active: true }).eq('id', user.id)
@@ -92,11 +123,21 @@ export default function SetPasswordPage() {
             <h1 className="text-xl font-bold text-[#0F172A] mb-1">
               {userName ? `Bienvenue, ${userName} !` : 'Bienvenue sur Maimoo'}
             </h1>
-            <p className="text-sm text-[#94A3B8] mb-6">
+            <p className="text-sm text-[#94A3B8] mb-4">
               Choisissez un mot de passe pour accéder à votre compte.
             </p>
 
-            {!authReady && (
+            {/* Inform the user that a previous session was cleared */}
+            {hadPreviousSession && (
+              <div
+                className="mb-4 px-3 py-2.5 rounded-xl text-xs text-[#92400E] leading-relaxed"
+                style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}
+              >
+                Vous allez créer votre compte. Toute session précédente a été déconnectée sur ce navigateur.
+              </div>
+            )}
+
+            {!authReady && !error && (
               <div className="flex items-center gap-2 py-4 mb-4 text-sm text-[#64748B]">
                 <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0" />
                 Vérification du lien en cours…
