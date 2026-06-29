@@ -36,6 +36,11 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
   const [registerError, setRegisterError] = useState('')
   const [registerLoading, setRegisterLoading] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
+  const [consentCgu, setConsentCgu] = useState(false)
+  const [consentPrivacy, setConsentPrivacy] = useState(false)
+  const [consentMarketing, setConsentMarketing] = useState(false)
+  const [consentCguError, setConsentCguError] = useState(false)
+  const [consentPrivacyError, setConsentPrivacyError] = useState(false)
 
   // Email confirm
   const [registeredEmail, setRegisteredEmail] = useState('')
@@ -87,8 +92,14 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setRegisterError('')
+    setConsentCguError(false)
+    setConsentPrivacyError(false)
     if (!fullName.trim() || !email.trim() || !password || !companyName.trim()) { setRegisterError('Veuillez remplir tous les champs.'); return }
     if (!isPasswordValid(password)) { setRegisterError('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.'); return }
+    let hasConsentError = false
+    if (!consentCgu) { setConsentCguError(true); hasConsentError = true }
+    if (!consentPrivacy) { setConsentPrivacyError(true); hasConsentError = true }
+    if (hasConsentError) return
     setRegisterLoading(true)
     const supabase = createClient()
 
@@ -101,19 +112,22 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
       setRegisterLoading(false)
       return
     }
-    const { data: company, error: companyError } = await supabase
-      .from('companies').insert({ name: companyName.trim() }).select().single()
-    if (companyError || !company) {
-      setRegisterError("Erreur lors de la création de l'espace.")
-      setRegisterLoading(false)
-      return
-    }
-    const { error: userError } = await supabase.from('users').insert({
-      id: authData.user.id, email, full_name: fullName.trim(),
-      role: 'admin', company_id: company.id, is_active: true,
+
+    const setupRes = await fetch('/api/auth/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: authData.user.id,
+        email,
+        fullName,
+        companyName,
+        phone: null,
+        consentMarketing,
+      }),
     })
-    if (userError) {
-      setRegisterError('Compte créé mais profil incomplet : ' + userError.message)
+    if (!setupRes.ok) {
+      const { error: setupErr } = await setupRes.json().catch(() => ({}))
+      setRegisterError(setupErr ?? "Erreur lors de la création de l'espace.")
       setRegisterLoading(false)
       return
     }
@@ -213,6 +227,63 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
               </div>
               <Input id="r-company" label="Nom de votre espace" placeholder="Mon équipe"
                 value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+
+              {/* Consent checkboxes */}
+              <div className="space-y-2.5 pt-1">
+                <div>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={consentCgu}
+                      onChange={(e) => { setConsentCgu(e.target.checked); if (e.target.checked) setConsentCguError(false) }}
+                      className="mt-0.5 w-4 h-4 shrink-0 rounded"
+                      style={{ accentColor: '#2563EB' }}
+                    />
+                    <span className="text-[13px] text-[#374151] leading-snug">
+                      J&apos;accepte les{' '}
+                      <a href="/cgu" target="_blank" rel="noopener noreferrer" className="text-[#2563EB] underline">
+                        Conditions Générales d&apos;Utilisation
+                      </a>
+                    </span>
+                  </label>
+                  {consentCguError && (
+                    <p className="mt-1 text-[12px] text-[#DC2626] ml-[26px]">Vous devez accepter les CGU pour continuer.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={consentPrivacy}
+                      onChange={(e) => { setConsentPrivacy(e.target.checked); if (e.target.checked) setConsentPrivacyError(false) }}
+                      className="mt-0.5 w-4 h-4 shrink-0 rounded"
+                      style={{ accentColor: '#2563EB' }}
+                    />
+                    <span className="text-[13px] text-[#374151] leading-snug">
+                      J&apos;ai lu et j&apos;accepte la{' '}
+                      <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-[#2563EB] underline">
+                        Politique de confidentialité
+                      </a>
+                    </span>
+                  </label>
+                  {consentPrivacyError && (
+                    <p className="mt-1 text-[12px] text-[#DC2626] ml-[26px]">Vous devez accepter la politique de confidentialité.</p>
+                  )}
+                </div>
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={consentMarketing}
+                    onChange={(e) => setConsentMarketing(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 shrink-0 rounded"
+                    style={{ accentColor: '#2563EB' }}
+                  />
+                  <span className="text-[13px] text-[#374151] leading-snug">
+                    J&apos;accepte de recevoir des informations et nouveautés de Maimoo
+                  </span>
+                </label>
+              </div>
+
               {registerError && <FormMessage type="error" message={registerError} />}
               <Button type="submit" loading={registerLoading} className="w-full" size="lg">
                 Créer mon espace
@@ -262,6 +333,11 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
                 setFullName('')
                 setCompanyName('')
                 setResendCooldown(0)
+                setConsentCgu(false)
+                setConsentPrivacy(false)
+                setConsentMarketing(false)
+                setConsentCguError(false)
+                setConsentPrivacyError(false)
               }}
               className="text-sm text-[#94A3B8] hover:text-[#64748B] transition-colors"
             >
