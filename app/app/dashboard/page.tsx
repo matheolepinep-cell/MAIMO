@@ -1,19 +1,16 @@
 'use client'
 
-import { useEffect, useState, useRef, Suspense } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { markOnboardingStep } from '@/lib/onboarding'
-import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, CalendarDays } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, CalendarDays } from 'lucide-react'
 const CalendarWidget = dynamic(() => import('@/components/calendar/CalendarWidget').then(m => m.CalendarWidget), { ssr: false })
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { getInitials } from '@/components/ui/CompanyCard'
-import { Modal } from '@/components/ui/Modal'
 import { CompanyProfileBanner } from '@/components/ui/CompanyProfileBanner'
-import { ActionCard, AddActionMenu, toCleanAction, type EditableAction, type EditableCreateCompany } from '@/components/notes/NoteInput'
 
 /* ─── types ─── */
 type MobileItem =
@@ -56,18 +53,6 @@ function Skeleton({ className }: { className?: string }) {
   return <div className={`bg-[#EFEFEF] animate-pulse rounded-xl ${className ?? ''}`} />
 }
 
-function OpenNoteHandler({ onOpen }: { onOpen: () => void }) {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  useEffect(() => {
-    if (searchParams.get('openNote') === 'true') {
-      onOpen()
-      router.replace('/app/dashboard', { scroll: false })
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
-  return null
-}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -89,20 +74,6 @@ export default function DashboardPage() {
   const [showClientDrop, setShowClientDrop] = useState(false)
   const clientSearchRef = useRef<HTMLDivElement>(null)
 
-  /* note modal state */
-  const [noteModalOpen, setNoteModalOpen] = useState(false)
-  const [noteText, setNoteText] = useState('')
-  const [noteRecording, setNoteRecording] = useState(false)
-  const [notePhase, setNotePhase] = useState<'input' | 'analyzing' | 'confirm' | 'executing' | 'done'>('input')
-  const [noteSummary, setNoteSummary] = useState<string[]>([])
-  const [noteResults, setNoteResults] = useState<{ type: string; created: boolean; companyId?: string; companyName?: string }[]>([])
-  const [noteToast, setNoteToast] = useState('')
-  const [noteConfirmActions, setNoteConfirmActions] = useState<EditableAction[]>([])
-  const [noteOriginalText, setNoteOriginalText] = useState('')
-  const [noteSourceMode, setNoteSourceMode] = useState<'text' | 'vocal'>('text')
-  const [noteWsAccounts, setNoteWsAccounts] = useState<{ id: string; name: string }[]>([])
-  const [noteShowAddMenu, setNoteShowAddMenu] = useState(false)
-  const noteRecognitionRef = useRef<SpeechRecognition | null>(null)
 
   /* desktop state */
   const [stats, setStats] = useState<Stats>({ accounts: 0, notes: 0, docs: 0, team: 0, notesWeek: 0, accountsWeek: 0 })
@@ -127,12 +98,6 @@ export default function DashboardPage() {
     return () => clearInterval(id)
   }, [])
 
-  useEffect(() => {
-    const handler = () => { handleNoteReset(); setNoteModalOpen(true) }
-    window.addEventListener('open:quick-note-modal', handler)
-    return () => window.removeEventListener('open:quick-note-modal', handler)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   useEffect(() => {
     try {
@@ -260,112 +225,6 @@ export default function DashboardPage() {
     }, 200)
     return () => clearTimeout(timer)
   }, [clientQuery, profile, wsId])
-
-  const handleNoteRecordStart = () => {
-    const SR = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
-      || (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
-    if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return }
-    const rec = new SR()
-    rec.lang = 'fr-FR'; rec.continuous = true; rec.interimResults = true
-    rec.onresult = (event: SpeechRecognitionEvent) => {
-      let t = ''; for (let i = 0; i < event.results.length; i++) t += event.results[i][0].transcript
-      setNoteText(t)
-    }
-    rec.onerror = () => setNoteRecording(false)
-    rec.onend = () => setNoteRecording(false)
-    noteRecognitionRef.current = rec; rec.start(); setNoteRecording(true)
-  }
-
-  const handleNoteRecordStop = () => { noteRecognitionRef.current?.stop(); setNoteRecording(false) }
-
-  const handleNoteSave = async () => {
-    if (!noteText.trim() || !profile) return
-    setNotePhase('analyzing')
-    setNoteOriginalText(noteText)
-    setNoteSourceMode(noteRecording ? 'vocal' : 'text')
-
-    try {
-      const processRes = await fetch('/api/notes/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: noteText, workspaceId: wsId, userId: profile.id }),
-      })
-      const { actions } = await processRes.json()
-
-      const supabase = createClient()
-      const { data: accs } = await supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).order('name').limit(100)
-      setNoteWsAccounts(accs ?? [])
-
-      const editable: EditableAction[] = (actions ?? []).map((a: Record<string, string | boolean>, i: number) => {
-        const id = `a${i}-${Date.now()}`
-        if (a.type === 'create_company') return { id, type: 'create_company' as const, company_name: (a.company_name as string) ?? '', city: (a.city as string) ?? '', sector: (a.sector as string) ?? '', status: ((a.status as 'client' | 'prospect') ?? 'prospect') }
-        if (a.type === 'create_contact') return { id, type: 'create_contact' as const, first_name: (a.first_name as string) ?? '', last_name: (a.last_name as string) ?? '', position: (a.position as string) ?? '', email: (a.email as string) ?? '', phone: (a.phone as string) ?? '', company_name: (a.company_name as string) ?? '' }
-        if (a.type === 'create_calendar_event') return { id, type: 'create_calendar_event' as const, title: (a.title as string) ?? '', date: (a.date as string) ?? new Date().toISOString().slice(0, 10), start_time: (a.start_time as string) ?? '09:00', end_time: (a.end_time as string) ?? '10:00', company_name: (a.company_name as string) ?? '', enabled: a.enabled !== false }
-        return { id, type: 'create_note' as const, content: (a.content as string) ?? '', company_name: (a.company_name as string) ?? '' }
-      })
-
-      setNoteConfirmActions(editable)
-      setNotePhase('confirm')
-    } catch {
-      setNotePhase('input')
-    }
-  }
-
-  const handleNoteExecute = async () => {
-    if (!profile) return
-    setNotePhase('executing')
-    try {
-      const executeRes = await fetch('/api/notes/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actions: noteConfirmActions.map(toCleanAction), workspaceId: wsId, userId: profile.id, source: noteSourceMode }),
-      })
-      const { results: execResults, summary: execSummary } = await executeRes.json()
-      setNoteResults(execResults ?? [])
-      setNoteSummary(execSummary ?? [])
-      setNotePhase('done')
-      setStats((prev) => ({ ...prev, notes: prev.notes + (execResults ?? []).filter((r: { type: string }) => r.type === 'create_note').length }))
-      markOnboardingStep(2)
-    } catch {
-      setNotePhase('confirm')
-    }
-  }
-
-  const handleNoteCancel = () => {
-    setNoteText(noteOriginalText)
-    setNotePhase('input')
-    setNoteConfirmActions([])
-    setNoteWsAccounts([])
-    setNoteShowAddMenu(false)
-  }
-
-  const updateNoteAction = (id: string, updates: Partial<EditableAction>) => {
-    setNoteConfirmActions((prev) => prev.map((a) => a.id === id ? { ...a, ...updates } as EditableAction : a))
-  }
-
-  const removeNoteAction = (id: string) => {
-    setNoteConfirmActions((prev) => prev.filter((a) => a.id !== id))
-  }
-
-  const addNoteAction = (type: EditableAction['type']) => {
-    const newId = `new-${Date.now()}`
-    if (type === 'create_company') setNoteConfirmActions((p) => [...p, { id: newId, type: 'create_company' as const, company_name: '', city: '', sector: '', status: 'prospect' as const }])
-    else if (type === 'create_contact') setNoteConfirmActions((p) => [...p, { id: newId, type: 'create_contact' as const, first_name: '', last_name: '', position: '', email: '', phone: '', company_name: '' }])
-    else if (type === 'create_calendar_event') setNoteConfirmActions((p) => [...p, { id: newId, type: 'create_calendar_event' as const, title: '', date: new Date().toISOString().slice(0, 10), start_time: '09:00', end_time: '10:00', company_name: '', enabled: true }])
-    else setNoteConfirmActions((p) => [...p, { id: newId, type: 'create_note' as const, content: '', company_name: '' }])
-    setNoteShowAddMenu(false)
-  }
-
-  const handleNoteReset = () => {
-    setNoteText(''); setNotePhase('input'); setNoteSummary([]); setNoteResults([])
-    setNoteRecording(false); noteRecognitionRef.current?.stop()
-    setNoteConfirmActions([]); setNoteOriginalText(''); setNoteWsAccounts([]); setNoteShowAddMenu(false)
-  }
-
-  const noteCompaniesForSelect = [
-    ...noteWsAccounts.map((a) => a.name),
-    ...noteConfirmActions.filter((a) => a.type === 'create_company').map((a) => (a as EditableCreateCompany).company_name),
-  ].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i)
 
   useEffect(() => {
     if (profileLoading || !profile) return
@@ -495,9 +354,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full overflow-x-hidden">
-      <Suspense fallback={null}>
-        <OpenNoteHandler onOpen={() => { handleNoteReset(); setNoteModalOpen(true) }} />
-      </Suspense>
       <div className="flex flex-col min-h-full">
 
         {/* Hero */}
@@ -541,7 +397,7 @@ export default function DashboardPage() {
                   </div>
                 </button>
                 <button
-                  onClick={() => { handleNoteReset(); setNoteModalOpen(true) }}
+                  onClick={() => router.push('/app/notes/new')}
                   className="text-left flex flex-col gap-2 transition-opacity hover:opacity-90 active:opacity-75"
                   style={{ background: '#fff', borderRadius: 12, padding: 14, border: '1px solid #E5E5E5' }}
                 >
@@ -830,142 +686,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Nouvelle note modal */}
-      <Modal open={noteModalOpen} onClose={() => { setNoteModalOpen(false); handleNoteRecordStop() }} title="Nouvelle note">
-        {notePhase === 'done' ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 flex items-center justify-center rounded-full shrink-0" style={{ background: 'rgba(22,163,74,0.1)' }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="#16A34A" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              </span>
-              <p className="font-semibold" style={{ color: '#0A0A0A' }}>Actions effectuées</p>
-            </div>
-            <div className="space-y-2.5">
-              {noteResults.length === 0 ? (
-                <p className="text-sm" style={{ color: '#9B9B9B' }}>Aucune action détectée.</p>
-              ) : noteResults.map((r, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm" style={{ color: '#0A0A0A' }}>
-                  {!r.created
-                    ? <svg className="w-4 h-4 shrink-0" style={{ color: '#9B9B9B' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4m0 4h.01" /></svg>
-                    : r.type === 'create_company'
-                      ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#2563EB" strokeWidth={2}><path strokeLinecap="round" d="M3 21h18M9 21V7l6-4v18M9 9H3v12M15 9h6v12" /></svg>
-                      : r.type === 'create_contact'
-                        ? <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#2563EB" strokeWidth={2}><path strokeLinecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" d="M20 8v6m3-3h-6" /></svg>
-                        : <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#2563EB" strokeWidth={2}><path strokeLinecap="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                  }
-                  <span>{noteSummary[i] ?? ''}</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 pt-1">
-              {noteResults.find((r) => r.type === 'create_company' && r.companyId)?.companyId && (
-                <button
-                  onClick={() => { setNoteModalOpen(false); router.push(`/app/accounts/${noteResults.find((r) => r.type === 'create_company')?.companyId}`) }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: '#2563EB' }}
-                >
-                  Voir la fiche →
-                </button>
-              )}
-              <button
-                onClick={() => { handleNoteReset() }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                style={{ border: '1px solid #E5E5E5', color: '#6B6B6B', background: 'transparent' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#F5F5F5' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-              >
-                Nouvelle note
-              </button>
-            </div>
-          </div>
-        ) : notePhase === 'confirm' ? (
-          <div className="space-y-4">
-            <div>
-              <p className="text-[15px] font-bold" style={{ color: '#0A0A0A' }}>Vérifier les actions</p>
-              <p className="text-[12px] mt-0.5" style={{ color: '#6B6B6B' }}>L&apos;IA a détecté ces actions — modifiez si nécessaire</p>
-            </div>
-            <div className="space-y-3">
-              {noteConfirmActions.length === 0 && (
-                <p className="text-sm py-1" style={{ color: '#9B9B9B' }}>Aucune action détectée automatiquement.</p>
-              )}
-              {noteConfirmActions.map((action) => (
-                <ActionCard key={action.id} action={action} companiesForSelect={noteCompaniesForSelect}
-                  onUpdate={updateNoteAction} onRemove={removeNoteAction} />
-              ))}
-              <AddActionMenu show={noteShowAddMenu} onToggle={() => setNoteShowAddMenu((v) => !v)} onAdd={addNoteAction} />
-            </div>
-            <div className="space-y-2 pt-1">
-              <button onClick={handleNoteExecute}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                style={{ background: '#2563EB' }}>
-                Confirmer et enregistrer
-              </button>
-              <button onClick={handleNoteCancel}
-                className="w-full py-1.5 text-xs text-center transition-colors"
-                style={{ color: '#9B9B9B' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#6B6B6B' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#9B9B9B' }}>
-                Annuler
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {(notePhase === 'analyzing' || notePhase === 'executing') ? (
-              <div className="flex items-center gap-3 py-4">
-                <span className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: '#2563EB', borderTopColor: 'transparent' }} />
-                <p className="text-sm" style={{ color: '#6B6B6B' }}>
-                  {notePhase === 'analyzing' ? 'Analyse en cours…' : 'Exécution des actions…'}
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="relative">
-                  <textarea
-                    autoFocus
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Saisir une note ou une instruction…"
-                    rows={5}
-                    className="w-full px-3 py-2.5 rounded-xl resize-none focus:outline-none transition-all duration-150 pr-10"
-                    style={{
-                      border: '1px solid #E5E5E5',
-                      color: '#0A0A0A',
-                      fontSize: 16,
-                    }}
-                    onFocus={(e) => { e.target.style.borderColor = '#2563EB'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)' }}
-                    onBlur={(e) => { e.target.style.borderColor = '#E5E5E5'; e.target.style.boxShadow = 'none' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={noteRecording ? handleNoteRecordStop : handleNoteRecordStart}
-                    className="absolute right-2 bottom-2 p-2 rounded-lg transition-all duration-150"
-                    style={noteRecording ? { background: '#DC2626', color: '#fff' } : { background: '#F5F5F5', color: '#6B6B6B' }}
-                  >
-                    {noteRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                  </button>
-                </div>
-                <button
-                  onClick={handleNoteSave}
-                  disabled={!noteText.trim()}
-                  className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
-                  style={{ background: '#2563EB' }}
-                >
-                  Enregistrer la note
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* Toast */}
-      {noteToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-xl text-sm font-medium text-white shadow-lg"
-          style={{ background: '#2563EB' }}>
-          {noteToast}
-        </div>
-      )}
     </div>
   )
 }

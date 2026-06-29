@@ -120,7 +120,7 @@ export function BottomNav() {
         {sheet === 'menu' ? (
           <div className="space-y-3 pb-2">
             <button
-              onClick={() => { setOpen(false); setSheet('menu'); window.dispatchEvent(new CustomEvent('open:quick-note-modal')) }}
+              onClick={() => { setOpen(false); setSheet('menu'); router.push('/app/notes/new') }}
               className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200 hover:bg-[rgba(76,110,245,0.04)]"
               style={{ border: '1px solid rgba(0,0,0,0.08)' }}
             >

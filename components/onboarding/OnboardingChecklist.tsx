@@ -98,13 +98,8 @@ export default function OnboardingChecklist() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step_click: step.id }),
     }).catch(() => {})
-    // Step 2 opens the dashboard note modal
     if (step.id === 2) {
-      if (pathname === '/app/dashboard') {
-        window.dispatchEvent(new CustomEvent('open:quick-note-modal'))
-      } else {
-        router.push('/app/dashboard?openNote=true')
-      }
+      router.push('/app/notes/new')
     } else {
       router.push(step.link)
     }
