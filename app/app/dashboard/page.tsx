@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { markOnboardingStep } from '@/lib/onboarding'
@@ -56,9 +56,21 @@ function Skeleton({ className }: { className?: string }) {
   return <div className={`bg-[#EFEFEF] animate-pulse rounded-xl ${className ?? ''}`} />
 }
 
+function OpenNoteHandler({ onOpen }: { onOpen: () => void }) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  useEffect(() => {
+    if (searchParams.get('openNote') === 'true') {
+      onOpen()
+      router.replace('/app/dashboard', { scroll: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+  return null
+}
+
 export default function DashboardPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor } = useAccentColor()
   const { wsId } = useWorkspace()
@@ -121,15 +133,6 @@ export default function DashboardPage() {
     return () => window.removeEventListener('open:quick-note-modal', handler)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    if (searchParams.get('openNote') === 'true') {
-      handleNoteReset()
-      setNoteModalOpen(true)
-      router.replace('/app/dashboard', { scroll: false })
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
 
   useEffect(() => {
     try {
@@ -492,6 +495,9 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full overflow-x-hidden">
+      <Suspense fallback={null}>
+        <OpenNoteHandler onOpen={() => { handleNoteReset(); setNoteModalOpen(true) }} />
+      </Suspense>
       <div className="flex flex-col min-h-full">
 
         {/* Hero */}
