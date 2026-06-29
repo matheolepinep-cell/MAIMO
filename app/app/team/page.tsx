@@ -317,11 +317,10 @@ export default function TeamPage() {
       body: JSON.stringify({ workspace_id: wsId, user_id: member.user.id, is_active: activate }),
     })
     if (res.ok) {
-      setMembers((prev) =>
-        prev.map((m) => m.user.id === member.user.id ? { ...m, wsIsActive: activate } : m)
-      )
       setDisableTarget(null)
       showToast(activate ? 'Membre réactivé.' : 'Membre désactivé.')
+      // Refetch to guarantee UI reflects DB state
+      await fetchMembers()
     } else {
       const json = await res.json()
       showToast(json.error ?? 'Erreur.', true)
