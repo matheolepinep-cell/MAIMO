@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Search, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -14,6 +15,7 @@ type AccountOption = { id: string; name: string }
 export function QuickNoteModal() {
   const { profile } = useUser()
   const { wsId } = useWorkspace()
+  const pathname = usePathname()
 
   const [open, setOpen] = useState(false)
   const [accounts, setAccounts] = useState<AccountOption[]>([])
@@ -27,12 +29,14 @@ export function QuickNoteModal() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Listen for open trigger
+  // Listen for open trigger — skip on dashboard (it handles the event itself)
   useEffect(() => {
-    const handler = () => setOpen(true)
+    const handler = () => {
+      if (!pathname?.startsWith('/app/dashboard')) setOpen(true)
+    }
     window.addEventListener('open:quick-note-modal', handler)
     return () => window.removeEventListener('open:quick-note-modal', handler)
-  }, [])
+  }, [pathname])
 
   // Fetch accounts when modal opens
   useEffect(() => {

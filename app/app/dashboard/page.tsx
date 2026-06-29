@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
+import { markOnboardingStep } from '@/lib/onboarding'
 import { Building2, FileText, Mic, MicOff, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, CalendarDays } from 'lucide-react'
 const CalendarWidget = dynamic(() => import('@/components/calendar/CalendarWidget').then(m => m.CalendarWidget), { ssr: false })
 import { createClient } from '@/lib/supabase/client'
@@ -111,6 +112,13 @@ export default function DashboardPage() {
       setDateStr(capitalize(formatDate()))
     }, 60000)
     return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const handler = () => { handleNoteReset(); setNoteModalOpen(true) }
+    window.addEventListener('open:quick-note-modal', handler)
+    return () => window.removeEventListener('open:quick-note-modal', handler)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -304,6 +312,7 @@ export default function DashboardPage() {
       setNoteSummary(execSummary ?? [])
       setNotePhase('done')
       setStats((prev) => ({ ...prev, notes: prev.notes + (execResults ?? []).filter((r: { type: string }) => r.type === 'create_note').length }))
+      markOnboardingStep(2)
     } catch {
       setNotePhase('confirm')
     }
