@@ -1,5 +1,6 @@
 'use client'
 
+import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 
@@ -12,46 +13,44 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ open, onClose, title, children, footer }: BottomSheetProps) {
-  const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const [sheetStyle, setSheetStyle] = useState<React.CSSProperties>({})
+  const [mounted, setMounted] = useState(false)
   const savedScrollY = useRef(0)
 
-  // Track keyboard height via visualViewport.
-  // With interactive-widget=resizes-content (iOS 16+), the layout viewport itself
-  // shrinks when the keyboard opens, so innerHeight === visualViewport.height
-  // and keyboardHeight stays 0 — the transform does nothing and position:fixed;bottom:0
-  // is naturally above the keyboard.
-  // On older iOS where the viewport doesn't shrink, keyboardHeight > 0 and
-  // transform:translateY(-keyboardHeight) moves the sheet above the keyboard.
-  useEffect(() => {
-    const update = () => {
-      if (window.visualViewport) {
-        setKeyboardHeight(Math.max(0, window.innerHeight - window.visualViewport.height))
-      }
-    }
-    window.visualViewport?.addEventListener('resize', update)
-    window.visualViewport?.addEventListener('scroll', update)
-    return () => {
-      window.visualViewport?.removeEventListener('resize', update)
-      window.visualViewport?.removeEventListener('scroll', update)
-    }
-  }, [])
+  useEffect(() => { setMounted(true) }, [])
 
-  // Reset keyboard height when modal closes
+  // Body scroll lock + visualViewport tracking
   useEffect(() => {
-    if (!open) setKeyboardHeight(0)
-  }, [open])
+    if (!open) {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.width = ''
+      return
+    }
 
-  // Block body scroll while open.
-  // position:fixed + top:-scrollY is required on iOS Safari;
-  // overflow:hidden alone doesn't block scroll.
-  useEffect(() => {
-    if (!open) return
     savedScrollY.current = window.scrollY
     document.body.style.overflow = 'hidden'
     document.body.style.position = 'fixed'
     document.body.style.top = `-${savedScrollY.current}px`
     document.body.style.width = '100%'
+
+    const updateSheet = () => {
+      const vv = window.visualViewport
+      if (!vv) return
+      setSheetStyle({
+        height: vv.height * 0.85,
+        transform: `translateY(${vv.offsetTop}px)`,
+      })
+    }
+
+    updateSheet()
+    window.visualViewport?.addEventListener('resize', updateSheet)
+    window.visualViewport?.addEventListener('scroll', updateSheet)
+
     return () => {
+      window.visualViewport?.removeEventListener('resize', updateSheet)
+      window.visualViewport?.removeEventListener('scroll', updateSheet)
       document.body.style.overflow = ''
       document.body.style.position = ''
       document.body.style.top = ''
@@ -68,64 +67,48 @@ export function BottomSheet({ open, onClose, title, children, footer }: BottomSh
     return () => document.removeEventListener('keydown', handler)
   }, [open, onClose])
 
-  if (!open) return null
+  if (!mounted || !open) return null
 
-  return (
-    <>
-      {/* Overlay — covers the full screen including bottom nav (z-50) */}
+  return createPortal(
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 99999,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'flex-end',
+    }}>
+      {/* Overlay */}
       <div
         onClick={onClose}
         style={{
-          position: 'fixed',
+          position: 'absolute',
           inset: 0,
           background: 'rgba(0,0,0,0.5)',
-          zIndex: 9999,
         }}
       />
 
-      {/*
-        Sheet: position:fixed;bottom:0 is the baseline.
-
-        iOS 16+ (interactive-widget=resizes-content): layout viewport shrinks with
-        keyboard, so bottom:0 is already above the keyboard — keyboardHeight=0,
-        transform=translateY(0), no JS movement needed.
-
-        iOS 13-15 (no resize-content): layout viewport stays full height,
-        keyboard covers bottom. keyboardHeight>0 and transform moves sheet up.
-      */}
-      <div
-        style={{
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 10000,
-          transform: `translateY(${-keyboardHeight}px)`,
-          transition: 'transform 0.2s ease-out',
-          // dvh = dynamic viewport height (shrinks with keyboard on iOS 15.4+)
-          // vh fallback for older browsers
-          maxHeight: `min(85dvh, calc(85vh - ${keyboardHeight}px))`,
-          background: '#ffffff',
-          borderRadius: '20px 20px 0 0',
-          display: 'flex',
-          flexDirection: 'column',
-          paddingBottom: keyboardHeight > 0 ? '8px' : 'env(safe-area-inset-bottom)',
-        }}
-      >
-        {/* Drag handle */}
+      {/* Sheet — not position:fixed */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        background: '#ffffff',
+        borderRadius: '20px 20px 0 0',
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: '85%',
+        ...sheetStyle,
+        transition: 'height 0.2s ease-out, transform 0.2s ease-out',
+      }}>
+        {/* Handle */}
         <div style={{
-          width: 36,
-          height: 4,
-          background: '#E5E7EB',
-          borderRadius: 2,
-          margin: '12px auto 0',
-          flexShrink: 0,
+          width: 36, height: 4, background: '#E5E7EB',
+          borderRadius: 2, margin: '12px auto 0', flexShrink: 0,
         }} />
 
         {/* Header */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
+          display: 'flex', alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 20px',
           borderBottom: '1px solid #F3F4F6',
@@ -136,14 +119,10 @@ export function BottomSheet({ open, onClose, title, children, footer }: BottomSh
             onClick={onClose}
             aria-label="Fermer"
             style={{
-              background: 'none',
-              border: 'none',
-              padding: '4px',
-              cursor: 'pointer',
-              color: '#9CA3AF',
-              display: 'flex',
-              alignItems: 'center',
-              borderRadius: 8,
+              background: 'none', border: 'none',
+              padding: 4, cursor: 'pointer',
+              color: '#9CA3AF', display: 'flex',
+              alignItems: 'center', borderRadius: 8,
             }}
           >
             <X style={{ width: 18, height: 18 }} />
@@ -151,14 +130,20 @@ export function BottomSheet({ open, onClose, title, children, footer }: BottomSh
         </div>
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+        <div style={{
+          flex: 1,
+          overflowY: 'scroll',
+          WebkitOverflowScrolling: 'touch',
+          padding: '16px 20px',
+        }}>
           {children}
         </div>
 
-        {/* Optional footer — always visible above keyboard */}
+        {/* Optional footer */}
         {footer && (
           <div style={{
             padding: '12px 20px',
+            paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
             borderTop: '1px solid #F3F4F6',
             background: '#ffffff',
             flexShrink: 0,
@@ -167,6 +152,7 @@ export function BottomSheet({ open, onClose, title, children, footer }: BottomSh
           </div>
         )}
       </div>
-    </>
+    </div>,
+    document.body
   )
 }
