@@ -170,8 +170,18 @@ export function AuthModal({ open, onClose, defaultView = 'login' }: AuthModalPro
               <Input id="m-email" type="email" label="Email" placeholder="vous@exemple.com"
                 value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
                 onInvalid={(e) => e.preventDefault()} autoComplete="email" />
-              <Input id="m-pass" type="password" label="Mot de passe" placeholder="••••••••"
-                value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} autoComplete="current-password" />
+              <div>
+                <Input id="m-pass" type="password" label="Mot de passe" placeholder="••••••••"
+                  value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} autoComplete="current-password" />
+                <div className="flex justify-end mt-1">
+                  <a
+                    href="/forgot-password"
+                    className="text-sm text-[#2563EB] hover:underline"
+                  >
+                    Mot de passe oublié ?
+                  </a>
+                </div>
+              </div>
               {loginError && <FormMessage type="error" message={loginError} />}
               <Button type="submit" loading={loginLoading} className="w-full" size="lg">
                 Se connecter
