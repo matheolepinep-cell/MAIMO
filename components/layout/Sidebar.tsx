@@ -86,7 +86,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden md:flex flex-col w-[200px] fixed top-0 left-0 h-screen overflow-y-auto py-5 z-30"
+      className="hidden lg:flex flex-col w-[200px] fixed top-0 left-0 h-screen overflow-y-auto py-5 z-30"
       style={{ background: '#FFFFFF', borderRight: '1px solid #E5E7EB' }}
     >
       <Link href="/app/dashboard" className="flex items-center px-5 mb-4 group transition-opacity duration-200 group-hover:opacity-70">
