@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Users, Settings, X } from 'lucide-react'
 import {
   IconLayoutDashboard,
@@ -26,6 +26,7 @@ function getInitials(name: string) {
 
 export function MobileSidebar() {
   const { open, close } = useMobileSidebar()
+  const pathname = usePathname()
   const { profile } = useUser()
   const router = useRouter()
   const wsRole = useRole()
@@ -48,7 +49,7 @@ export function MobileSidebar() {
 
   const quickActions = [
     { label: 'Dashboard', icon: <IconLayoutDashboard size={16} />, href: '/app/dashboard?from=menu' },
-    { label: 'Recherche IA', icon: <IconSparkles size={16} />, href: '/app/search', highlight: true },
+    { label: 'Recherche IA', icon: <IconSparkles size={16} />, href: '/app/search' },
     { label: 'Nouvelle note', icon: <IconPencil size={16} />, href: '/app/notes/new' },
     { label: 'Importer', icon: <IconDownload size={16} />, href: '/app/import' },
     { label: 'Portefeuille', icon: <IconBriefcase size={16} />, href: '/app/accounts' },
@@ -111,7 +112,9 @@ export function MobileSidebar() {
 
         {/* Quick actions */}
         <div style={{ padding: '10px 8px 6px', flexShrink: 0 }}>
-          {quickActions.map(({ label, icon, href, highlight }) => (
+          {quickActions.map(({ label, icon, href }) => {
+            const isActive = pathname === href.split('?')[0]
+            return (
             <button
               key={href}
               onClick={() => navigate(href)}
@@ -120,18 +123,19 @@ export function MobileSidebar() {
                 width: '100%', padding: '10px 12px',
                 borderRadius: 10, cursor: 'pointer', textAlign: 'left',
                 fontSize: 14, transition: 'background 0.12s',
-                border: highlight ? '1px solid #DBEAFE' : '1px solid transparent',
-                background: highlight ? '#EFF6FF' : 'none',
-                color: highlight ? '#2563EB' : '#374151',
-                fontWeight: highlight ? 600 : 500,
+                border: '1px solid transparent',
+                background: isActive ? '#EFF6FF' : 'none',
+                color: isActive ? '#2563EB' : '#374151',
+                fontWeight: isActive ? 600 : 500,
               }}
-              onMouseEnter={(e) => { if (!highlight) e.currentTarget.style.background = '#F9FAFB' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = highlight ? '#EFF6FF' : 'none' }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#F9FAFB' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? '#EFF6FF' : 'none' }}
             >
-              <span style={{ color: highlight ? '#2563EB' : '#6B7280', flexShrink: 0, display: 'flex', alignItems: 'center' }}>{icon}</span>
+              <span style={{ color: isActive ? '#2563EB' : '#6B7280', flexShrink: 0, display: 'flex', alignItems: 'center' }}>{icon}</span>
               {label}
             </button>
-          ))}
+            )
+          })}
         </div>
 
         <div style={{ height: 1, background: '#F3F4F6', margin: '0 16px', flexShrink: 0 }} />

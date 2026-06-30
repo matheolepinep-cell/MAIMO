@@ -11,6 +11,7 @@ import { useAccentColor } from '@/contexts/AccentColorContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { getInitials } from '@/components/ui/CompanyCard'
 import { CompanyProfileBanner } from '@/components/ui/CompanyProfileBanner'
+import { MobileHeader } from '@/components/layout/MobileHeader'
 
 /* ─── types ─── */
 type MobileItem =
@@ -369,6 +370,7 @@ export default function DashboardPage() {
       <Suspense fallback={null}>
         <DashboardRedirectHandler />
       </Suspense>
+      <MobileHeader title="Dashboard" showNewNote />
       <div className="flex flex-col min-h-full">
 
         {/* Hero */}
