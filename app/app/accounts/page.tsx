@@ -208,7 +208,7 @@ export default function AccountsPage() {
     <div className="flex flex-col min-h-full overflow-x-hidden">
 
       {/* ── MOBILE ── */}
-      <div className="md:hidden flex flex-col flex-1">
+      <div className="lg:hidden flex flex-col flex-1">
         <div
           className="flex items-center justify-between px-4 pl-16 py-3 bg-white shrink-0"
           style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
@@ -306,7 +306,7 @@ export default function AccountsPage() {
       </div>
 
       {/* ── DESKTOP ── */}
-      <div className="hidden md:flex flex-col flex-1">
+      <div className="hidden lg:flex flex-col flex-1">
         <Header title="Portefeuille global" />
         <div className="flex-1 px-4 py-4 md:px-8 md:py-8 max-w-2xl mx-auto w-full">
 
@@ -318,7 +318,7 @@ export default function AccountsPage() {
           {/* Header row */}
           <div className="mb-5">
             <div className="flex items-center justify-between gap-2">
-              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight hidden md:block">Portefeuille global</h1>
+              <h1 className="text-xl font-semibold text-[#0F172A] tracking-tight hidden lg:block">Portefeuille global</h1>
               <div className="flex items-center gap-2 md:ml-4">
                 <select
                   value={sort}
@@ -335,8 +335,8 @@ export default function AccountsPage() {
                   Importer
                 </Button>
                 <Button onClick={() => setCreateOpen(true)} size="sm">
-                  <span className="md:hidden">+ Nouveau</span>
-                  <span className="hidden md:inline">+ Nouvelle entreprise</span>
+                  <span className="lg:hidden">+ Nouveau</span>
+                  <span className="hidden lg:inline">+ Nouvelle entreprise</span>
                 </Button>
               </div>
             </div>

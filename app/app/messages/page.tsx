@@ -340,10 +340,10 @@ export default function MessagesPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Conversation list */}
         <div
-          className={`${mobileView === 'conv' ? 'hidden md:flex' : 'flex'} flex-col bg-white border-r border-gray-100`}
+          className={`${mobileView === 'conv' ? 'hidden lg:flex' : 'flex'} flex-col bg-white border-r border-gray-100`}
           style={{ width: '100%', maxWidth: 'min(100%, 320px)' }}
         >
-          <div className="px-4 py-4 border-b border-gray-100 hidden md:block">
+          <div className="px-4 py-4 border-b border-gray-100 hidden lg:block">
             <p className="font-semibold text-[#0F172A] text-sm">Messages</p>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -393,7 +393,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Conversation view */}
-        <div className={`${mobileView === 'list' ? 'hidden md:flex' : 'flex'} flex-1 flex-col bg-[#F8FAFC]`}>
+        <div className={`${mobileView === 'list' ? 'hidden lg:flex' : 'flex'} flex-1 flex-col bg-[#F8FAFC]`}>
           {!activeConv ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <MessageCircle className="w-12 h-12 text-gray-200" />
@@ -402,7 +402,7 @@ export default function MessagesPage() {
           ) : (
             <>
               <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shrink-0">
-                <button onClick={() => setMobileView('list')} className="md:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
+                <button onClick={() => setMobileView('list')} className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
                 <div

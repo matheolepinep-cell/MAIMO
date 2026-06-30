@@ -757,7 +757,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   return (
     <div className="flex flex-col min-h-full">
       {/* Breadcrumb — desktop only */}
-      <div className="hidden md:block px-6 pt-4 pb-0">
+      <div className="hidden lg:block px-6 pt-4 pb-0">
         <Breadcrumb items={[
           { label: 'MAIMOO', href: '/app/dashboard' },
           { label: 'Mon portefeuille', href: '/app/portfolio' },
@@ -766,7 +766,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* ─── Mobile header ─── */}
-      <div className="md:hidden bg-white sticky top-0 z-30" style={{ borderBottom: '1px solid #F3F4F6' }}>
+      <div className="lg:hidden bg-white sticky top-0 z-30" style={{ borderBottom: '1px solid #F3F4F6' }}>
         {/* Row 1 — right actions (back button is fixed below, overlaying the burger slot) */}
         <div className="flex items-center justify-end px-3 pt-2 pb-1 gap-0.5 min-h-[52px]">
           <button
@@ -832,14 +832,14 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       {/* Back button — fixed, overlays the mobile burger button slot */}
       <button
         onClick={() => router.back()}
-        className="md:hidden fixed top-3 left-3 z-[51] w-10 h-10 flex items-center justify-center rounded-xl"
+        className="lg:hidden fixed top-3 left-3 z-[51] w-10 h-10 flex items-center justify-center rounded-xl"
         style={{ background: 'rgba(255,255,255,0.95)', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}
       >
         <ArrowLeft className="w-5 h-5 text-[#0A0A0A]" />
       </button>
 
       {/* ─── Desktop header ─── */}
-      <div className="hidden md:flex bg-white sticky top-0 z-30 items-center gap-3"
+      <div className="hidden lg:flex bg-white sticky top-0 z-30 items-center gap-3"
         style={{ borderBottom: '1px solid #F3F4F6', padding: '0 24px', height: 60 }}>
         <button onClick={() => router.back()}
           className="p-2 rounded-xl text-slate-400 hover:bg-[#F5F5F5] transition-all shrink-0">
@@ -919,7 +919,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Mobile tabs */}
-      <div className="md:hidden flex gap-2 px-3 py-3 bg-white" style={{ borderBottom: '1px solid #F3F4F6' }}>
+      <div className="lg:hidden flex gap-2 px-3 py-3 bg-white" style={{ borderBottom: '1px solid #F3F4F6' }}>
         {([
           { value: 'info', label: 'Info' },
           { value: 'notes', label: 'Notes' },
@@ -940,10 +940,10 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Two-column layout */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
 
         {/* ── LEFT COLUMN ── */}
-        <div className={`border-b md:border-b-0 md:border-r border-slate-100 overflow-auto px-4 pt-5 pb-24 md:p-6 md:pb-6 space-y-6 ${mobileTab !== 'info' ? 'hidden md:block' : ''}`}>
+        <div className={`border-b lg:border-b-0 lg:border-r border-slate-100 overflow-auto px-4 pt-5 pb-24 lg:p-6 lg:pb-6 space-y-6 ${mobileTab !== 'info' ? 'hidden lg:block' : ''}`}>
 
           {/* Account Info */}
           <SectionCard
@@ -1018,7 +1018,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             title="Interlocuteurs"
             actions={
               <div className="flex items-center gap-2">
-                <select value={contactSort} onChange={(e) => setContactSort(e.target.value as 'az' | 'za' | 'recent')} className="hidden md:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
+                <select value={contactSort} onChange={(e) => setContactSort(e.target.value as 'az' | 'za' | 'recent')} className="hidden lg:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                   <option value="az">A → Z</option>
                   <option value="za">Z → A</option>
                   <option value="recent">Date d&apos;ajout</option>
@@ -1080,7 +1080,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             title={`Documents (${documents.length})`}
             actions={
               <div className="flex items-center gap-2">
-                <select value={docSort} onChange={(e) => setDocSort(e.target.value as 'recent' | 'oldest' | 'az' | 'type')} className="hidden md:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
+                <select value={docSort} onChange={(e) => setDocSort(e.target.value as 'recent' | 'oldest' | 'az' | 'type')} className="hidden lg:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
                   <option value="recent">Date (récent)</option>
                   <option value="oldest">Date (ancien)</option>
                   <option value="az">A → Z</option>
@@ -1275,9 +1275,9 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* ── RIGHT COLUMN ── */}
-        <div className={`flex flex-col min-h-0 ${mobileTab === 'info' ? 'hidden md:flex' : ''}`}>
+        <div className={`flex flex-col min-h-0 ${mobileTab === 'info' ? 'hidden lg:flex' : ''}`}>
           {/* Desktop tabs */}
-          <div className="hidden md:flex gap-1.5 px-4 py-2.5 border-b border-slate-100 bg-white">
+          <div className="hidden lg:flex gap-1.5 px-4 py-2.5 border-b border-slate-100 bg-white">
             {([
               { value: 'notes' as Tab, label: 'Notes', icon: FileText },
               { value: 'search' as Tab, label: 'IA', icon: Search },
@@ -1292,7 +1292,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
             ))}
           </div>
 
-          <div className="flex-1 overflow-auto p-4 pb-24 md:p-6 md:pb-6 space-y-4">
+          <div className="flex-1 overflow-auto p-4 pb-24 lg:p-6 lg:pb-6 space-y-4">
 
             {/* ── NOTES TAB ── */}
             {tab === 'notes' && (
