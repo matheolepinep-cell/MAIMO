@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, CalendarDays } from 'lucide-react'
 const CalendarWidget = dynamic(() => import('@/components/calendar/CalendarWidget').then(m => m.CalendarWidget), { ssr: false })
 import { createClient } from '@/lib/supabase/client'
@@ -56,13 +56,14 @@ function Skeleton({ className }: { className?: string }) {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { profile, loading: profileLoading } = useUser()
   const { accentColor } = useAccentColor()
   const { wsId } = useWorkspace()
 
-  /* redirect mobile to search */
+  /* redirect mobile to search, unless navigated explicitly from menu */
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024 && searchParams.get('from') !== 'menu') {
       router.replace('/app/search')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

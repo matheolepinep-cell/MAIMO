@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { Users, Settings, X } from 'lucide-react'
 import {
   IconLayoutDashboard,
+  IconSparkles,
   IconPencil,
   IconDownload,
   IconBriefcase,
@@ -46,7 +47,8 @@ export function MobileSidebar() {
   }, [open, profile])
 
   const quickActions = [
-    { label: 'Dashboard', icon: <IconLayoutDashboard size={16} />, href: '/app/dashboard' },
+    { label: 'Dashboard', icon: <IconLayoutDashboard size={16} />, href: '/app/dashboard?from=menu' },
+    { label: 'Recherche IA', icon: <IconSparkles size={16} />, href: '/app/search', highlight: true },
     { label: 'Nouvelle note', icon: <IconPencil size={16} />, href: '/app/notes/new' },
     { label: 'Importer', icon: <IconDownload size={16} />, href: '/app/import' },
     { label: 'Portefeuille', icon: <IconBriefcase size={16} />, href: '/app/accounts' },
@@ -109,22 +111,24 @@ export function MobileSidebar() {
 
         {/* Quick actions */}
         <div style={{ padding: '10px 8px 6px', flexShrink: 0 }}>
-          {quickActions.map(({ label, icon, href }) => (
+          {quickActions.map(({ label, icon, href, highlight }) => (
             <button
               key={href}
               onClick={() => navigate(href)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 width: '100%', padding: '10px 12px',
-                borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: 'none', textAlign: 'left',
-                fontSize: 14, fontWeight: 500, color: '#374151',
-                transition: 'background 0.12s',
+                borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                fontSize: 14, transition: 'background 0.12s',
+                border: highlight ? '1px solid #DBEAFE' : '1px solid transparent',
+                background: highlight ? '#EFF6FF' : 'none',
+                color: highlight ? '#2563EB' : '#374151',
+                fontWeight: highlight ? 600 : 500,
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#F9FAFB' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+              onMouseEnter={(e) => { if (!highlight) e.currentTarget.style.background = '#F9FAFB' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = highlight ? '#EFF6FF' : 'none' }}
             >
-              <span style={{ color: '#6B7280', flexShrink: 0, display: 'flex', alignItems: 'center' }}>{icon}</span>
+              <span style={{ color: highlight ? '#2563EB' : '#6B7280', flexShrink: 0, display: 'flex', alignItems: 'center' }}>{icon}</span>
               {label}
             </button>
           ))}
