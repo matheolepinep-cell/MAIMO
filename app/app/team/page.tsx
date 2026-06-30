@@ -592,109 +592,120 @@ export default function TeamPage() {
                   return (
                     <Card
                       key={member.user.id}
-                      className={`flex items-center gap-4 ${inactive ? 'opacity-60' : ''}`}
+                      className={inactive ? 'opacity-60' : ''}
                       onClick={() => !inactive && handleViewPortfolio(member.user)}
                     >
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: inactive ? '#F1F5F9' : '#EFF6FF' }}
-                      >
-                        <span className="text-sm font-bold" style={{ color: inactive ? '#94A3B8' : '#2563EB' }}>
-                          {member.user.full_name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-[#1E293B] truncate">{member.user.full_name}</p>
-                          {isMe && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Moi</span>
-                          )}
-                          {isPending && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-400" style={{ border: '1px solid #E5E7EB' }}>En attente</span>
-                          )}
-                          {inactive && !isPending && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactif</span>
-                          )}
+                      <div className="flex items-start gap-3">
+                        {/* Avatar */}
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                          style={{ background: inactive ? '#F1F5F9' : '#EFF6FF' }}
+                        >
+                          <span className="text-sm font-bold" style={{ color: inactive ? '#94A3B8' : '#2563EB' }}>
+                            {member.user.full_name.charAt(0).toUpperCase()}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          {isAdmin && (
-                            <a
-                              href={`mailto:${member.user.email}`}
-                              className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Mail className="w-3 h-3" />{member.user.email}
-                            </a>
-                          )}
-                          {pubCount > 0 && (
-                            <span className="flex items-center gap-1 text-xs text-[#64748B]">
-                              <Briefcase className="w-3 h-3" />{pubCount} client{pubCount !== 1 ? 's' : ''}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <RoleBadge
-                          role={member.wsRole}
-                          editable={isAdmin && !isMe}
-                          onSelect={(r) => handleRoleChange(member, r)}
-                        />
-                        {isAdmin && !isMe ? (
-                          <>
-                            {isPending ? (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleResendInvite(member) }}
-                                className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-blue-50"
-                                style={{ color: '#2563EB', border: '1px solid #BFDBFE' }}
-                              >
-                                Renvoyer
-                              </button>
-                            ) : inactive ? (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleToggleActive(member, true) }}
-                                className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-green-50"
-                                style={{ color: '#16A34A', border: '1px solid #BBF7D0' }}
-                              >
-                                Réactiver
-                              </button>
-                            ) : (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setDisableTarget(member) }}
-                                className="w-10 h-10 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
-                                title="Désactiver"
-                              >
-                                <X className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                              </button>
+
+                        {/* Content column */}
+                        <div className="flex-1 min-w-0">
+                          {/* Row 1: Name + role badge + status tags */}
+                          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                            <p className="font-semibold text-[#1E293B]">{member.user.full_name}</p>
+                            {isMe && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Moi</span>
                             )}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setDeleteTarget(member); setDeleteConfirmText('') }}
-                              className="w-10 h-10 md:w-auto md:h-auto md:p-1.5 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                              title="Supprimer définitivement"
-                            >
-                              <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                            </button>
-                          </>
-                        ) : !isMe && (
-                          /* Simplified action buttons for members / contributors */
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleViewPortfolio(member.user) }}
-                              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors hover:bg-blue-50"
-                              style={{ color: '#2563EB', border: '1px solid #BFDBFE' }}
-                            >
-                              <Briefcase className="w-3 h-3" />
-                              <span className="hidden sm:inline">Portfolio</span>
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); router.push(`/app/messages?userId=${member.user.id}`) }}
-                              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors hover:bg-gray-50"
-                              style={{ color: '#374151', border: '1px solid #E5E7EB' }}
-                            >
-                              <MessageCircle className="w-3 h-3" />
-                              <span className="hidden sm:inline">Message</span>
-                            </button>
+                            {isPending && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-400" style={{ border: '1px solid #E5E7EB' }}>En attente</span>
+                            )}
+                            {inactive && !isPending && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactif</span>
+                            )}
+                            <span onClick={(e) => e.stopPropagation()}>
+                              <RoleBadge
+                                role={member.wsRole}
+                                editable={isAdmin && !isMe}
+                                onSelect={(r) => handleRoleChange(member, r)}
+                              />
+                            </span>
                           </div>
-                        )}
+
+                          {/* Row 2: Email + portfolio count */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isAdmin && (
+                              <a
+                                href={`mailto:${member.user.email}`}
+                                className="flex items-center gap-1 text-xs text-[#64748B] hover:text-[#0A0A0A] transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Mail className="w-3 h-3" />{member.user.email}
+                              </a>
+                            )}
+                            {pubCount > 0 && (
+                              <span className="flex items-center gap-1 text-xs text-[#64748B]">
+                                <Briefcase className="w-3 h-3" />{pubCount} client{pubCount !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Row 3: Action buttons */}
+                          {!isMe && (
+                            <div className="flex items-center gap-1.5 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                              {isAdmin ? (
+                                <>
+                                  {isPending ? (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleResendInvite(member) }}
+                                      className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-blue-50"
+                                      style={{ color: '#2563EB', border: '1px solid #BFDBFE' }}
+                                    >
+                                      Renvoyer
+                                    </button>
+                                  ) : inactive ? (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleToggleActive(member, true) }}
+                                      className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-green-50"
+                                      style={{ color: '#16A34A', border: '1px solid #BBF7D0' }}
+                                    >
+                                      Réactiver
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setDisableTarget(member) }}
+                                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-orange-50"
+                                      style={{ color: '#F97316', border: '1px solid #FED7AA' }}
+                                    >
+                                      <X className="w-3 h-3" />Désactiver
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(member); setDeleteConfirmText('') }}
+                                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors hover:bg-red-50"
+                                    style={{ color: '#EF4444', border: '1px solid #FECACA' }}
+                                  >
+                                    <Trash2 className="w-3 h-3" />Supprimer
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleViewPortfolio(member.user) }}
+                                    className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors hover:bg-blue-50"
+                                    style={{ color: '#2563EB', border: '1px solid #BFDBFE' }}
+                                  >
+                                    <Briefcase className="w-3 h-3" />Portfolio
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); router.push(`/app/messages?userId=${member.user.id}`) }}
+                                    className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors hover:bg-gray-50"
+                                    style={{ color: '#374151', border: '1px solid #E5E7EB' }}
+                                  >
+                                    <MessageCircle className="w-3 h-3" />Message
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </Card>
                   )
