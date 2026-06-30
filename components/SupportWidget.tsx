@@ -14,6 +14,18 @@ const CATEGORIES = [
   { id: 'question', label: "J'ai une question" },
 ]
 
+const STORAGE_KEY = 'support-widget-pos'
+const DEFAULT_POS = { bottom: 76, right: 16 }
+const BTN_SIZE = 52
+
+function loadPos(): { bottom: number; right: number } {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) return JSON.parse(saved)
+  } catch {}
+  return DEFAULT_POS
+}
+
 export default function SupportWidget({ userName, userEmail, role }: SupportWidgetProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [message, setMessage] = useState('')
@@ -21,7 +33,19 @@ export default function SupportWidget({ userName, userEmail, role }: SupportWidg
   const [isSending, setIsSending] = useState(false)
   const [category, setCategory] = useState('')
   const [isHidden, setIsHidden] = useState(false)
+  const [pos, setPos] = useState(DEFAULT_POS)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const dragRef = useRef<{
+    startX: number; startY: number
+    startBottom: number; startRight: number
+  } | null>(null)
+  const didDragRef = useRef(false)
+
+  // Load persisted position after mount
+  useEffect(() => {
+    setPos(loadPos())
+  }, [])
 
   // Hide widget when a note modal is open (avoids overlap on mobile)
   useEffect(() => {
@@ -37,7 +61,43 @@ export default function SupportWidget({ userName, userEmail, role }: SupportWidg
 
   if (isHidden || role === 'contributeur') return null
 
-  const handleOpen = () => {
+  const clampPos = (bottom: number, right: number) => ({
+    bottom: Math.max(8, Math.min(window.innerHeight - BTN_SIZE - 8, bottom)),
+    right: Math.max(8, Math.min(window.innerWidth - BTN_SIZE - 8, right)),
+  })
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragRef.current = {
+      startX: e.clientX, startY: e.clientY,
+      startBottom: pos.bottom, startRight: pos.right,
+    }
+    didDragRef.current = false
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragRef.current) return
+    const dx = e.clientX - dragRef.current.startX
+    const dy = e.clientY - dragRef.current.startY
+    if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return
+    didDragRef.current = true
+    setPos(clampPos(dragRef.current.startBottom - dy, dragRef.current.startRight - dx))
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragRef.current) return
+    if (didDragRef.current) {
+      const newPos = clampPos(
+        dragRef.current.startBottom - (e.clientY - dragRef.current.startY),
+        dragRef.current.startRight - (e.clientX - dragRef.current.startX),
+      )
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newPos)) } catch {}
+    }
+    dragRef.current = null
+  }
+
+  const handleClick = () => {
+    if (didDragRef.current) { didDragRef.current = false; return }
     setIsOpen(v => !v)
     setIsSent(false)
     setMessage('')
@@ -63,31 +123,40 @@ export default function SupportWidget({ userName, userEmail, role }: SupportWidg
 
   const canSend = message.trim().length > 0 && category.length > 0
 
+  // Chat window: positioned above and aligned to right edge of button
+  const chatBottom = pos.bottom + BTN_SIZE + 12
+  const chatRight = pos.right
+
   return (
     <>
-      {/* Floating button */}
+      {/* Floating draggable button */}
       <button
-        onClick={handleOpen}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onClick={handleClick}
         aria-label="Support"
         style={{
           position: 'fixed',
-          bottom: '76px',
-          right: '16px',
-          width: '52px',
-          height: '52px',
+          bottom: pos.bottom,
+          right: pos.right,
+          width: BTN_SIZE,
+          height: BTN_SIZE,
           borderRadius: '50%',
           background: '#2563EB',
           border: 'none',
-          cursor: 'pointer',
+          cursor: didDragRef.current ? 'grabbing' : 'pointer',
           boxShadow: '0 4px 20px rgba(37,99,235,0.4)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 9999,
-          transition: 'transform 0.2s',
+          transition: didDragRef.current ? 'none' : 'transform 0.2s',
+          touchAction: 'none',
+          userSelect: 'none',
         }}
-        onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.1)')}
-        onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)')}
+        onMouseEnter={e => { if (!didDragRef.current) e.currentTarget.style.transform = 'scale(1.1)' }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
       >
         {isOpen ? (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -105,8 +174,8 @@ export default function SupportWidget({ userName, userEmail, role }: SupportWidg
         <div
           style={{
             position: 'fixed',
-            bottom: '140px',
-            right: '16px',
+            bottom: chatBottom,
+            right: chatRight,
             width: '320px',
             background: '#ffffff',
             borderRadius: '16px',
