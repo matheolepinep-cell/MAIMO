@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, FileText, Mic, Type, ChevronRight, Upload, Users, Plus, Search, X, Sparkles, CloudUpload, Pencil, CalendarDays } from 'lucide-react'
@@ -54,20 +54,23 @@ function Skeleton({ className }: { className?: string }) {
 }
 
 
-export default function DashboardPage() {
-  const router = useRouter()
+function DashboardRedirectHandler() {
   const searchParams = useSearchParams()
-  const { profile, loading: profileLoading } = useUser()
-  const { accentColor } = useAccentColor()
-  const { wsId } = useWorkspace()
-
-  /* redirect mobile to search, unless navigated explicitly from menu */
+  const router = useRouter()
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024 && searchParams.get('from') !== 'menu') {
       router.replace('/app/search')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  return null
+}
+
+export default function DashboardPage() {
+  const router = useRouter()
+  const { profile, loading: profileLoading } = useUser()
+  const { accentColor } = useAccentColor()
+  const { wsId } = useWorkspace()
 
   /* mobile state */
   const [recentAccounts, setRecentAccounts] = useState<{ id: string; name: string }[]>([])
@@ -363,6 +366,9 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full overflow-x-hidden">
+      <Suspense fallback={null}>
+        <DashboardRedirectHandler />
+      </Suspense>
       <div className="flex flex-col min-h-full">
 
         {/* Hero */}
