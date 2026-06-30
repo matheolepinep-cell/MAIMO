@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Paperclip, Camera, MicOff, Pencil, Mic } from 'lucide-react'
+import { Paperclip, Camera, MicOff, Mic } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -29,7 +29,6 @@ export default function NewNotePage() {
   const { profile } = useUser()
   const { wsId } = useWorkspace()
 
-  const [activeTab, setActiveTab] = useState<'Texte' | 'Vocal'>('Texte')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [recording, setRecording] = useState(false)
@@ -39,6 +38,8 @@ export default function NewNotePage() {
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [sourceMode, setSourceMode] = useState<'text' | 'vocal'>('text')
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const usedMicRef = useRef(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const isSubmitting = phase === 'analyzing' || phase === 'executing'
 
@@ -78,11 +79,15 @@ export default function NewNotePage() {
     r.onresult = (e: SpeechRecognitionEvent) => {
       let t = ''; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript
       setContent(t)
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'
+        textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+      }
     }
     r.onerror = () => setRecording(false)
     r.onend = () => setRecording(false)
     recognitionRef.current = r; r.start(); setRecording(true)
-    setSourceMode('vocal')
+    usedMicRef.current = true
   }, [])
 
   const stopRecording = useCallback(() => {
@@ -92,7 +97,7 @@ export default function NewNotePage() {
 
   const handleSubmit = async () => {
     if (!content.trim() || isSubmitting || !profile) return
-    setSourceMode(activeTab === 'Vocal' ? 'vocal' : 'text')
+    setSourceMode(usedMicRef.current ? 'vocal' : 'text')
     setPhase('analyzing')
 
     try {
@@ -281,58 +286,33 @@ export default function NewNotePage() {
         </div>
       )}
 
-      {/* Input phase */}
+      {/* Input phase — unified text + voice */}
       {phase === 'input' && (
         <>
-          {/* Tab switcher */}
           <div style={{
-            display: 'flex', background: '#F3F4F6', borderRadius: 12,
-            padding: 4, margin: '16px 16px 0',
+            padding: '16px 16px 0',
+            maxWidth: 600, margin: '0 auto', width: '100%',
+            boxSizing: 'border-box',
           }}>
-            {(['Texte', 'Vocal'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: 9, border: 'none',
-                  background: activeTab === tab ? '#ffffff' : 'transparent',
-                  color: activeTab === tab ? '#0A0A0A' : '#9CA3AF',
-                  fontSize: 14, fontWeight: activeTab === tab ? 600 : 400,
-                  cursor: 'pointer',
-                  boxShadow: activeTab === tab ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {tab === 'Texte'
-                  ? <><Pencil style={{ width: 14, height: 14, display: 'inline', marginRight: 6 }} />Texte</>
-                  : <><Mic style={{ width: 14, height: 14, display: 'inline', marginRight: 6 }} />Vocal</>
-                }
-              </button>
-            ))}
-          </div>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Titre (optionnel — généré automatiquement si vide)"
+              style={{
+                width: '100%', padding: '14px 16px',
+                background: '#ffffff', border: '1.5px solid #F3F4F6',
+                borderRadius: 12, fontSize: 15, color: '#0A0A0A',
+                outline: 'none', boxSizing: 'border-box', marginBottom: 12,
+                fontFamily: 'inherit',
+              }}
+              onFocus={(e) => { e.target.style.borderColor = '#2563EB' }}
+              onBlur={(e) => { e.target.style.borderColor = '#F3F4F6' }}
+            />
 
-          {/* Text tab */}
-          {activeTab === 'Texte' && (
-            <div style={{
-              padding: '16px 16px 0',
-              maxWidth: 600, margin: '0 auto', width: '100%',
-              boxSizing: 'border-box',
-            }}>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Titre (optionnel — généré automatiquement si vide)"
-                style={{
-                  width: '100%', padding: '14px 16px',
-                  background: '#ffffff', border: '1.5px solid #F3F4F6',
-                  borderRadius: 12, fontSize: 15, color: '#0A0A0A',
-                  outline: 'none', boxSizing: 'border-box', marginBottom: 12,
-                  fontFamily: 'inherit',
-                }}
-                onFocus={(e) => { e.target.style.borderColor = '#2563EB' }}
-                onBlur={(e) => { e.target.style.borderColor = '#F3F4F6' }}
-              />
+            {/* Textarea + mic button overlay */}
+            <div style={{ position: 'relative' }}>
               <textarea
+                ref={textareaRef}
                 value={content}
                 onChange={(e) => {
                   setContent(e.target.value)
@@ -344,88 +324,68 @@ export default function NewNotePage() {
                 autoFocus
                 style={{
                   width: '100%', padding: '14px 16px',
-                  paddingBottom: 80,
-                  background: '#ffffff', border: '1.5px solid #F3F4F6',
+                  paddingBottom: 56,
+                  paddingRight: 52,
+                  background: '#ffffff',
+                  border: recording ? '1.5px solid #DC2626' : '1.5px solid #F3F4F6',
                   borderRadius: 12, fontSize: 15, color: '#374151',
                   outline: 'none', resize: 'none', boxSizing: 'border-box',
                   lineHeight: 1.7, fontFamily: 'inherit', minHeight: 200,
+                  transition: 'border-color 0.2s',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = '#2563EB' }}
-                onBlur={(e) => { e.target.style.borderColor = '#F3F4F6' }}
+                onFocus={(e) => { if (!recording) e.target.style.borderColor = '#2563EB' }}
+                onBlur={(e) => { if (!recording) e.target.style.borderColor = '#F3F4F6' }}
               />
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                marginTop: 8, padding: '8px 12px',
-                background: '#EFF6FF', borderRadius: 8,
-              }}>
-                <span style={{ fontSize: 12, color: '#2563EB' }}>
-                  ✦ L&apos;IA détecte automatiquement le client et indexe la note
-                </span>
-              </div>
-            </div>
-          )}
 
-          {/* Vocal tab */}
-          {activeTab === 'Vocal' && (
-            <div style={{
-              padding: '40px 16px', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', gap: 24,
-              maxWidth: 600, margin: '0 auto', width: '100%', boxSizing: 'border-box',
-            }}>
-              {content && (
+              {/* Recording pill indicator */}
+              {recording && (
                 <div style={{
-                  width: '100%', background: '#ffffff', borderRadius: 12,
-                  border: '1px solid #F3F4F6', padding: '14px 16px',
-                  fontSize: 15, color: '#374151', lineHeight: 1.7, minHeight: 80,
+                  position: 'absolute', bottom: 52, right: 12,
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'rgba(220,38,38,0.1)', borderRadius: 20,
+                  padding: '4px 10px', pointerEvents: 'none',
                 }}>
-                  {content}
-                  {recording && (
-                    <span className="inline-block w-2 h-4 bg-red-500 ml-1 animate-pulse rounded-sm" />
-                  )}
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse inline-block" />
+                  <span style={{ fontSize: 11, color: '#DC2626', fontWeight: 500 }}>Écoute...</span>
                 </div>
               )}
 
-              {!recording ? (
-                <button
-                  onClick={startRecording}
-                  className="hover:scale-105 transition-transform"
-                  style={{
-                    width: 80, height: 80, borderRadius: '50%',
-                    background: '#FEF2F2', border: '2px solid #FCA5A5',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Mic style={{ width: 32, height: 32, color: '#DC2626' }} />
-                </button>
-              ) : (
-                <button
-                  onClick={stopRecording}
-                  className="animate-pulse"
-                  style={{
-                    width: 80, height: 80, borderRadius: '50%',
-                    background: '#DC2626', border: 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <MicOff style={{ width: 32, height: 32, color: 'white' }} />
-                </button>
-              )}
-
-              <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
+              {/* Mic button — bottom-right inside textarea */}
+              <button
+                onClick={recording ? stopRecording : startRecording}
+                title={recording ? 'Arrêter' : 'Dicter'}
+                style={{
+                  position: 'absolute', bottom: 12, right: 12,
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: recording ? '#DC2626' : '#F3F4F6',
+                  border: recording ? 'none' : '1px solid #E5E7EB',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                  transition: 'all 0.2s',
+                  boxShadow: recording ? '0 0 0 4px rgba(220,38,38,0.15)' : 'none',
+                }}
+              >
                 {recording
-                  ? 'Enregistrement en cours… appuyez pour arrêter'
-                  : content
-                  ? 'Appuyez sur Enregistrer pour analyser'
-                  : 'Appuyez sur le micro pour commencer'}
-              </p>
+                  ? <MicOff style={{ width: 16, height: 16, color: '#ffffff' }} />
+                  : <Mic style={{ width: 16, height: 16, color: '#6B7280' }} />
+                }
+              </button>
             </div>
-          )}
+
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              marginTop: 8, padding: '8px 12px',
+              background: '#EFF6FF', borderRadius: 8,
+            }}>
+              <span style={{ fontSize: 12, color: '#2563EB' }}>
+                ✦ L&apos;IA détecte automatiquement le client et indexe la note
+              </span>
+            </div>
+          </div>
 
           {/* Fixed bottom action bar */}
           <div
-            className="fixed bottom-16 md:bottom-0 left-0 md:left-[200px] right-0"
+            className="fixed bottom-0 left-0 lg:left-[200px] right-0"
             style={{
               background: '#ffffff', borderTop: '1px solid #F3F4F6',
               padding: '12px 16px',
