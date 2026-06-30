@@ -7,6 +7,7 @@ import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Header } from '@/components/layout/Header'
+import { MobileHeader } from '@/components/layout/MobileHeader'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -209,19 +210,23 @@ export default function AccountsPage() {
 
       {/* ── MOBILE ── */}
       <div className="lg:hidden flex flex-col flex-1">
-        <div
-          className="flex items-center justify-between px-4 pl-16 py-3 bg-white shrink-0"
-          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
-        >
-          <span className="text-[16px] font-bold text-[#0A0A0A]">Portefeuille global</span>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex items-center justify-center"
-            style={{ background: '#F5F5F5', borderRadius: 8, width: 34, height: 34 }}
-          >
-            <Plus className="text-[#0A0A0A]" style={{ width: 18, height: 18 }} />
-          </button>
-        </div>
+        <MobileHeader
+          title="Portefeuille global"
+          rightContent={
+            <button
+              onClick={() => setCreateOpen(true)}
+              style={{
+                width: 36, height: 36, borderRadius: 9,
+                border: 'none', background: '#F5F5F5',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Plus style={{ width: 18, height: 18, color: '#0A0A0A' }} />
+            </button>
+          }
+        />
 
         <div
           className="flex shrink-0 items-center px-4 py-3 bg-white gap-2"
