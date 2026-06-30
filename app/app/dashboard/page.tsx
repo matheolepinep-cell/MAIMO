@@ -60,6 +60,14 @@ export default function DashboardPage() {
   const { accentColor } = useAccentColor()
   const { wsId } = useWorkspace()
 
+  /* redirect mobile to search */
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      router.replace('/app/search')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   /* mobile state */
   const [recentAccounts, setRecentAccounts] = useState<{ id: string; name: string }[]>([])
   const [mobileItems, setMobileItems] = useState<MobileItem[]>([])
