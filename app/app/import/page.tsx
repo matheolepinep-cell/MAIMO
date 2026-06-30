@@ -25,10 +25,6 @@ const ACCEPTED_MIME = [
 const ACCEPTED_EXT = /\.(xlsx|xls|csv|pdf|docx|png|jpe?g)$/i
 const MAX_SIZE_MB = 20
 
-const DETECTABLE_COLUMNS = [
-  'Nom entreprise', 'Ville', 'Secteur d\'activité', 'Contact', 'Téléphone',
-  'Email', 'Statut (client/prospect)', 'Notes', 'Remise', 'CA estimé',
-]
 
 function fileIcon(name: string) {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
@@ -491,26 +487,6 @@ export default function ImportPage() {
           Importer le fichier
         </Button>
 
-        {/* Columns hint (spreadsheet only) */}
-        {(!file || fileCategory(file.name) === 'spreadsheet') && (
-          <div className="mt-8 rounded-2xl p-5"
-            style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(0,0,0,0.08)' }}>
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">
-              Colonnes reconnues automatiquement (Excel/CSV)
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {DETECTABLE_COLUMNS.map((col) => (
-                <span key={col} className="px-2.5 py-1 rounded-xl text-xs font-medium text-[#0A0A0A]"
-                  style={{ background: 'rgba(76,110,245,0.08)' }}>
-                  {col}
-                </span>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mt-3">
-              L&apos;IA s&apos;adapte à votre format — pas besoin de modèle spécifique
-            </p>
-          </div>
-        )}
       </div>
 
       {/* ── Confirmation modal ─────────────────────────────────────────────────── */}

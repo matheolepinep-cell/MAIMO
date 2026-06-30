@@ -4,7 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Pencil, Upload, Briefcase, Users, Settings, X } from 'lucide-react'
+import { Users, Settings, X } from 'lucide-react'
+import {
+  IconLayoutDashboard,
+  IconPencil,
+  IconDownload,
+  IconBriefcase,
+  IconMessage,
+} from '@tabler/icons-react'
 import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
 import { useUser } from '@/contexts/UserContext'
 import { useRole } from '@/hooks/useRole'
@@ -39,9 +46,11 @@ export function MobileSidebar() {
   }, [open, profile])
 
   const quickActions = [
-    { label: 'Nouvelle note', icon: Pencil, href: '/app/notes/new' },
-    { label: 'Importer', icon: Upload, href: '/app/import' },
-    { label: 'Portefeuille', icon: Briefcase, href: '/app/accounts' },
+    { label: 'Dashboard', icon: <IconLayoutDashboard size={16} />, href: '/app/dashboard' },
+    { label: 'Nouvelle note', icon: <IconPencil size={16} />, href: '/app/notes/new' },
+    { label: 'Importer', icon: <IconDownload size={16} />, href: '/app/import' },
+    { label: 'Portefeuille', icon: <IconBriefcase size={16} />, href: '/app/accounts' },
+    { label: 'Messagerie', icon: <IconMessage size={16} />, href: '/app/messages' },
   ]
 
   const footerLinks = [
@@ -100,7 +109,7 @@ export function MobileSidebar() {
 
         {/* Quick actions */}
         <div style={{ padding: '10px 8px 6px', flexShrink: 0 }}>
-          {quickActions.map(({ label, icon: Icon, href }) => (
+          {quickActions.map(({ label, icon, href }) => (
             <button
               key={href}
               onClick={() => navigate(href)}
@@ -115,7 +124,7 @@ export function MobileSidebar() {
               onMouseEnter={(e) => { e.currentTarget.style.background = '#F9FAFB' }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
             >
-              <Icon style={{ width: 16, height: 16, color: '#6B7280', flexShrink: 0 }} />
+              <span style={{ color: '#6B7280', flexShrink: 0, display: 'flex', alignItems: 'center' }}>{icon}</span>
               {label}
             </button>
           ))}
