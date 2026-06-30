@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Paperclip, Camera, MicOff } from 'lucide-react'
+import { Paperclip, Camera, MicOff, Pencil, Mic } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -303,7 +303,10 @@ export default function NewNotePage() {
                   transition: 'all 0.15s',
                 }}
               >
-                {tab === 'Texte' ? '✏️ Texte' : '🎙 Vocal'}
+                {tab === 'Texte'
+                  ? <><Pencil style={{ width: 14, height: 14, display: 'inline', marginRight: 6 }} />Texte</>
+                  : <><Mic style={{ width: 14, height: 14, display: 'inline', marginRight: 6 }} />Vocal</>
+                }
               </button>
             ))}
           </div>
@@ -390,10 +393,10 @@ export default function NewNotePage() {
                     width: 80, height: 80, borderRadius: '50%',
                     background: '#FEF2F2', border: '2px solid #FCA5A5',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', fontSize: 32,
+                    cursor: 'pointer',
                   }}
                 >
-                  🎙
+                  <Mic style={{ width: 32, height: 32, color: '#DC2626' }} />
                 </button>
               ) : (
                 <button

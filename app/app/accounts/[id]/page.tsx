@@ -86,7 +86,7 @@ function SectionCard({ title, onEdit, actions, children }: { title: string; onEd
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = '#2563EB' }}
             onMouseLeave={(e) => { e.currentTarget.style.color = '#9CA3AF' }}
-          >✏️</button>
+          ><Edit2 style={{ width: 14, height: 14 }} /></button>
         ) : null)}
       </div>
       <div style={{ padding: '16px 20px' }}>{children}</div>
