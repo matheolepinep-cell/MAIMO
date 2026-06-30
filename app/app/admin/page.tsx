@@ -127,7 +127,7 @@ export default function AdminPage() {
     <div>
       <Header title="Admin" />
       <div className="p-4 md:p-8">
-        <h1 className="text-2xl font-bold text-[#1E293B] mb-6 hidden md:block">Dashboard Admin</h1>
+        <h1 className="text-2xl font-bold text-[#1E293B] mb-6 hidden lg:block">Dashboard Admin</h1>
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6">

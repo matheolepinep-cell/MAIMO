@@ -469,9 +469,9 @@ export default function TeamPage() {
       <div className="p-4 md:p-8 pb-24 md:pb-8 max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Équipe</h1>
+            <h1 className="text-2xl font-bold text-[#1E293B] hidden lg:block">Équipe</h1>
             {currentWorkspace && (
-              <p className="text-sm text-[#94A3B8] hidden md:block mt-0.5">{currentWorkspace.name}</p>
+              <p className="text-sm text-[#94A3B8] hidden lg:block mt-0.5">{currentWorkspace.name}</p>
             )}
           </div>
           {isAdmin && (

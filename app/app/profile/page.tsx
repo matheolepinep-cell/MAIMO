@@ -23,7 +23,7 @@ export default function ProfilePage() {
     <div>
       <Header title="Profil" />
       <div className="p-4 md:p-8 pb-24 md:pb-8 max-w-lg mx-auto space-y-4">
-        <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Profil</h1>
+        <h1 className="text-2xl font-bold text-[#1E293B] hidden lg:block">Profil</h1>
 
         <Card>
           <div className="flex items-center gap-4">

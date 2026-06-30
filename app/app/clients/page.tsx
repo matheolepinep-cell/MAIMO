@@ -84,7 +84,7 @@ export default function ClientsPage() {
       <Header title="Clients" />
       <div className="p-4 md:p-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-[#1E293B] hidden md:block">Clients</h1>
+          <h1 className="text-2xl font-bold text-[#1E293B] hidden lg:block">Clients</h1>
           <Button onClick={() => setModalOpen(true)} size="sm" className="ml-auto">
             <Plus className="w-4 h-4 mr-1.5" />
             Nouveau client
