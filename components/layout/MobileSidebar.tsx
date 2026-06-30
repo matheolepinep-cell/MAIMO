@@ -12,9 +12,13 @@ import {
   IconDownload,
   IconBriefcase,
   IconMessage,
+  IconBuildingStore,
+  IconChevronDown,
+  IconCheck,
 } from '@tabler/icons-react'
 import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
 import { useUser } from '@/contexts/UserContext'
+import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { useRole } from '@/hooks/useRole'
 import { createClient } from '@/lib/supabase/client'
 
@@ -28,11 +32,13 @@ export function MobileSidebar() {
   const { open, close } = useMobileSidebar()
   const pathname = usePathname()
   const { profile } = useUser()
+  const { currentWorkspace, userWorkspaces, setCurrentWorkspace } = useWorkspace()
   const router = useRouter()
   const wsRole = useRole()
   const isContributeur = wsRole === 'contributeur'
 
   const [conversations, setConversations] = useState<ConvRow[]>([])
+  const [wsDropdownOpen, setWsDropdownOpen] = useState(false)
 
   useEffect(() => {
     if (!open || !profile) return
@@ -46,6 +52,13 @@ export function MobileSidebar() {
       .limit(20)
       .then(({ data }) => setConversations((data ?? []) as ConvRow[]))
   }, [open, profile])
+
+  useEffect(() => {
+    if (!wsDropdownOpen) return
+    const handler = () => setWsDropdownOpen(false)
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [wsDropdownOpen])
 
   const quickActions = [
     { label: 'Dashboard', icon: <IconLayoutDashboard size={16} />, href: '/app/dashboard?from=menu' },
@@ -109,6 +122,98 @@ export function MobileSidebar() {
             <X style={{ width: 18, height: 18 }} />
           </button>
         </div>
+
+        {/* Workspace selector */}
+        {userWorkspaces.length > 0 && (
+          <>
+            <div style={{ padding: '12px 12px 0', flexShrink: 0 }}>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setWsDropdownOpen((v) => !v) }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    background: '#F9FAFB', border: '1px solid #E5E7EB',
+                    borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      width: 24, height: 24, borderRadius: 6, background: '#2563EB',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <IconBuildingStore size={13} color="white" />
+                    </div>
+                    <span style={{
+                      fontSize: 14, fontWeight: 600, color: '#0A0A0A',
+                      whiteSpace: 'nowrap', overflow: 'hidden',
+                      textOverflow: 'ellipsis', maxWidth: 160,
+                    }}>
+                      {currentWorkspace?.name ?? 'Espace'}
+                    </span>
+                  </div>
+                  <IconChevronDown
+                    size={16}
+                    color="#9CA3AF"
+                    style={{
+                      transform: wsDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s', flexShrink: 0,
+                    }}
+                  />
+                </button>
+
+                {wsDropdownOpen && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                      background: '#ffffff', border: '1px solid #E5E7EB',
+                      borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                      zIndex: 100, overflow: 'hidden',
+                    }}
+                  >
+                    {userWorkspaces.map((ws) => {
+                      const isActive = ws.id === currentWorkspace?.id
+                      return (
+                        <button
+                          key={ws.id}
+                          onClick={() => { setCurrentWorkspace(ws); setWsDropdownOpen(false) }}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center',
+                            gap: 10, padding: '11px 14px',
+                            background: isActive ? '#EFF6FF' : '#ffffff',
+                            border: 'none', borderBottom: '1px solid #F3F4F6',
+                            cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#F9FAFB' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? '#EFF6FF' : '#ffffff' }}
+                        >
+                          <div style={{
+                            width: 22, height: 22, borderRadius: 5,
+                            background: isActive ? '#2563EB' : '#E5E7EB',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          }}>
+                            <IconBuildingStore size={12} color={isActive ? 'white' : '#9CA3AF'} />
+                          </div>
+                          <span style={{
+                            fontSize: 14, fontWeight: isActive ? 600 : 400,
+                            color: isActive ? '#2563EB' : '#374151',
+                            flex: 1, textAlign: 'left',
+                          }}>
+                            {ws.name}
+                          </span>
+                          {isActive && <IconCheck size={14} color="#2563EB" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ height: 1, background: '#F3F4F6', margin: '12px 16px 0', flexShrink: 0 }} />
+          </>
+        )}
 
         {/* Quick actions */}
         <div style={{ padding: '10px 8px 6px', flexShrink: 0 }}>
