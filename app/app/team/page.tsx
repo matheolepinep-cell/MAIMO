@@ -8,7 +8,7 @@ import { FormMessage } from '@/components/ui/FormMessage'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
-import { useIsWorkspaceAdmin } from '@/hooks/useRole'
+import { useRole } from '@/hooks/useRole'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -183,7 +183,10 @@ export default function TeamPage() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const { currentWorkspace, wsId } = useWorkspace()
-  const isAdmin = useIsWorkspaceAdmin()
+  const wsRole = useRole()
+  const isAdmin = wsRole === 'admin'
+  const isMember = wsRole === 'member'
+  const canInvite = isAdmin || isMember
 
   const [members, setMembers] = useState<WsMember[]>([])
   const [portfolioCounts, setPortfolioCounts] = useState<Record<string, number>>({})
@@ -474,16 +477,23 @@ export default function TeamPage() {
               <p className="text-sm text-[#94A3B8] hidden lg:block mt-0.5">{currentWorkspace.name}</p>
             )}
           </div>
-          {isAdmin && (
+          {canInvite && (
             <div className="flex items-center gap-2 ml-auto">
-              <Button
-                onClick={() => { setShowLinks((v) => !v); if (!showLinks) loadInviteLinks() }}
-                size="sm"
-                variant="secondary"
-              >
-                <Link2 className="w-4 h-4 mr-1.5" />Liens
-              </Button>
-              <Button onClick={() => { setModalOpen(true); setInviteSuccess(''); setInviteError('') }} size="sm">
+              {isAdmin && (
+                <Button
+                  onClick={() => { setShowLinks((v) => !v); if (!showLinks) loadInviteLinks() }}
+                  size="sm"
+                  variant="secondary"
+                >
+                  <Link2 className="w-4 h-4 mr-1.5" />Liens
+                </Button>
+              )}
+              <Button onClick={() => {
+                setModalOpen(true)
+                setInviteSuccess('')
+                setInviteError('')
+                if (!isAdmin) setInviteWsRole('contributeur')
+              }} size="sm">
                 <UserPlus className="w-4 h-4 mr-1.5" />Inviter
               </Button>
             </div>
@@ -971,22 +981,33 @@ export default function TeamPage() {
             />
             <div>
               <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Rôle dans l'espace</label>
-              <div className="flex rounded-xl bg-gray-100 p-1 gap-1">
-                {(Object.entries(ROLE_CONFIG) as [WorkspaceRole, typeof ROLE_CONFIG[WorkspaceRole]][]).map(([r, c]) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setInviteWsRole(r)}
-                    className="flex-1 py-2 text-xs font-medium rounded-lg transition-all duration-150"
-                    style={inviteWsRole === r
-                      ? { background: '#fff', color: c.color, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                      : { color: '#64748B' }
-                    }
+              {isAdmin ? (
+                <div className="flex rounded-xl bg-gray-100 p-1 gap-1">
+                  {(Object.entries(ROLE_CONFIG) as [WorkspaceRole, typeof ROLE_CONFIG[WorkspaceRole]][]).map(([r, c]) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setInviteWsRole(r)}
+                      className="flex-1 py-2 text-xs font-medium rounded-lg transition-all duration-150"
+                      style={inviteWsRole === r
+                        ? { background: '#fff', color: c.color, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                        : { color: '#64748B' }
+                      }
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex rounded-xl bg-gray-100 p-1">
+                  <div
+                    className="flex-1 py-2 text-xs font-medium rounded-lg text-center"
+                    style={{ background: '#fff', color: ROLE_CONFIG.contributeur.color, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
                   >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
+                    Contributeur
+                  </div>
+                </div>
+              )}
               <p className="text-xs text-[#94A3B8] mt-1.5">
                 {inviteWsRole === 'contributeur'
                   ? 'Accès limité : portefeuille et saisie de notes uniquement.'
@@ -994,6 +1015,11 @@ export default function TeamPage() {
                   ? "Accès standard : tout sauf la gestion de l'équipe."
                   : 'Accès total : gestion de l\'équipe et des paramètres incluse.'}
               </p>
+              {isMember && (
+                <p className="text-xs text-[#6B7280] mt-1">
+                  En tant que Membre, vous pouvez uniquement inviter des Contributeurs.
+                </p>
+              )}
             </div>
             {currentWorkspace && (
               <p className="text-xs text-[#94A3B8] px-1">
