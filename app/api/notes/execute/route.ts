@@ -312,7 +312,7 @@ async function handleExecute(request: Request) {
         const c = created as { id: string }
         results.push({ type: 'create_note', noteId: c.id, accountId, created: true })
         summary.push('Note enregistrée')
-        logAction({ userId: user.id, workspaceId: workspaceId ?? null, action: 'note.created', resourceType: 'note', resourceId: c.id, metadata: accountId ? { account_id: accountId } : {} }).catch(() => {})
+        logAction({ userId: user.id, workspaceId: workspaceId ?? null, action: 'note.created', resourceType: 'note', resourceId: c.id, metadata: { ...(accountId ? { account_id: accountId } : {}), ...(accountName ? { account_name: accountName } : {}) } }).catch(() => {})
 
         // Fire-and-forget RAG indexing (forward auth cookies)
         const host = request.headers.get('host') ?? 'localhost:3000'

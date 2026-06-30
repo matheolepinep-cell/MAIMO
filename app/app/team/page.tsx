@@ -227,8 +227,7 @@ export default function TeamPage() {
   const [auditLoading, setAuditLoading] = useState(false)
   const [auditPage, setAuditPage] = useState(0)
   const [auditHasMore, setAuditHasMore] = useState(false)
-  const [auditFilterUser, setAuditFilterUser] = useState('')
-  const [auditFilterGroup, setAuditFilterGroup] = useState('Tout')
+  const [showArchived, setShowArchived] = useState(false)
 
   const showToast = (msg: string, error = false) => {
     setToast(msg)
@@ -280,26 +279,22 @@ export default function TeamPage() {
     setLoading(false)
   }
 
-  const loadAuditLogs = async (page: number, userId: string, group: string) => {
+  const ACTIVITY_ACTIONS = ['note.created', 'account.created', 'document.uploaded'] as const
+
+  const loadAuditLogs = async (page: number) => {
     if (!wsId) return
     setAuditLoading(true)
     const supabase = createClient()
-    const PAGE_SIZE = 20
+    const PAGE_SIZE = 50
 
-    let query = supabase
+    const { data, count } = await supabase
       .from('audit_logs')
       .select('id, user_id, action, resource_type, resource_id, metadata, created_at', { count: 'exact' })
       .eq('workspace_id', wsId)
+      .in('action', ACTIVITY_ACTIONS)
       .order('created_at', { ascending: false })
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
-    if (userId) query = query.eq('user_id', userId)
-    if (group !== 'Tout') {
-      const actions = ACTION_GROUPS[group] ?? []
-      if (actions.length > 0) query = query.in('action', actions)
-    }
-
-    const { data, count } = await query
     setAuditLogs((data as AuditLog[]) ?? [])
     setAuditHasMore((count ?? 0) > (page + 1) * PAGE_SIZE)
     setAuditPage(page)
@@ -312,9 +307,10 @@ export default function TeamPage() {
 
   useEffect(() => {
     if (activeTab === 'activite' && isAdmin && wsId) {
-      loadAuditLogs(0, auditFilterUser, auditFilterGroup)
+      loadAuditLogs(0)
     }
-  }, [activeTab, isAdmin, wsId, auditFilterUser, auditFilterGroup])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isAdmin, wsId])
 
   const handleRoleChange = async (member: WsMember, newRole: WorkspaceRole) => {
     if (!wsId) return
@@ -716,135 +712,105 @@ export default function TeamPage() {
         )}
 
         {/* ── ACTIVITÉ TAB ── */}
-        {activeTab === 'activite' && isAdmin && (
-          <div>
-            {/* Filters */}
-            <div className="flex flex-col gap-3 mb-5">
-              <div className="flex gap-2 flex-wrap">
-                {['Tout', ...Object.keys(ACTION_GROUPS)].map((group) => (
-                  <button
-                    key={group}
-                    onClick={() => { setAuditFilterGroup(group); setAuditPage(0) }}
-                    className="text-xs font-medium px-3 py-1.5 rounded-full transition-all"
-                    style={auditFilterGroup === group
-                      ? { background: '#2563EB', color: '#fff' }
-                      : { background: '#F1F5F9', color: '#64748B' }
-                    }
-                  >
-                    {group}
-                  </button>
-                ))}
+        {activeTab === 'activite' && isAdmin && (() => {
+          const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
+          const recent = auditLogs.filter((l) => new Date(l.created_at) > cutoff)
+          const archived = auditLogs.filter((l) => new Date(l.created_at) <= cutoff)
+
+          const renderLog = (log: AuditLog) => {
+            const userName = log.user_id ? (membersMap[log.user_id] ?? 'Utilisateur') : 'Système'
+            const initial = userName.charAt(0).toUpperCase()
+            const link = getActionLink(log)
+            const actionLabel: Record<string, string> = {
+              'note.created': 'a ajouté une note',
+              'account.created': 'a créé un client',
+              'document.uploaded': 'a importé un document',
+            }
+            const label = actionLabel[log.action] ?? log.action
+            const accountName = (log.metadata?.account_name as string | undefined) ?? (log.metadata?.name as string | undefined) ?? null
+
+            const inner = (
+              <div className="flex gap-3 py-3" style={{ borderBottom: '1px solid #F9FAFB' }}>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: '#EFF6FF' }}
+                >
+                  <span className="text-xs font-bold" style={{ color: '#2563EB' }}>{initial}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm leading-snug" style={{ color: '#374151' }}>
+                    <span className="font-semibold" style={{ color: '#0A0A0A' }}>{userName}</span>
+                    {' '}{label}
+                    {accountName && (
+                      <span style={{ color: '#6B7280' }}> · {accountName}</span>
+                    )}
+                  </p>
+                  {typeof log.metadata?.ai_summary === 'string' && (
+                    <p className="text-xs mt-1 leading-snug" style={{ color: '#6B7280', fontStyle: 'italic' }}>
+                      &ldquo;{log.metadata.ai_summary as string}&rdquo;
+                    </p>
+                  )}
+                  <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>{timeAgo(log.created_at)}</p>
+                </div>
+                {link && (
+                  <Link href={link} onClick={(e) => e.stopPropagation()} className="shrink-0 flex items-center self-start mt-1" style={{ color: '#9CA3AF' }}>
+                    <ChevronRight style={{ width: 14, height: 14 }} />
+                  </Link>
+                )}
               </div>
-              <select
-                value={auditFilterUser}
-                onChange={(e) => { setAuditFilterUser(e.target.value); setAuditPage(0) }}
-                className="text-sm px-3 py-2 rounded-xl border border-gray-200 text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white w-full md:w-56"
-              >
-                <option value="">Tous les membres</option>
-                {members.map((m) => (
-                  <option key={m.user.id} value={m.user.id}>{m.user.full_name}</option>
-                ))}
-              </select>
-            </div>
+            )
 
-            {/* Audit log list */}
-            {auditLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
-              </div>
-            ) : auditLogs.length === 0 ? (
-              <div className="text-center py-16">
-                <Activity className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-[#64748B] text-sm">Aucune activité enregistrée.</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {auditLogs.map((log) => {
-                  const userName = log.user_id ? (membersMap[log.user_id] ?? 'Utilisateur inconnu') : 'Système'
-                  const label = ACTION_LABELS[log.action] ?? log.action
-                  const meta = getMetaText(log)
-                  const initial = userName.charAt(0).toUpperCase()
-                  const link = getActionLink(log)
-                  const isDeletedRes = DELETED_RESOURCE_ACTIONS.has(log.action)
+            return link
+              ? <Link key={log.id} href={link} className="block hover:bg-[#FAFAFA] rounded-lg transition-colors px-1">{inner}</Link>
+              : <div key={log.id} className="px-1">{inner}</div>
+          }
 
-                  const rowContent = (
-                    <>
-                      <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                        style={{ background: '#EFF6FF' }}
-                      >
-                        <span className="text-xs font-bold" style={{ color: '#2563EB' }}>{initial}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-[#1E293B]">
-                          <span className="font-medium">{userName}</span>
-                          {' '}
-                          <span className="text-[#64748B]">{label}</span>
-                        </p>
-                        {meta && (
-                          <p
-                            className="text-xs text-[#94A3B8] mt-0.5 truncate"
-                            style={log.action === 'search.query' ? { fontStyle: 'italic' } : {}}
-                          >
-                            {meta}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                        <span className="text-xs text-[#94A3B8]">{timeAgo(log.created_at)}</span>
-                        {link && <ChevronRight style={{ width: 12, height: 12, color: '#9CA3AF' }} />}
-                      </div>
-                    </>
-                  )
+          return (
+            <div>
+              {auditLoading ? (
+                <div className="space-y-3 mt-2">
+                  {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="text-center py-16">
+                  <Activity className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                  <p className="text-[#64748B] text-sm">Aucune activité enregistrée.</p>
+                </div>
+              ) : (
+                <>
+                  {recent.length === 0 && archived.length > 0 && (
+                    <p className="text-xs text-[#9CA3AF] mb-3 px-1">Aucune activité récente (48h)</p>
+                  )}
+                  {recent.map(renderLog)}
 
-                  if (link) {
-                    return (
-                      <Link
-                        key={log.id}
-                        href={link}
-                        className="flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-[#F9FAFB] transition-colors cursor-pointer"
-                      >
-                        {rowContent}
-                      </Link>
-                    )
-                  }
-
-                  return (
-                    <div
-                      key={log.id}
-                      className="flex items-start gap-3 px-3 py-3 rounded-xl transition-colors"
-                      style={{ opacity: isDeletedRes ? 0.6 : 1 }}
-                      title={isDeletedRes ? 'Cette ressource a été supprimée' : undefined}
+                  {archived.length > 0 && (
+                    <button
+                      onClick={() => setShowArchived((v) => !v)}
+                      className="flex items-center justify-center gap-2 w-full mt-3 py-2.5 rounded-xl text-xs font-medium transition-colors hover:bg-gray-100"
+                      style={{ background: '#F9FAFB', color: '#6B7280', border: 'none' }}
                     >
-                      {rowContent}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                      <Activity style={{ width: 13, height: 13 }} />
+                      {showArchived
+                        ? 'Masquer les anciennes activités'
+                        : `Voir ${archived.length} activité${archived.length > 1 ? 's' : ''} plus ancienne${archived.length > 1 ? 's' : ''}`
+                      }
+                    </button>
+                  )}
+                  {showArchived && archived.map(renderLog)}
 
-            {/* Pagination */}
-            {(auditPage > 0 || auditHasMore) && (
-              <div className="flex items-center justify-between mt-6">
-                <button
-                  onClick={() => loadAuditLogs(auditPage - 1, auditFilterUser, auditFilterGroup)}
-                  disabled={auditPage === 0}
-                  className="text-sm font-medium px-4 py-2 rounded-xl border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors text-[#1E293B]"
-                >
-                  Précédent
-                </button>
-                <span className="text-xs text-[#94A3B8]">Page {auditPage + 1}</span>
-                <button
-                  onClick={() => loadAuditLogs(auditPage + 1, auditFilterUser, auditFilterGroup)}
-                  disabled={!auditHasMore}
-                  className="text-sm font-medium px-4 py-2 rounded-xl border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors text-[#1E293B]"
-                >
-                  Suivant
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                  {auditHasMore && (
+                    <button
+                      onClick={() => loadAuditLogs(auditPage + 1)}
+                      className="w-full text-xs text-[#64748B] mt-4 py-2 hover:text-[#0A0A0A] transition-colors"
+                    >
+                      Charger plus
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Toast */}
