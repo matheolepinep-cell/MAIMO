@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu, X, Trash2, History } from 'lucide-react'
+import { Briefcase, Globe, Building2, Upload, Mic, MicOff, ArrowUp, FileText, Menu, X, Trash2, History, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
+import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
 import { ConversationsSidebar } from '@/components/search/ConversationsSidebar'
 import { markOnboardingStep } from '@/lib/onboarding'
 import type { SearchSource } from '@/types/database'
@@ -260,6 +261,7 @@ function SearchPageContent() {
   const router = useRouter()
   const { profile, loading: profileLoading } = useUser()
   const { wsId, currentWorkspace } = useWorkspace()
+  const { toggle: toggleSidebar } = useMobileSidebar()
 
   const [activeTab, setActiveTab] = useState<SearchTab>('global')
   const [portfolioAccounts, setPortfolioAccounts] = useState<{ id: string; name: string }[]>([])
@@ -822,73 +824,64 @@ function SearchPageContent() {
   return (
     <>
       {/* ── MOBILE ── */}
-      <div className="md:hidden flex flex-col" style={{ height: 'calc(100dvh - 4rem)', background: 'white' }}>
+      <div className="lg:hidden flex flex-col" style={{ height: '100dvh', background: 'white' }}>
 
-        {/* Mobile header — burger (from MobileSidebar) is fixed at left-3(12px), 40px wide → 56px spacer */}
+        {/* Mobile header */}
         <div style={{
           flexShrink: 0,
           display: 'flex', alignItems: 'center',
-          padding: '12px 16px',
-          paddingLeft: 56,
+          height: 52,
+          padding: '0 12px',
+          paddingTop: 'env(safe-area-inset-top)',
           background: 'white', borderBottom: '1px solid #E5E5E5',
+          gap: 4,
         }}>
-          <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: '#1A1A2E' }}>
+          {/* Burger — opens MobileSidebar */}
+          <button
+            onClick={toggleSidebar}
+            style={{
+              width: 36, height: 36, borderRadius: 9,
+              border: 'none', background: 'none',
+              cursor: 'pointer', color: '#374151',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}
+          >
+            <Menu style={{ width: 20, height: 20 }} />
+          </button>
+          <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#0A0A0A' }}>
             Recherche IA
           </span>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-            <button
-              onClick={() => setMobileSidebarOpen(true)}
-              style={{
-                position: 'relative', width: 36, height: 36, borderRadius: 8,
-                background: 'transparent', border: '1px solid #E5E5E5',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', flexShrink: 0,
-              }}
-            >
-              <History style={{ width: 16, height: 16, color: '#0A0A0A' }} />
-              {conversations.length > 0 && (
-                <span style={{
-                  position: 'absolute', top: -5, right: -5,
-                  minWidth: 16, height: 16, borderRadius: 8, background: '#2563EB',
-                  color: 'white', fontSize: 10, fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
-                }}>
-                  {conversations.length > 9 ? '9+' : conversations.length}
-                </span>
-              )}
-            </button>
-            <button onClick={() => router.push('/app/import')}
-              style={{
-                width: 36, height: 36, borderRadius: 8,
-                background: 'transparent', border: '1px solid #E5E5E5',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
-              }}>
-              <Upload style={{ width: 16, height: 16, color: '#6B6B6B' }} />
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile tabs */}
-        <div style={{
-          flexShrink: 0,
-          background: '#F9FAFB',
-          borderBottom: '1px solid #E5E5E5',
-          padding: '8px 16px',
-          display: 'flex', alignItems: 'center', gap: 16,
-        }}>
-          {(['portfolio', 'global'] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer',
-                fontSize: 13,
-                color: activeTab === tab ? '#2563EB' : '#6B6B6B',
-                fontWeight: activeTab === tab ? 500 : 400,
-                borderBottom: activeTab === tab ? '2px solid #2563EB' : '2px solid transparent',
-                transition: 'all 0.15s',
-              }}>
-              {tab === 'portfolio' ? 'Mon portefeuille' : 'Portefeuille global'}
-            </button>
-          ))}
+          {/* History */}
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            style={{
+              position: 'relative', width: 36, height: 36, borderRadius: 9,
+              background: 'none', border: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0, color: '#374151',
+            }}
+          >
+            <History style={{ width: 18, height: 18 }} />
+            {conversations.length > 0 && (
+              <span style={{
+                position: 'absolute', top: 4, right: 4,
+                width: 8, height: 8, borderRadius: '50%', background: '#2563EB',
+                border: '1.5px solid white',
+              }} />
+            )}
+          </button>
+          {/* New note */}
+          <button
+            onClick={() => router.push('/app/notes/new')}
+            style={{
+              width: 36, height: 36, borderRadius: 9,
+              border: 'none', background: '#2563EB',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            <Plus style={{ width: 20, height: 20, color: 'white' }} />
+          </button>
         </div>
 
         {/* Content */}
@@ -907,7 +900,7 @@ function SearchPageContent() {
           flexShrink: 0, background: 'white',
           borderTop: '1px solid #E5E5E5',
           padding: '12px 16px',
-          paddingBottom: 'max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px))',
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))',
         }}>
           {inputArea(mobileTextareaRef, true)}
         </div>
@@ -915,7 +908,7 @@ function SearchPageContent() {
 
       {/* Mobile history bottom-sheet */}
       <div
-        className="md:hidden fixed inset-0 z-[60]"
+        className="lg:hidden fixed inset-0 z-[60]"
         style={{
           background: mobileSidebarOpen ? 'rgba(0,0,0,0.4)' : 'transparent',
           pointerEvents: mobileSidebarOpen ? 'auto' : 'none',
@@ -970,7 +963,7 @@ function SearchPageContent() {
       </div>
 
       {/* ── DESKTOP ── */}
-      <div className="hidden md:flex flex-1 overflow-hidden">
+      <div className="hidden lg:flex flex-1 overflow-hidden">
 
         {/* History drawer overlay */}
         {historyDrawerOpen && (
