@@ -3,45 +3,7 @@ import { env } from '@/lib/env'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveFileUrl(fileUrl: string, supabase: any): Promise<string> {
-  // Extract path from Supabase storage public/signed URL and create a fresh signed URL
-  const storageMatch = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/imports\/(.+?)(?:\?|$)/)
-  if (storageMatch) {
-    const { data } = await supabase.storage.from('imports').createSignedUrl(decodeURIComponent(storageMatch[1]), 3600)
-    if (data?.signedUrl) return data.signedUrl
-  }
-  if (!fileUrl.startsWith('http')) {
-    const { data } = await supabase.storage.from('imports').createSignedUrl(fileUrl, 3600)
-    if (data?.signedUrl) return data.signedUrl
-  }
-  return fileUrl
-}
-
-async function extractText(fileUrl: string, fileType: string): Promise<string> {
-  const response = await fetch(fileUrl)
-  if (!response.ok) throw new Error(`Fetch failed: ${response.status}`)
-  const buffer = Buffer.from(await response.arrayBuffer())
-
-  if (fileType === 'pdf') {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse') as (b: Buffer) => Promise<{ text: string }>
-    return (await pdfParse(buffer)).text
-  }
-  if (fileType === 'docx') {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mammoth = require('mammoth') as { extractRawText: (o: { buffer: Buffer }) => Promise<{ value: string }> }
-    return (await mammoth.extractRawText({ buffer })).value
-  }
-  if (fileType === 'xlsx') {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const XLSX = require('xlsx') as { read: (b: Buffer, o: object) => { SheetNames: string[]; Sheets: Record<string, object> }; utils: { sheet_to_txt: (s: object) => string } }
-    const wb = XLSX.read(buffer, { type: 'buffer' })
-    return wb.SheetNames.map((n) => XLSX.utils.sheet_to_txt(wb.Sheets[n])).join('\n\n')
-  }
-  throw new Error(`Unsupported type: ${fileType}`)
-}
+import { resolveStorageUrl, extractTextFromUrl } from '@/lib/document-indexer'
 
 // Paginated reindex — call repeatedly until done:true
 // ?offset=0&limit=15&phase=notes  (default)
@@ -162,8 +124,8 @@ export async function GET(request: Request) {
         const fileName = doc.title ?? doc.file_name ?? 'Document'
         const importDate = new Date(doc.created_at).toLocaleDateString('fr-FR')
 
-        const resolvedUrl = await resolveFileUrl(doc.file_url, supabase)
-        const text = await extractText(resolvedUrl, doc.file_type)
+        const resolvedUrl = await resolveStorageUrl(doc.file_url, supabase)
+        const text = await extractTextFromUrl(resolvedUrl, doc.file_type)
         const rawChunks = chunkText(text)
         if (rawChunks.length === 0) continue
 
