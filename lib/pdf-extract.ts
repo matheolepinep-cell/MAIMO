@@ -1,34 +1,31 @@
-export async function extractTextFromPDF(buffer: Buffer, fileName?: string): Promise<string> {
-  try {
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-    pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const PDFParser = require('pdf2json')
 
-    const uint8Array = new Uint8Array(buffer)
-    const loadingTask = pdfjsLib.getDocument({
-      data: uint8Array,
-      useWorkerFetch: false,
-      useSystemFonts: true,
+export async function extractTextFromPDF(
+  buffer: Buffer,
+  fileName?: string
+): Promise<string> {
+  return new Promise((resolve) => {
+    const pdfParser = new PDFParser(null, 1)
+
+    pdfParser.on('pdfParser_dataError', (errData: { parserError: Error }) => {
+      console.error('[pdf-extract] parse error:', errData.parserError)
+      resolve(`[Document PDF non extractible : ${fileName ?? 'fichier'}]`)
     })
 
-    const pdf = await loadingTask.promise
-    let fullText = ''
+    pdfParser.on('pdfParser_dataReady', () => {
+      try {
+        const text = pdfParser.getRawTextContent() as string
+        if (!text || text.trim().length < 50) {
+          resolve(`[Document PDF scanné sans texte extractible : ${fileName ?? 'fichier'}]`)
+          return
+        }
+        resolve(text.trim())
+      } catch {
+        resolve(`[Erreur extraction PDF : ${fileName ?? 'fichier'}]`)
+      }
+    })
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i)
-      const textContent = await page.getTextContent()
-      const pageText = textContent.items
-        .map((item) => (item as { str?: string }).str ?? '')
-        .join(' ')
-      fullText += pageText + '\n'
-    }
-
-    const trimmed = fullText.trim()
-    if (!trimmed || trimmed.length < 50) {
-      return `[Document PDF scanné - contenu non extractible : ${fileName ?? 'document.pdf'}]`
-    }
-    return trimmed
-  } catch (err) {
-    console.error('[extractTextFromPDF] error:', err)
-    throw err
-  }
+    pdfParser.parseBuffer(buffer)
+  })
 }
