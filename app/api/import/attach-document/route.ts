@@ -96,6 +96,10 @@ export async function POST(request: Request) {
           company_name: accountName,
         }))
       )
+      await supabase
+        .from('documents')
+        .update({ is_indexed: true, indexed_at: new Date().toISOString() })
+        .eq('id', doc.id)
     }
   } catch (err) {
     console.error('attach-document embedding error:', err)
