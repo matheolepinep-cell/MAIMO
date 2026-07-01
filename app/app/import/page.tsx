@@ -54,6 +54,10 @@ type AnalysisResult = {
   firstCompanyName: string | null
   multipleCompanies: boolean
   needsAccount: boolean
+  // kept from pendingPreview for handleManualAttach (pendingPreview is cleared before user clicks Associer)
+  _filePath?: string
+  _text?: string
+  _fileName?: string
 }
 
 type AccountOption = { id: string; name: string }
@@ -295,6 +299,11 @@ export default function ImportPage() {
     if (!pendingPreview || !profile) return
     setExecuting(true)
 
+    // Capture before pendingPreview is cleared — needed for handleManualAttach if needsAccount is true
+    const savedFilePath = pendingPreview.filePath
+    const savedText = pendingPreview.text
+    const savedFileName = file?.name ?? pendingPreview.filePath.split('/').pop() ?? 'document'
+
     const selectedCompanyNames = confirmActions
       .filter((a) => (a.kind === 'company_new' || a.kind === 'company_update') && a.enabled)
       .map((a) => a.id.replace(/^company-/, ''))
@@ -333,7 +342,7 @@ export default function ImportPage() {
     }
 
     const result = await res.json()
-    setAnalysisResult(result)
+    setAnalysisResult({ ...result, _filePath: savedFilePath, _text: savedText, _fileName: savedFileName })
     if ((result.companiesCreated?.length ?? 0) > 0 || (result.companiesUpdated?.length ?? 0) > 0) {
       markOnboardingStep(1)
     }
@@ -341,16 +350,22 @@ export default function ImportPage() {
 
   // Fallback: manually attach when no companies were detected
   const handleManualAttach = async () => {
-    if (!pendingPreview || !profile || !selectedAccountId) return
+    if (!analysisResult || !profile || !selectedAccountId) return
+    const filePath = analysisResult._filePath
+    const text = analysisResult._text
+    const fileName = analysisResult._fileName
+    if (!filePath || !text || !fileName) {
+      setError('Données du document manquantes. Veuillez réimporter le fichier.')
+      return
+    }
     setAttaching(true)
-    const ext = (pendingPreview.filePath.split('.').pop() ?? '').toLowerCase()
-    const fileName = file?.name ?? pendingPreview.filePath.split('/').pop() ?? 'document'
+    const ext = (filePath.split('.').pop() ?? '').toLowerCase()
     const res = await fetch('/api/import/attach-document', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: pendingPreview.text,
-        file_path: pendingPreview.filePath,
+        text,
+        file_path: filePath,
         file_name: fileName,
         file_type: ext,
         account_id: selectedAccountId,
@@ -362,7 +377,7 @@ export default function ImportPage() {
     if (res.ok) {
       router.push(`/app/accounts/${selectedAccountId}`)
     } else {
-      setError('Erreur lors de l\'association du document.')
+      setError("Erreur lors de l'association du document.")
     }
   }
 
