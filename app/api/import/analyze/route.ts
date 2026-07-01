@@ -5,6 +5,7 @@ import OpenAI from 'openai'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { extractTextFromPDF } from '@/lib/pdf-extract'
 
 const openai = new OpenAI({ apiKey: env.openaiApiKey ?? '' })
 
@@ -14,10 +15,7 @@ function getExt(filePath: string) {
 
 async function extractText(buffer: Buffer, ext: string, fileName: string): Promise<string> {
   if (ext === 'pdf') {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse') as (b: Buffer) => Promise<{ text: string }>
-    const result = await pdfParse(buffer)
-    return result.text
+    return await extractTextFromPDF(buffer, fileName)
   }
 
   if (ext === 'docx') {

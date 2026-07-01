@@ -2,6 +2,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { env } from './env'
 import { chunkText } from './chunker'
 import { embedBatch } from './embeddings'
+import { extractTextFromPDF } from './pdf-extract'
 
 /* ─── Storage URL helpers ─── */
 
@@ -47,10 +48,7 @@ export async function extractTextFromUrl(url: string, fileType: string): Promise
   const buffer = Buffer.from(await response.arrayBuffer())
 
   if (fileType === 'pdf') {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
-    const result = await pdfParse(buffer)
-    return result.text
+    return await extractTextFromPDF(buffer)
   }
   if (fileType === 'docx') {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
