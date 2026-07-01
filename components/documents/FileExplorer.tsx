@@ -24,6 +24,9 @@ import {
   IconSparkles,
   IconAlertTriangle,
   IconArrowRight,
+  IconChevronDown,
+  IconMail,
+  IconPhone,
 } from '@tabler/icons-react'
 import { createClient } from '@/lib/supabase/client'
 import { validateFile, sanitizeFilename } from '@/lib/file-validation'
@@ -57,6 +60,7 @@ interface AnalysisState {
   summary: string
   actions: DetectedAction[]
   selected: Set<number>
+  showDetail: boolean
 }
 
 interface FileExplorerProps {
@@ -432,7 +436,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
   /* ─── AI Analysis modal ─── */
   const handleOpenAnalysis = async (doc: PendingIndexDoc) => {
     setPendingIndexDoc(null)
-    setAnalysisState({ docId: doc.id, docName: doc.name, status: 'loading', summary: '', actions: [], selected: new Set() })
+    setAnalysisState({ docId: doc.id, docName: doc.name, status: 'loading', summary: '', actions: [], selected: new Set(), showDetail: false })
     try {
       const res = await fetch('/api/documents/analyze', {
         method: 'POST',
@@ -447,6 +451,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
         summary: data.summary ?? '',
         actions: data.actions ?? [],
         selected: new Set((data.actions ?? []).map((_: DetectedAction, i: number) => i)),
+        showDetail: false,
       } : null)
     } catch (err) {
       console.error('[FileExplorer] analysis error:', err)
@@ -939,6 +944,83 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
                         })}
                       </div>
                     </div>
+                  )}
+
+                  {/* Voir le détail toggle */}
+                  {(analysisState.actions.some(a => a.type === 'create_contact' || a.type === 'create_note' || a.type === 'move_folder')) && (
+                    <>
+                      <button
+                        onClick={() => setAnalysisState(prev => prev ? { ...prev, showDetail: !prev.showDetail } : null)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#2563EB', fontSize: 13, cursor: 'pointer', padding: '4px 0', fontWeight: 500 }}
+                      >
+                        <IconChevronDown size={14} style={{ transform: analysisState.showDetail ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+                        {analysisState.showDetail ? 'Masquer le détail' : 'Voir le détail des actions'}
+                      </button>
+
+                      {analysisState.showDetail && (
+                        <div style={{ background: '#F9FAFB', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+                          {/* Contacts */}
+                          {analysisState.actions.filter(a => a.type === 'create_contact').length > 0 && (
+                            <div style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB' }}>
+                              <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px 0' }}>Interlocuteurs détectés</p>
+                              {analysisState.actions.filter(a => a.type === 'create_contact').map((action, i) => {
+                                if (action.type !== 'create_contact') return null
+                                const initials = `${action.firstName[0] ?? ''}${action.lastName[0] ?? ''}`.toUpperCase()
+                                return (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: '#ffffff', borderRadius: 10, border: '1px solid #F3F4F6', marginBottom: 6 }}>
+                                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: '#0A0A0A' }}>{action.firstName} {action.lastName}</div>
+                                      {action.position && <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{action.position}</div>}
+                                      <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                                        {action.email && (
+                                          <a href={`mailto:${action.email}`} style={{ fontSize: 11, color: '#2563EB', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                            <IconMail size={11} />{action.email}
+                                          </a>
+                                        )}
+                                        {action.phone && (
+                                          <span style={{ fontSize: 11, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                            <IconPhone size={11} />{action.phone}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          {/* Notes */}
+                          {analysisState.actions.filter(a => a.type === 'create_note').map((action, i) => {
+                            if (action.type !== 'create_note') return null
+                            return (
+                              <div key={i} style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB' }}>
+                                <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px 0' }}>Note suggérée</p>
+                                <div style={{ background: '#ffffff', borderRadius: 10, border: '1px solid #F3F4F6', padding: '12px 14px' }}>
+                                  {action.title && <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 4px 0' }}>{action.title}</p>}
+                                  <p style={{ fontSize: 13, color: '#374151', margin: 0, lineHeight: 1.6, fontStyle: 'italic' }}>"{action.content.slice(0, 200)}{action.content.length > 200 ? '…' : ''}"</p>
+                                </div>
+                              </div>
+                            )
+                          })}
+
+                          {/* Folder */}
+                          {analysisState.actions.filter(a => a.type === 'move_folder').map((action, i) => {
+                            if (action.type !== 'move_folder') return null
+                            return (
+                              <div key={i} style={{ padding: '14px 16px' }}>
+                                <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px 0' }}>Classement suggéré</p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#ffffff', borderRadius: 10, border: '1px solid #F3F4F6' }}>
+                                  <IconFolder size={16} color="#F59E0B" />
+                                  <span style={{ fontSize: 13, color: '#374151' }}>Classer dans <strong>"{action.folderName}"</strong></span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}

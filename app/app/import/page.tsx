@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, Loader2, Check, Building2, Users, FileCheck, ChevronRight, ArrowRight, Search as SearchIcon, Pencil } from 'lucide-react'
+import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, Loader2, Check, Building2, Users, FileCheck, ChevronRight, ArrowRight, Search as SearchIcon, Pencil, Mail, Phone, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -137,6 +137,7 @@ export default function ImportPage() {
   const [pendingPreview, setPendingPreview] = useState<PendingPreview | null>(null)
   const [confirmActions, setConfirmActions] = useState<PlannedAction[]>([])
   const [executing, setExecuting] = useState(false)
+  const [showImportDetail, setShowImportDetail] = useState(false)
 
   const validateFile = (f: File): string | null => {
     if (!ACCEPTED_MIME.includes(f.type) && !ACCEPTED_EXT.test(f.name)) {
@@ -547,6 +548,87 @@ export default function ImportPage() {
                 ))}
               </div>
             </div>
+
+            {/* Voir le détail toggle */}
+            {pendingPreview && (pendingPreview.analysis.contacts.length > 0 || pendingPreview.analysis.notes.length > 0 || pendingPreview.companiesStatus.length > 0) && (
+              <div className="px-6 pb-2 shrink-0">
+                <button
+                  onClick={() => setShowImportDetail(v => !v)}
+                  className="flex items-center gap-1.5 text-[#2563EB] text-sm font-medium py-1"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0' }}
+                >
+                  <ChevronDown size={14} style={{ transform: showImportDetail ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+                  {showImportDetail ? 'Masquer le détail' : 'Voir le détail des actions'}
+                </button>
+
+                {showImportDetail && (
+                  <div className="rounded-xl overflow-hidden mb-3" style={{ background: '#F9FAFB', border: '1px solid #E5E7EB' }}>
+                    {/* Companies */}
+                    {pendingPreview.companiesStatus.length > 0 && (
+                      <div style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB' }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px 0' }}>Entreprises détectées</p>
+                        {pendingPreview.companiesStatus.map((c, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#ffffff', borderRadius: 10, border: '1px solid #F3F4F6', marginBottom: 6 }}>
+                            <div style={{ width: 30, height: 30, borderRadius: '50%', background: c.isNew ? '#EFF6FF' : '#F0FDF4', color: c.isNew ? '#2563EB' : '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                              {c.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: '#0A0A0A' }}>{c.name}</span>
+                              {c.company.city && <span style={{ fontSize: 11, color: '#9CA3AF', marginLeft: 6 }}>{c.company.city}</span>}
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: c.isNew ? '#EFF6FF' : '#F0FDF4', color: c.isNew ? '#2563EB' : '#16A34A' }}>
+                              {c.isNew ? 'Nouveau' : `+${c.fieldsWouldAdd} info${c.fieldsWouldAdd > 1 ? 's' : ''}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Contacts */}
+                    {pendingPreview.analysis.contacts.length > 0 && (
+                      <div style={{ padding: '14px 16px', borderBottom: pendingPreview.analysis.notes.length > 0 ? '1px solid #E5E7EB' : undefined }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px 0' }}>Interlocuteurs détectés</p>
+                        {pendingPreview.analysis.contacts.map((c, i) => {
+                          const initials = `${c.firstName?.[0] ?? ''}${c.lastName?.[0] ?? ''}`.toUpperCase()
+                          return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: '#ffffff', borderRadius: 10, border: '1px solid #F3F4F6', marginBottom: 6 }}>
+                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#0A0A0A' }}>{c.firstName} {c.lastName}</div>
+                                {c.position && <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{c.position}</div>}
+                                <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                                  {c.email && (
+                                    <a href={`mailto:${c.email}`} style={{ fontSize: 11, color: '#2563EB', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                      <Mail size={11} />{c.email}
+                                    </a>
+                                  )}
+                                  {c.phone && (
+                                    <span style={{ fontSize: 11, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                      <Phone size={11} />{c.phone}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {pendingPreview.analysis.notes.map((n, i) => (
+                      <div key={i} style={{ padding: '14px 16px', borderBottom: i < pendingPreview.analysis.notes.length - 1 ? '1px solid #E5E7EB' : undefined }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px 0' }}>Note suggérée</p>
+                        <div style={{ background: '#ffffff', borderRadius: 10, border: '1px solid #F3F4F6', padding: '12px 14px' }}>
+                          {n.title && <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 4px 0' }}>{n.title}</p>}
+                          <p style={{ fontSize: 13, color: '#374151', margin: 0, lineHeight: 1.6, fontStyle: 'italic' }}>"{n.content.slice(0, 200)}{n.content.length > 200 ? '…' : ''}"</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="px-6 pb-6 pt-4 shrink-0 border-t border-slate-100">
