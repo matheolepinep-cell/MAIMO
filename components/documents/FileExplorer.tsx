@@ -879,10 +879,10 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
         const selCount = Array.from(analysisState.selected).length
         return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#ffffff', borderRadius: 16, padding: 28, maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
             {/* Header — fixed, never scrolls */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 12px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <IconSparkles size={18} color="#2563EB" />
@@ -900,7 +900,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
             </div>
 
             {/* Body — scrollable, minHeight:0 lets flex shrink properly */}
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 24px', WebkitOverflowScrolling: 'touch' }}>
               {analysisState.status === 'loading' && (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0' }}>
                   <div style={{ width: 32, height: 32, border: '3px solid #EFF6FF', borderTop: '3px solid #2563EB', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -1028,7 +1028,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
 
             {/* Footer — fixed, always visible, never pushed out by content */}
             {analysisState.status === 'ready' && (
-              <div style={{ display: 'flex', gap: 10, marginTop: 16, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 10, padding: '12px 24px 20px', borderTop: '1px solid #F3F4F6', flexShrink: 0, background: '#ffffff' }}>
                 <button
                   onClick={() => { setAnalysisState(null); fetchContents() }}
                   style={{ flex: 1, padding: '11px 16px', border: '1px solid #E5E7EB', borderRadius: 10, background: '#ffffff', color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}

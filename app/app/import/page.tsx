@@ -594,9 +594,9 @@ export default function ImportPage() {
         >
           <div
             className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col"
-            style={{ maxHeight: '80vh' }}
+            style={{ maxHeight: '85vh', overflow: 'hidden' }}
           >
-            {/* Header */}
+            {/* Header — fixed, never scrolls */}
             <div className="px-6 pt-6 pb-4 shrink-0">
               <p className="font-bold text-[#0F172A] text-lg">Actions détectées</p>
               {pendingPreview?.analysis.summary && (
@@ -606,8 +606,8 @@ export default function ImportPage() {
               )}
             </div>
 
-            {/* Action list */}
-            <div className="overflow-y-auto flex-1 px-6 pb-2">
+            {/* Action list + Voir le détail — both inside the single scrollable body */}
+            <div className="overflow-y-auto flex-1 px-6 pb-4" style={{ minHeight: 0 }}>
               <div className="space-y-2">
                 {confirmActions.map((action) => (
                   <div
@@ -628,14 +628,13 @@ export default function ImportPage() {
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* Voir le détail toggle */}
-            {pendingPreview && (pendingPreview.analysis.contacts.length > 0 || pendingPreview.analysis.notes.length > 0 || pendingPreview.companiesStatus.length > 0) && (
-              <div className="px-6 pb-2 shrink-0">
+              {/* Voir le détail — inline in scrollable body, no shrink-0 wrapper */}
+              {pendingPreview && (pendingPreview.analysis.contacts.length > 0 || pendingPreview.analysis.notes.length > 0 || pendingPreview.companiesStatus.length > 0) && (
+              <div className="mt-3">
                 <button
                   onClick={() => setShowImportDetail(v => !v)}
-                  className="flex items-center gap-1.5 text-[#2563EB] text-sm font-medium py-1"
+                  className="flex items-center gap-1.5 text-[#2563EB] text-sm font-medium"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0' }}
                 >
                   <ChevronDown size={14} style={{ transform: showImportDetail ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
@@ -710,8 +709,9 @@ export default function ImportPage() {
                 )}
               </div>
             )}
+            </div>{/* end scrollable body */}
 
-            {/* Footer */}
+            {/* Footer — fixed, never scrolls */}
             <div className="px-6 pb-6 pt-4 shrink-0 border-t border-slate-100">
               <div className="flex gap-3">
                 <button
