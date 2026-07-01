@@ -22,6 +22,7 @@ import {
   IconList,
   IconExternalLink,
   IconSparkles,
+  IconAlertTriangle,
 } from '@tabler/icons-react'
 import { createClient } from '@/lib/supabase/client'
 import { validateFile, sanitizeFilename } from '@/lib/file-validation'
@@ -173,7 +174,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Delete confirm
-  const [confirmDeleteFolderId, setConfirmDeleteFolderId] = useState<string | null>(null)
+  const [deletingFolder, setDeletingFolder] = useState<{ id: string; name: string; docCount: number; subCount: number } | null>(null)
   const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null)
 
   // Indexation confirmation modal
@@ -269,10 +270,22 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     fetchContents()
   }
 
-  const handleDeleteFolder = async (id: string) => {
-    await fetch(`/api/folders?id=${id}`, { method: 'DELETE' })
-    setConfirmDeleteFolderId(null)
-    setMenuFolderId(null)
+  const handleDeleteFolder = async (folderId: string, folderName: string) => {
+    const [{ count: docCount }, { count: subCount }] = await Promise.all([
+      supabase.from('documents').select('*', { count: 'exact', head: true }).eq('folder_id', folderId).eq('is_deleted', false),
+      supabase.from('folders').select('*', { count: 'exact', head: true }).eq('parent_id', folderId),
+    ])
+    setDeletingFolder({ id: folderId, name: folderName, docCount: docCount ?? 0, subCount: subCount ?? 0 })
+  }
+
+  const confirmDeleteFolder = async (folderId: string) => {
+    setDeletingFolder(null)
+    try {
+      await fetch(`/api/folders?id=${folderId}`, { method: 'DELETE' })
+      await supabase.from('documents').update({ is_deleted: true }).eq('folder_id', folderId)
+    } catch (err) {
+      console.error('[FileExplorer] delete folder error:', err)
+    }
     fetchContents()
   }
 
@@ -473,16 +486,13 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               renameValue={renamingId === folder.id ? renameValue : folder.name}
               renameInputRef={renamingId === folder.id ? renameInputRef : undefined}
               isDragOver={dragOverId === folder.id}
-              confirmDelete={confirmDeleteFolderId === folder.id}
               onOpen={() => navigateInto(folder)}
               onMenuToggle={() => setMenuFolderId(id => id === folder.id ? null : folder.id)}
               onRenameStart={() => { setRenamingId(folder.id); setRenameValue(folder.name); setMenuFolderId(null) }}
               onRenameChange={setRenameValue}
               onRenameSubmit={handleRename}
               onRenameCancel={() => setRenamingId(null)}
-              onDeleteRequest={() => { setConfirmDeleteFolderId(folder.id); setMenuFolderId(null) }}
-              onDeleteConfirm={() => handleDeleteFolder(folder.id)}
-              onDeleteCancel={() => setConfirmDeleteFolderId(null)}
+              onDeleteRequest={() => { handleDeleteFolder(folder.id, folder.name); setMenuFolderId(null) }}
               onDragStart={() => handleDragStart('folder', folder.id)}
               onDragOver={(e) => { e.preventDefault(); setDragOverId(folder.id) }}
               onDragLeave={() => setDragOverId(null)}
@@ -522,16 +532,13 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               renameValue={renamingId === folder.id ? renameValue : folder.name}
               renameInputRef={renamingId === folder.id ? renameInputRef : undefined}
               isDragOver={dragOverId === folder.id}
-              confirmDelete={confirmDeleteFolderId === folder.id}
               onOpen={() => navigateInto(folder)}
               onMenuToggle={() => setMenuFolderId(id => id === folder.id ? null : folder.id)}
               onRenameStart={() => { setRenamingId(folder.id); setRenameValue(folder.name); setMenuFolderId(null) }}
               onRenameChange={setRenameValue}
               onRenameSubmit={handleRename}
               onRenameCancel={() => setRenamingId(null)}
-              onDeleteRequest={() => { setConfirmDeleteFolderId(folder.id); setMenuFolderId(null) }}
-              onDeleteConfirm={() => handleDeleteFolder(folder.id)}
-              onDeleteCancel={() => setConfirmDeleteFolderId(null)}
+              onDeleteRequest={() => { handleDeleteFolder(folder.id, folder.name); setMenuFolderId(null) }}
               onDragStart={() => handleDragStart('folder', folder.id)}
               onDragOver={(e) => { e.preventDefault(); setDragOverId(folder.id) }}
               onDragLeave={() => setDragOverId(null)}
@@ -556,6 +563,88 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               view="list"
             />
           ))}
+        </div>
+      )}
+
+      {/* ─── Delete folder confirmation modal ─── */}
+      {deletingFolder && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 9999,
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'center', padding: 16,
+        }}>
+          <div style={{
+            background: '#ffffff', borderRadius: 16,
+            padding: 28, maxWidth: 400, width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12,
+              background: '#FEF2F2',
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'center', marginBottom: 16,
+            }}>
+              <IconAlertTriangle size={24} color="#DC2626" />
+            </div>
+
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0A0A0A', margin: '0 0 8px 0' }}>
+              Supprimer &ldquo;{deletingFolder.name}&rdquo; ?
+            </h3>
+
+            {(deletingFolder.docCount > 0 || deletingFolder.subCount > 0) ? (
+              <div style={{
+                background: '#FEF2F2', borderRadius: 8,
+                padding: '12px 14px', marginBottom: 20,
+                border: '1px solid #FECACA',
+              }}>
+                <p style={{ fontSize: 13, color: '#DC2626', margin: 0, lineHeight: 1.6, fontWeight: 500 }}>
+                  Ce dossier contient :
+                </p>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: 18, fontSize: 13, color: '#374151', lineHeight: 1.8 }}>
+                  {deletingFolder.docCount > 0 && (
+                    <li><strong>{deletingFolder.docCount}</strong> document{deletingFolder.docCount > 1 ? 's' : ''}</li>
+                  )}
+                  {deletingFolder.subCount > 0 && (
+                    <li><strong>{deletingFolder.subCount}</strong> sous-dossier{deletingFolder.subCount > 1 ? 's' : ''}</li>
+                  )}
+                </ul>
+                <p style={{ fontSize: 13, color: '#DC2626', margin: '8px 0 0 0', lineHeight: 1.5, fontWeight: 500 }}>
+                  Tout le contenu sera supprimé définitivement.
+                </p>
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px 0', lineHeight: 1.6 }}>
+                Ce dossier est vide. La suppression est irréversible.
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeletingFolder(null)}
+                style={{
+                  flex: 1, padding: '11px 16px',
+                  border: '1px solid #E5E7EB', borderRadius: 10,
+                  background: '#ffffff', color: '#374151',
+                  fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => confirmDeleteFolder(deletingFolder.id)}
+                style={{
+                  flex: 1, padding: '11px 16px',
+                  border: 'none', borderRadius: 10,
+                  background: '#DC2626', color: '#ffffff',
+                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -649,7 +738,6 @@ interface FolderCardProps {
   renameValue: string
   renameInputRef?: React.RefObject<HTMLInputElement | null>
   isDragOver: boolean
-  confirmDelete: boolean
   onOpen: () => void
   onMenuToggle: () => void
   onRenameStart: () => void
@@ -657,8 +745,6 @@ interface FolderCardProps {
   onRenameSubmit: () => void
   onRenameCancel: () => void
   onDeleteRequest: () => void
-  onDeleteConfirm: () => void
-  onDeleteCancel: () => void
   onDragStart: () => void
   onDragOver: (e: React.DragEvent) => void
   onDragLeave: () => void
@@ -667,7 +753,7 @@ interface FolderCardProps {
   view: 'grid' | 'list'
 }
 
-function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRef, isDragOver, confirmDelete, onOpen, onMenuToggle, onRenameStart, onRenameChange, onRenameSubmit, onRenameCancel, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onDragStart, onDragOver, onDragLeave, onDrop, menuRef, view }: FolderCardProps) {
+function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRef, isDragOver, onOpen, onMenuToggle, onRenameStart, onRenameChange, onRenameSubmit, onRenameCancel, onDeleteRequest, onDragStart, onDragOver, onDragLeave, onDrop, menuRef, view }: FolderCardProps) {
   if (view === 'grid') {
     return (
       <div
@@ -704,15 +790,6 @@ function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRe
             </button>
           </div>
         )}
-        {confirmDelete && (
-          <div onClick={(e) => e.stopPropagation()} className="absolute inset-0 bg-white/95 rounded-xl flex flex-col items-center justify-center gap-2 z-10">
-            <p className="text-[11px] text-center text-[#1E293B] px-2">Supprimer le dossier et son contenu ?</p>
-            <div className="flex gap-2">
-              <button onClick={onDeleteConfirm} className="px-2 py-1 text-[10px] font-medium text-white bg-red-500 rounded-lg">Oui</button>
-              <button onClick={onDeleteCancel} className="px-2 py-1 text-[10px] font-medium text-[#64748B] bg-gray-100 rounded-lg">Non</button>
-            </div>
-          </div>
-        )}
       </div>
     )
   }
@@ -738,21 +815,12 @@ function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRe
         <span className="flex-1 text-sm font-medium text-[#1E293B] truncate">{folder.name}</span>
       )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-        {confirmDelete ? (
-          <>
-            <button onClick={onDeleteConfirm} className="px-2 py-0.5 text-[10px] font-medium text-white bg-red-500 rounded-lg">Sup.</button>
-            <button onClick={onDeleteCancel} className="px-2 py-0.5 text-[10px] font-medium text-[#64748B] bg-gray-100 rounded-lg">✕</button>
-          </>
-        ) : (
-          <>
-            <button onClick={onRenameStart} className="p-1.5 rounded-lg hover:bg-gray-100 text-[#94A3B8] hover:text-[#1E293B]" title="Renommer">
-              <IconPencil size={13} />
-            </button>
-            <button onClick={onDeleteRequest} className="p-1.5 rounded-lg hover:bg-red-50 text-[#94A3B8] hover:text-red-400" title="Supprimer">
-              <IconTrash size={13} />
-            </button>
-          </>
-        )}
+        <button onClick={onRenameStart} className="p-1.5 rounded-lg hover:bg-gray-100 text-[#94A3B8] hover:text-[#1E293B]" title="Renommer">
+          <IconPencil size={13} />
+        </button>
+        <button onClick={onDeleteRequest} className="p-1.5 rounded-lg hover:bg-red-50 text-[#94A3B8] hover:text-red-400" title="Supprimer">
+          <IconTrash size={13} />
+        </button>
       </div>
     </div>
   )
