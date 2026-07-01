@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { name, account_id, parent_id, workspace_id } = await request.json()
+  const { name, account_id, parent_id, workspace_id, folder_type } = await request.json()
   if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
   const supabase = adminClient()
@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     account_id: account_id ?? null,
     parent_id: parent_id ?? null,
     workspace_id: workspace_id ?? null,
+    folder_type: folder_type ?? 'custom',
     created_by: user.id,
   }
 

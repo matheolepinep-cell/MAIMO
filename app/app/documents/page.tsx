@@ -1,307 +1,662 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, FileText, ChevronLeft, ChevronRight, X, ExternalLink, Eye } from 'lucide-react'
+import {
+  IconFolder,
+  IconFolderPlus,
+  IconFileTypePdf,
+  IconFileTypeDocx,
+  IconFileTypeXls,
+  IconPhoto,
+  IconFile,
+  IconUpload,
+  IconDownload,
+  IconEye,
+  IconTrash,
+  IconList,
+  IconLayoutGrid,
+  IconChevronRight,
+  IconSparkles,
+  IconArrowRight,
+  IconAlertTriangle,
+  IconX,
+} from '@tabler/icons-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
+import { validateFile, sanitizeFilename } from '@/lib/file-validation'
 
-type DocRow = {
+/* ─── Types ─── */
+interface GlobalFolder {
   id: string
-  title: string | null
+  name: string
+  folder_type: 'general' | 'account' | 'custom'
+  parent_id: string | null
+  account_id: string | null
+  doc_count?: number
+}
+
+interface GlobalDocument {
+  id: string
   file_name: string
   file_url: string
   file_type: 'pdf' | 'docx' | 'xlsx' | 'image'
-  created_at: string
+  file_size: number | null
+  folder_id: string | null
   account_id: string | null
-  account_name: string
-  author_name: string
+  is_indexed: boolean
+  created_at: string
+  account_name?: string
 }
 
-const PAGE_SIZE = 20
-
-function fmt(d: string) {
-  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
+/* ─── Helpers ─── */
+function getFileType(file: File): 'pdf' | 'docx' | 'xlsx' | 'image' {
+  if (file.type.startsWith('image/')) return 'image'
+  if (file.type.includes('pdf')) return 'pdf'
+  if (file.type.includes('wordprocessingml')) return 'docx'
+  return 'xlsx'
 }
 
-function docIcon(type: string) {
-  const base = 'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-white'
-  const styles: Record<string, { bg: string; label: string }> = {
-    pdf: { bg: '#EF4444', label: 'PDF' },
-    docx: { bg: '#3B82F6', label: 'DOC' },
-    xlsx: { bg: '#10B981', label: 'XLS' },
-    image: { bg: '#8B5CF6', label: 'IMG' },
-  }
-  const s = styles[type] ?? { bg: '#94A3B8', label: '?' }
-  return { className: base, bg: s.bg, label: s.label }
+function formatFileSize(bytes: number | null): string {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} o`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
 }
 
+function formatDate(d: string): string {
+  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })
+}
+
+/* ─── FileTypeIcon ─── */
+function FileTypeIcon({ type, size = 16 }: { type: string; size?: number }) {
+  const s = { width: size, height: size }
+  if (type === 'pdf') return <IconFileTypePdf style={s} color="#EF4444" />
+  if (type === 'docx') return <IconFileTypeDocx style={s} color="#2563EB" />
+  if (type === 'xlsx') return <IconFileTypeXls style={s} color="#16A34A" />
+  if (type === 'image') return <IconPhoto style={s} color="#8B5CF6" />
+  return <IconFile style={s} color="#94A3B8" />
+}
+
+/* ─── IndexBadge ─── */
+function IndexBadge({ docId, isIndexed, indexingDocIds }: { docId: string; isIndexed: boolean; indexingDocIds: string[] }) {
+  if (indexingDocIds.includes(docId)) return (
+    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <span className="animate-spin" style={{ width: 8, height: 8, borderRadius: '50%', border: '1.5px solid #2563EB', borderTopColor: 'transparent', display: 'inline-block' }} />
+      Indexation...
+    </span>
+  )
+  if (isIndexed) return (
+    <span title="Dans la mémoire de l'IA" style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+      <IconSparkles size={10} />
+      Dans l'IA
+    </span>
+  )
+  return (
+    <span title="Non indexé" style={{ fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 10, background: '#F3F4F6', color: '#9CA3AF', flexShrink: 0 }}>
+      Non indexé
+    </span>
+  )
+}
+
+/* ─── Page ─── */
 export default function DocumentsPage() {
   const router = useRouter()
-  const { profile, loading: profileLoading } = useUser()
-  const { wsId, currentWorkspace } = useWorkspace()
+  const { profile } = useUser()
+  const { wsId } = useWorkspace()
+  const supabase = createClient()
 
-  const [docs, setDocs] = useState<DocRow[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+  const [breadcrumb, setBreadcrumb] = useState<GlobalFolder[]>([])
+  const [folders, setFolders] = useState<GlobalFolder[]>([])
+  const [documents, setDocuments] = useState<GlobalDocument[]>([])
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [movingDoc, setMovingDoc] = useState<GlobalDocument | null>(null)
+  const [allFolders, setAllFolders] = useState<GlobalFolder[]>([])
+  const [indexingDocIds, setIndexingDocIds] = useState<string[]>([])
+  const [deletingFolder, setDeletingFolder] = useState<{ id: string; name: string; docCount: number } | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const didInit = useRef(false)
 
-  // Filters
-  const [portfolio, setPortfolio] = useState<'all' | 'perso' | 'global'>('all')
-  const [clientFilter, setClientFilter] = useState<{ id: string; name: string } | null>(null)
-  const [clientQuery, setClientQuery] = useState('')
-  const [clientResults, setClientResults] = useState<{ id: string; name: string }[]>([])
-  const [showClientDrop, setShowClientDrop] = useState(false)
-  const [typeFilter, setTypeFilter] = useState<'all' | 'pdf' | 'docx' | 'xlsx' | 'image'>('all')
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'az'>('desc')
-  const [nameSearch, setNameSearch] = useState('')
-
-  // Portfolio accounts
-  const [portfolioAccountIds, setPortfolioAccountIds] = useState<string[]>([])
-
-  useEffect(() => {
+  /* ─── Load content ─── */
+  const loadContent = useCallback(async (folderId: string | null = currentFolderId) => {
     if (!profile) return
-    const supabase = createClient()
-    supabase.from('portfolio').select('account_id').eq('user_id', profile.id).then(({ data }) => {
-      setPortfolioAccountIds((data ?? []).map((r: { account_id: string }) => r.account_id))
-    })
-  }, [profile])
+    const companyId = profile.company_id
 
-  const fetchDocs = useCallback(async () => {
-    if (!profile) return
-    setLoading(true)
-    const supabase = createClient()
-    const cid = profile.company_id
+    // Folders
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let folderQ: any = supabase
+      .from('folders')
+      .select('id, name, folder_type, parent_id, account_id')
+      .eq('company_id', companyId)
+      .order('folder_type')
+      .order('name')
+    if (wsId) folderQ = folderQ.eq('workspace_id', wsId)
+    if (folderId) folderQ = folderQ.eq('parent_id', folderId)
+    else folderQ = folderQ.is('parent_id', null)
+    const { data: folderData } = await folderQ
 
-    let q = supabase
+    const enriched: GlobalFolder[] = await Promise.all(
+      ((folderData ?? []) as GlobalFolder[]).map(async (f) => {
+        const { count } = await supabase
+          .from('documents')
+          .select('*', { count: 'exact', head: true })
+          .eq('folder_id', f.id)
+          .eq('is_deleted', false)
+        return { ...f, doc_count: count ?? 0 }
+      })
+    )
+    setFolders(enriched)
+
+    // Documents
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let docQ: any = supabase
       .from('documents')
-      .select('id, title, file_name, file_url, file_type, created_at, account_id, user_id', { count: 'exact' })
-      .eq('company_id', cid)
+      .select('id, file_name, file_url, file_type, file_size, folder_id, account_id, is_indexed, created_at')
+      .eq('company_id', companyId)
       .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+    if (wsId) docQ = docQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
+    if (folderId) docQ = docQ.eq('folder_id', folderId)
+    else docQ = docQ.is('folder_id', null)
+    const { data: docData } = await docQ
 
-    if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
-    if (clientFilter) q = q.eq('account_id', clientFilter.id)
-    if (typeFilter !== 'all') q = q.eq('file_type', typeFilter)
-    if (nameSearch.trim()) q = q.ilike('file_name', `%${nameSearch.trim()}%`)
-    if (portfolio === 'perso' && portfolioAccountIds.length > 0) q = q.in('account_id', portfolioAccountIds)
-    if (portfolio === 'perso' && portfolioAccountIds.length === 0) { setDocs([]); setTotal(0); setLoading(false); return }
+    const rows = (docData ?? []) as GlobalDocument[]
+    const accountIds = [...new Set(rows.map((d) => d.account_id).filter(Boolean) as string[])]
+    let accMap: Record<string, string> = {}
+    if (accountIds.length > 0) {
+      const { data: accs } = await supabase.from('accounts').select('id, name').in('id', accountIds)
+      accMap = Object.fromEntries(((accs ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]))
+    }
+    setDocuments(rows.map((d) => ({ ...d, account_name: d.account_id ? accMap[d.account_id] : undefined })))
 
-    if (sortOrder === 'desc') q = q.order('created_at', { ascending: false })
-    else if (sortOrder === 'asc') q = q.order('created_at', { ascending: true })
-    else q = q.order('file_name', { ascending: true })
+    // All folders for move modal
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let allQ: any = supabase.from('folders').select('id, name, folder_type, parent_id, account_id').eq('company_id', companyId).order('name')
+    if (wsId) allQ = allQ.eq('workspace_id', wsId)
+    const { data: allData } = await allQ
+    setAllFolders((allData ?? []) as GlobalFolder[])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, wsId])
 
-    q = q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
-
-    const { data: docsData, count } = await q
-    setTotal(count ?? 0)
-
-    if (!docsData || docsData.length === 0) { setDocs([]); setLoading(false); return }
-
-    const accountIds = [...new Set(docsData.map((d: { account_id: string | null }) => d.account_id).filter(Boolean))]
-    const userIds = [...new Set(docsData.map((d: { user_id: string }) => d.user_id).filter(Boolean))]
-
-    const [{ data: accs }, { data: usrs }] = await Promise.all([
-      accountIds.length > 0 ? supabase.from('accounts').select('id, name').in('id', accountIds) : Promise.resolve({ data: [] }),
-      userIds.length > 0 ? supabase.from('users').select('id, full_name').in('id', userIds) : Promise.resolve({ data: [] }),
-    ])
-
-    const accMap = Object.fromEntries(((accs ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]))
-    const userMap = Object.fromEntries(((usrs ?? []) as { id: string; full_name: string }[]).map((u) => [u.id, u.full_name]))
-
-    setDocs(docsData.map((d: { id: string; title: string | null; file_name: string; file_url: string; file_type: 'pdf' | 'docx' | 'xlsx' | 'image'; created_at: string; account_id: string | null; user_id: string }) => ({
-      id: d.id,
-      title: d.title,
-      file_name: d.file_name,
-      file_url: d.file_url,
-      file_type: d.file_type,
-      created_at: d.created_at,
-      account_id: d.account_id,
-      account_name: d.account_id ? (accMap[d.account_id] ?? 'Non associé') : 'Non associé',
-      author_name: userMap[d.user_id] ?? 'Quelqu\'un',
-    })))
-    setLoading(false)
-  }, [profile, wsId, clientFilter, typeFilter, nameSearch, portfolio, portfolioAccountIds, sortOrder, page])
+  /* ─── Create "Général" folder if missing ─── */
+  const initializeFolders = useCallback(async () => {
+    if (!profile) return
+    const companyId = profile.company_id
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = supabase
+      .from('folders')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('folder_type', 'general')
+      .is('parent_id', null)
+    if (wsId) q = q.eq('workspace_id', wsId)
+    const { data: existing } = await q
+    if (!existing || existing.length === 0) {
+      await supabase.from('folders').insert({
+        name: 'Général',
+        folder_type: 'general',
+        parent_id: null,
+        account_id: null,
+        workspace_id: wsId ?? null,
+        company_id: companyId,
+        created_by: profile.id,
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, wsId])
 
   useEffect(() => {
-    if (!profileLoading && profile) fetchDocs()
-  }, [profileLoading, profile, fetchDocs])
+    if (!profile || didInit.current) return
+    didInit.current = true
+    initializeFolders().then(() => loadContent(null))
+  }, [profile, initializeFolders, loadContent])
 
-  useEffect(() => {
-    if (!clientQuery.trim() || !profile?.company_id) { setClientResults([]); return }
-    const t = setTimeout(async () => {
-      const supabase = createClient()
-      let q = supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).ilike('name', `%${clientQuery}%`).order('name').limit(7)
-      if (wsId) q = q.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
-      const { data } = await q
-      setClientResults(data ?? [])
-    }, 200)
-    return () => clearTimeout(t)
-  }, [clientQuery, profile, wsId])
+  /* ─── Navigation ─── */
+  const navigateTo = (folderId: string | null, folder?: GlobalFolder) => {
+    setCurrentFolderId(folderId)
+    if (folderId === null) {
+      setBreadcrumb([])
+    } else if (folder) {
+      const idx = breadcrumb.findIndex((b) => b.id === folderId)
+      if (idx >= 0) {
+        setBreadcrumb(breadcrumb.slice(0, idx + 1))
+      } else {
+        setBreadcrumb([...breadcrumb, folder])
+      }
+    }
+    loadContent(folderId)
+  }
 
-  const hasFilters = portfolio !== 'all' || clientFilter !== null || typeFilter !== 'all' || sortOrder !== 'desc' || nameSearch.trim() !== ''
-  const totalPages = Math.ceil(total / PAGE_SIZE)
+  /* ─── Create folder ─── */
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim() || !profile) return
+    await fetch('/api/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newFolderName.trim(),
+        folder_type: 'custom',
+        parent_id: currentFolderId,
+        account_id: null,
+        workspace_id: wsId,
+      }),
+    })
+    setNewFolderName('')
+    setIsCreatingFolder(false)
+    loadContent(currentFolderId)
+  }
 
+  /* ─── Upload ─── */
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!profile) return
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setUploading(true)
+    for (const file of files) {
+      const { valid } = await validateFile(file)
+      if (!valid) continue
+      const safeName = sanitizeFilename(file.name)
+      const filePath = `${profile.company_id}/${Date.now()}-${safeName}`
+      const { error: storErr } = await supabase.storage.from('documents').upload(filePath, file)
+      if (storErr) continue
+      await supabase.from('documents').insert({
+        account_id: null,
+        company_id: profile.company_id,
+        user_id: profile.id,
+        folder_id: currentFolderId ?? null,
+        file_name: safeName,
+        file_url: `documents:${filePath}`,
+        file_size: file.size,
+        file_type: getFileType(file),
+        title: safeName.replace(/\.[^.]+$/, ''),
+        is_deleted: false,
+        is_indexed: false,
+        is_global: true,
+        workspace_id: wsId ?? null,
+      })
+    }
+    e.target.value = ''
+    setUploading(false)
+    loadContent(currentFolderId)
+  }
+
+  /* ─── Open document (signed URL) ─── */
+  const openDocument = async (docId: string) => {
+    const res = await fetch(`/api/documents/${docId}/url`)
+    const { url } = await res.json()
+    if (url) window.open(url, '_blank')
+  }
+
+  /* ─── Move document ─── */
+  const handleMoveDocument = async (targetFolderId: string | null) => {
+    if (!movingDoc) return
+    await fetch('/api/folders/move', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'document', id: movingDoc.id, folder_id: targetFolderId }),
+    })
+    setMovingDoc(null)
+    loadContent(currentFolderId)
+  }
+
+  /* ─── Delete document ─── */
+  const handleDeleteDocument = async (docId: string) => {
+    await supabase.from('documents').update({ is_deleted: true }).eq('id', docId)
+    loadContent(currentFolderId)
+  }
+
+  /* ─── Reindex ─── */
+  const handleIndex = async (docId: string) => {
+    setIndexingDocIds((prev) => [...prev, docId])
+    try {
+      await fetch('/api/documents/index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: docId }),
+      })
+    } finally {
+      setIndexingDocIds((prev) => prev.filter((id) => id !== docId))
+      loadContent(currentFolderId)
+    }
+  }
+
+  /* ─── Render ─── */
   return (
-    <div className="flex flex-col min-h-full bg-[#F5F5F5]">
+    <div style={{ padding: '24px', maxWidth: 1000, margin: '0 auto' }}>
+
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
-        <button onClick={() => router.push('/app/dashboard')} className="p-2 rounded-xl text-[#64748B] hover:bg-gray-100 transition-all">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex-1">
-          <h1 className="font-bold text-[#1E293B]">
-            Documents {!loading && <span className="text-[#94A3B8] font-normal text-sm">({total})</span>}
-          </h1>
-          {currentWorkspace && <p className="text-xs text-[#94A3B8]">{currentWorkspace.name}</p>}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0A0A0A', margin: 0 }}>Documents</h1>
+          <p style={{ fontSize: 13, color: '#9CA3AF', margin: '4px 0 0 0' }}>Tous les documents du workspace</p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* View toggle */}
+          <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: 8, padding: 2 }}>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: viewMode === 'list' ? '#ffffff' : 'transparent', cursor: 'pointer', color: '#6B7280', boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}
+            >
+              <IconList size={15} />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: viewMode === 'grid' ? '#ffffff' : 'transparent', cursor: 'pointer', color: '#6B7280', boxShadow: viewMode === 'grid' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}
+            >
+              <IconLayoutGrid size={15} />
+            </button>
+          </div>
+
+          <button
+            onClick={() => setIsCreatingFolder(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1px solid #E5E7EB', borderRadius: 8, background: '#ffffff', color: '#374151', fontSize: 13, cursor: 'pointer' }}
+          >
+            <IconFolderPlus size={14} />
+            Nouveau dossier
+          </button>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: uploading ? '#93C5FD' : '#2563EB', borderRadius: 8, color: '#ffffff', fontSize: 13, cursor: uploading ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+            <IconUpload size={14} />
+            {uploading ? 'Upload...' : 'Importer'}
+            <input type="file" multiple style={{ display: 'none' }} onChange={handleFileUpload} disabled={uploading} />
+          </label>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white border-b border-gray-100 px-4 py-2 flex flex-wrap items-center gap-2">
-        <select value={portfolio} onChange={(e) => { setPortfolio(e.target.value as 'all' | 'perso' | 'global'); setPage(0) }}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-[#1E293B] bg-white focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
-          <option value="all">Tous les portefeuilles</option>
-          <option value="perso">Mon portefeuille</option>
-          <option value="global">Global</option>
-        </select>
+      {/* Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: '#6B7280', marginBottom: 16, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => navigateTo(null)}
+          style={{ background: 'none', border: 'none', color: currentFolderId ? '#2563EB' : '#0A0A0A', cursor: currentFolderId ? 'pointer' : 'default', fontSize: 13, fontWeight: 600, padding: 0 }}
+        >
+          Tous les documents
+        </button>
+        {breadcrumb.map((folder, i) => (
+          <span key={folder.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <IconChevronRight size={12} color="#9CA3AF" />
+            <button
+              onClick={() => navigateTo(folder.id, folder)}
+              style={{ background: 'none', border: 'none', padding: 0, color: i === breadcrumb.length - 1 ? '#0A0A0A' : '#2563EB', cursor: i === breadcrumb.length - 1 ? 'default' : 'pointer', fontSize: 13, fontWeight: i === breadcrumb.length - 1 ? 600 : 400 }}
+            >
+              {folder.name}
+            </button>
+          </span>
+        ))}
+      </div>
 
-        {/* Client filter */}
-        <div className="relative">
-          {clientFilter ? (
-            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-[#F5F5F5] rounded-lg text-xs font-medium text-[#0A0A0A]">
-              {clientFilter.name}
-              <button onClick={() => { setClientFilter(null); setClientQuery(''); setPage(0) }}><X className="w-3 h-3 ml-1 hover:text-red-500" /></button>
-            </div>
-          ) : (
-            <>
-              <input type="text" placeholder="Filtrer par client..." value={clientQuery}
-                onChange={(e) => { setClientQuery(e.target.value); setShowClientDrop(true) }}
-                onFocus={() => setShowClientDrop(true)}
-                onBlur={() => setTimeout(() => setShowClientDrop(false), 150)}
-                className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-[#1E293B] w-36 focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
+      {/* Inline folder creation */}
+      {isCreatingFolder && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', marginBottom: 12, background: '#EFF6FF', borderRadius: 8, border: '1.5px solid #2563EB' }}>
+          <IconFolder size={16} color="#2563EB" />
+          <input
+            autoFocus value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') { setIsCreatingFolder(false); setNewFolderName('') } }}
+            placeholder="Nom du dossier..."
+            style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, color: '#0A0A0A', outline: 'none' }}
+          />
+          <button onClick={handleCreateFolder} style={{ padding: '5px 12px', background: '#2563EB', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Créer</button>
+          <button onClick={() => { setIsCreatingFolder(false); setNewFolderName('') }} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: 4 }}>
+            <IconX size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* ── List view ── */}
+      {viewMode === 'list' && (
+        <div style={{ border: '1px solid #F3F4F6', borderRadius: 12, overflow: 'hidden' }}>
+          {folders.map((folder) => (
+            <div
+              key={folder.id}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid #F9FAFB', background: '#ffffff', cursor: 'pointer', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+              onDoubleClick={() => navigateTo(folder.id, folder)}
+            >
+              <IconFolder
+                size={20}
+                color={folder.folder_type === 'general' ? '#6B7280' : folder.folder_type === 'account' ? '#2563EB' : '#F59E0B'}
+                style={{ flexShrink: 0 }}
               />
-              {showClientDrop && clientResults.length > 0 && (
-                <div className="absolute z-40 mt-1 left-0 w-52 bg-white rounded-xl border border-gray-100 shadow-xl overflow-hidden">
-                  {clientResults.map((acc) => (
-                    <button key={acc.id} onMouseDown={() => { setClientFilter(acc); setClientQuery(''); setShowClientDrop(false); setPage(0) }}
-                      className="w-full px-3 py-2 text-left text-xs hover:bg-[#F5F5F5] transition-colors">{acc.name}</button>
-                  ))}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: '#0A0A0A', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {folder.name}
+                  {folder.folder_type === 'general' && (
+                    <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#F3F4F6', color: '#6B7280', fontWeight: 600 }}>Général</span>
+                  )}
+                  {folder.folder_type === 'account' && (
+                    <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: '#EFF6FF', color: '#2563EB', fontWeight: 600 }}>Client</span>
+                  )}
                 </div>
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
+                  {folder.doc_count ?? 0} document{(folder.doc_count ?? 0) !== 1 ? 's' : ''}
+                </div>
+              </div>
+
+              {folder.folder_type === 'account' && folder.account_id && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); router.push(`/app/accounts/${folder.account_id}`) }}
+                  style={{ padding: '5px 10px', fontSize: 11, border: '1px solid #E5E7EB', borderRadius: 6, background: '#ffffff', color: '#6B7280', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  Voir la fiche
+                </button>
               )}
-            </>
+
+              {folder.folder_type === 'custom' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeletingFolder({ id: folder.id, name: folder.name, docCount: folder.doc_count ?? 0 }) }}
+                  style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', borderRadius: 6 }}
+                >
+                  <IconTrash size={14} />
+                </button>
+              )}
+
+              <IconChevronRight size={14} color="#9CA3AF" style={{ flexShrink: 0 }} />
+            </div>
+          ))}
+
+          {documents.map((doc) => (
+            <div
+              key={doc.id}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid #F9FAFB', background: '#ffffff', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+            >
+              <FileTypeIcon type={doc.file_type} size={18} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: '#0A0A0A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {doc.file_name}
+                </div>
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {doc.file_size && <span>{formatFileSize(doc.file_size)}</span>}
+                  <span>· {formatDate(doc.created_at)}</span>
+                  {doc.account_name && (
+                    <>
+                      <span>·</span>
+                      <button
+                        onClick={() => doc.account_id && router.push(`/app/accounts/${doc.account_id}`)}
+                        style={{ background: 'none', border: 'none', padding: 0, color: '#2563EB', cursor: 'pointer', fontSize: 11 }}
+                      >
+                        {doc.account_name}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <IndexBadge docId={doc.id} isIndexed={doc.is_indexed} indexingDocIds={indexingDocIds} />
+
+              <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                <button onClick={() => openDocument(doc.id)} style={{ padding: 6, borderRadius: 6, background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }} title="Prévisualiser">
+                  <IconEye size={14} />
+                </button>
+                <button onClick={() => openDocument(doc.id)} style={{ padding: 6, borderRadius: 6, background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }} title="Télécharger">
+                  <IconDownload size={14} />
+                </button>
+                {doc.file_type !== 'image' && !doc.is_indexed && (
+                  <button onClick={() => handleIndex(doc.id)} style={{ padding: 6, borderRadius: 6, background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer' }} title="Indexer dans l'IA">
+                    <IconSparkles size={14} />
+                  </button>
+                )}
+                <button onClick={() => setMovingDoc(doc)} style={{ padding: 6, borderRadius: 6, background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }} title="Déplacer">
+                  <IconArrowRight size={14} />
+                </button>
+                <button onClick={() => handleDeleteDocument(doc.id)} style={{ padding: 6, borderRadius: 6, background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }} title="Supprimer">
+                  <IconTrash size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {folders.length === 0 && documents.length === 0 && (
+            <div style={{ padding: '48px 20px', textAlign: 'center', color: '#9CA3AF' }}>
+              <IconFolder size={40} color="#E5E7EB" style={{ marginBottom: 12 }} />
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#374151' }}>Aucun document ici</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Importez des fichiers ou naviguez dans un dossier</div>
+            </div>
           )}
         </div>
+      )}
 
-        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value as 'all' | 'pdf' | 'docx' | 'xlsx' | 'image'); setPage(0) }}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-[#1E293B] bg-white focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
-          <option value="all">Tous les types</option>
-          <option value="pdf">PDF</option>
-          <option value="docx">Word</option>
-          <option value="xlsx">Excel</option>
-          <option value="image">Image</option>
-        </select>
+      {/* ── Grid view ── */}
+      {viewMode === 'grid' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+          {folders.map((folder) => (
+            <div
+              key={folder.id}
+              onDoubleClick={() => navigateTo(folder.id, folder)}
+              style={{ padding: '20px 12px', textAlign: 'center', border: '1px solid #F3F4F6', borderRadius: 12, background: '#ffffff', cursor: 'pointer', transition: 'all 0.15s', position: 'relative' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+            >
+              <IconFolder
+                size={44}
+                color={folder.folder_type === 'general' ? '#9CA3AF' : folder.folder_type === 'account' ? '#2563EB' : '#F59E0B'}
+              />
+              <div className="line-clamp-2" style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginTop: 8 }}>
+                {folder.name}
+              </div>
+              <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>
+                {folder.doc_count ?? 0} doc{(folder.doc_count ?? 0) !== 1 ? 's' : ''}
+              </div>
+            </div>
+          ))}
 
-        <select value={sortOrder} onChange={(e) => { setSortOrder(e.target.value as 'desc' | 'asc' | 'az'); setPage(0) }}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-[#1E293B] bg-white focus:outline-none focus:ring-2 focus:ring-[#3B82F6]">
-          <option value="desc">Date (récent)</option>
-          <option value="asc">Date (ancien)</option>
-          <option value="az">A → Z</option>
-        </select>
+          {documents.map((doc) => (
+            <div
+              key={doc.id}
+              style={{ padding: '16px 12px', textAlign: 'center', border: '1px solid #F3F4F6', borderRadius: 12, background: '#ffffff', position: 'relative', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+            >
+              <FileTypeIcon type={doc.file_type} size={36} />
+              <div className="line-clamp-2" style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 8 }}>
+                {doc.file_name}
+              </div>
+              <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center' }}>
+                <IndexBadge docId={doc.id} isIndexed={doc.is_indexed} indexingDocIds={indexingDocIds} />
+              </div>
+              <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', gap: 2 }}>
+                <button onClick={() => openDocument(doc.id)} style={{ padding: 4, borderRadius: 4, border: 'none', background: 'rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
+                  <IconEye size={12} color="#6B7280" />
+                </button>
+                <button onClick={() => setMovingDoc(doc)} style={{ padding: 4, borderRadius: 4, border: 'none', background: 'rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
+                  <IconArrowRight size={12} color="#6B7280" />
+                </button>
+                <button onClick={() => handleDeleteDocument(doc.id)} style={{ padding: 4, borderRadius: 4, border: 'none', background: 'rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
+                  <IconTrash size={12} color="#9CA3AF" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-        <input type="text" placeholder="Rechercher par nom..." value={nameSearch}
-          onChange={(e) => { setNameSearch(e.target.value); setPage(0) }}
-          className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-[#1E293B] w-40 focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
-        />
+      {/* ── Move document modal ── */}
+      {movingDoc && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Déplacer &ldquo;{movingDoc.file_name}&rdquo;</h3>
+              <button onClick={() => setMovingDoc(null)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: 4 }}>
+                <IconX size={16} />
+              </button>
+            </div>
 
-        {hasFilters && (
-          <button onClick={() => { setPortfolio('all'); setClientFilter(null); setClientQuery(''); setTypeFilter('all'); setSortOrder('desc'); setNameSearch(''); setPage(0) }}
-            className="text-xs text-[#64748B] hover:text-[#0A0A0A] underline transition-colors">
-            Réinitialiser
-          </button>
-        )}
-      </div>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <button
+                onClick={() => handleMoveDocument(null)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#F9FAFB', cursor: 'pointer', marginBottom: 6, textAlign: 'left' }}
+              >
+                <IconFolder size={16} color="#9CA3AF" />
+                <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>Racine (sans dossier)</span>
+              </button>
 
-      {/* Documents list */}
-      <div className="flex-1 p-4 max-w-4xl mx-auto w-full">
-        {loading ? (
-          <div className="space-y-2">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-16 bg-white rounded-xl animate-pulse" />
-            ))}
+              {allFolders.map((folder) => (
+                <button
+                  key={folder.id}
+                  onClick={() => handleMoveDocument(folder.id)}
+                  disabled={folder.id === movingDoc.folder_id}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: '1px solid transparent', background: folder.id === movingDoc.folder_id ? '#F3F4F6' : '#ffffff', cursor: folder.id === movingDoc.folder_id ? 'not-allowed' : 'pointer', marginBottom: 4, textAlign: 'left', opacity: folder.id === movingDoc.folder_id ? 0.5 : 1 }}
+                  onMouseEnter={(e) => { if (folder.id !== movingDoc.folder_id) e.currentTarget.style.background = '#EFF6FF' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = folder.id === movingDoc.folder_id ? '#F3F4F6' : '#ffffff' }}
+                >
+                  <IconFolder size={16} color={folder.folder_type === 'general' ? '#9CA3AF' : folder.folder_type === 'account' ? '#2563EB' : '#F59E0B'} />
+                  <span style={{ fontSize: 13, color: '#374151' }}>{folder.name}</span>
+                  {folder.id === movingDoc.folder_id && (
+                    <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 'auto' }}>Dossier actuel</span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : docs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-[#94A3B8]">
-            <FileText className="w-10 h-10 mb-2 text-gray-200" />
-            <p className="text-sm">Aucun document trouvé</p>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {docs.map((doc) => {
-              const icon = docIcon(doc.file_type)
-              return (
-                <div key={doc.id} className="bg-white rounded-xl px-4 py-3 flex items-center gap-3"
-                  style={{ border: '1px solid rgba(30,39,97,0.07)' }}>
-                  <div className={icon.className} style={{ background: icon.bg }}>
-                    {icon.label}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <button
-                      onClick={() => window.open(doc.file_url, '_blank')}
-                      className="text-sm font-medium text-[#0F172A] hover:text-[#0A0A0A] truncate block text-left transition-colors"
-                    >
-                      {doc.file_name}
-                    </button>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {doc.account_id ? (
-                        <button onClick={() => router.push(`/app/accounts/${doc.account_id}`)}
-                          className="text-[11px] text-[#6B6B6B] hover:underline">
-                          {doc.account_name}
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-[#94A3B8]">Non associé</span>
-                      )}
-                      <span className="text-[11px] text-[#94A3B8]">· {fmt(doc.created_at)} · {doc.author_name}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => window.open(doc.file_url, '_blank')}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#64748B] hover:bg-gray-100 transition-colors"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Voir
-                    </button>
-                    {doc.account_id && (
-                      <button
-                        onClick={() => router.push(`/app/accounts/${doc.account_id}`)}
-                        className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0A0A0A] hover:bg-gray-100 transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        </div>
+      )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="p-2 rounded-lg text-[#64748B] hover:bg-white disabled:opacity-30 transition-all">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-sm text-[#64748B]">{page + 1} / {totalPages}</span>
-            <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-              className="p-2 rounded-lg text-[#64748B] hover:bg-white disabled:opacity-30 transition-all">
-              <ChevronRight className="w-4 h-4" />
-            </button>
+      {/* ── Delete folder modal ── */}
+      {deletingFolder && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, padding: 28, maxWidth: 380, width: '100%' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <IconAlertTriangle size={24} color="#DC2626" />
+            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px 0' }}>
+              Supprimer &ldquo;{deletingFolder.name}&rdquo; ?
+            </h3>
+            {deletingFolder.docCount > 0 && (
+              <div style={{ background: '#FEF2F2', borderRadius: 8, padding: '10px 14px', marginBottom: 16, border: '1px solid #FECACA' }}>
+                <p style={{ fontSize: 13, color: '#DC2626', margin: 0 }}>
+                  Ce dossier contient <strong>{deletingFolder.docCount}</strong> document{deletingFolder.docCount !== 1 ? 's' : ''} qui seront supprimés.
+                </p>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeletingFolder(null)}
+                style={{ flex: 1, padding: '11px 16px', border: '1px solid #E5E7EB', borderRadius: 10, background: '#ffffff', color: '#374151', fontSize: 14, cursor: 'pointer' }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={async () => {
+                  await fetch(`/api/folders?id=${deletingFolder.id}`, { method: 'DELETE' })
+                  await supabase.from('documents').update({ is_deleted: true }).eq('folder_id', deletingFolder.id)
+                  setDeletingFolder(null)
+                  loadContent(currentFolderId)
+                }}
+                style={{ flex: 1, padding: '11px 16px', border: 'none', borderRadius: 10, background: '#DC2626', color: '#ffffff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Supprimer
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
