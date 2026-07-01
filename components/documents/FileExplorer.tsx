@@ -195,10 +195,12 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
 
       let docQ = supabase
         .from('documents')
-        .select('*')
+        .select('id, file_name, file_url, file_type, file_size, folder_id, is_indexed, indexed_at, created_at, user_id, title, account_id, company_id, workspace_id, is_deleted')
         .eq('account_id', accountId)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
+
+      if (wsId) docQ = docQ.eq('workspace_id', wsId)
 
       if (currentFolderId) {
         docQ = docQ.eq('folder_id', currentFolderId)
@@ -300,7 +302,6 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
         account_id: accountId,
         company_id: companyId,
         user_id: userId,
-        note_id: null,
         folder_id: currentFolderId ?? null,
         file_name: safeName,
         file_url: `documents:${filePath}`,

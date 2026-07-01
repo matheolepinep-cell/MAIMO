@@ -105,7 +105,7 @@ export interface Document {
   account_id: string
   company_id: string
   user_id: string
-  note_id: string | null
+  workspace_id: string | null
   folder_id: string | null
   file_name: string
   file_url: string
@@ -116,6 +116,7 @@ export interface Document {
   is_indexed: boolean
   indexed_at: string | null
   created_at: string
+  note_id?: string | null  // present on older rows linked to a note
 }
 
 export interface Chunk {
