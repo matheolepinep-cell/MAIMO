@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, Loader2, Check, Building2, Users, FileCheck, ChevronRight, ArrowRight, Search as SearchIcon, Pencil, Mail, Phone, ChevronDown } from 'lucide-react'
+import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, Loader2, Check, Building2, Users, FileCheck, ChevronRight, ArrowRight, Search as SearchIcon, Pencil, Mail, Phone, ChevronDown, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
@@ -60,7 +60,7 @@ type AnalysisResult = {
   _fileName?: string
 }
 
-type AccountOption = { id: string; name: string }
+type AccountOption = { id: string; name: string; city?: string | null }
 
 type CompanyStatus = {
   name: string
@@ -132,6 +132,11 @@ export default function ImportPage() {
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
   const [attaching, setAttaching] = useState(false)
+  // Account search + creation
+  const [accountSearch, setAccountSearch] = useState('')
+  const [showCreateAccount, setShowCreateAccount] = useState(false)
+  const [newAccountName, setNewAccountName] = useState('')
+  const [newAccountCity, setNewAccountCity] = useState('')
 
   // Confirmation state
   const [pendingPreview, setPendingPreview] = useState<PendingPreview | null>(null)
@@ -210,7 +215,7 @@ export default function ImportPage() {
     setStep('analyzing')
 
     // Load accounts in parallel with analysis (for manual attach fallback)
-    let accQ = supabase.from('accounts').select('id, name').eq('company_id', profile.company_id).order('name')
+    let accQ = supabase.from('accounts').select('id, name, city').eq('company_id', profile.company_id).order('name')
     if (wsId) accQ = accQ.or(`workspace_id.eq.${wsId},workspace_id.is.null`)
     const { data: accs } = await accQ
     setAccounts((accs ?? []) as AccountOption[])
@@ -385,6 +390,35 @@ export default function ImportPage() {
   const handleCloseResults = () => {
     setAnalysisResult(null)
     setSelectedAccountId('')
+    setAccountSearch('')
+    setShowCreateAccount(false)
+    setNewAccountName('')
+    setNewAccountCity('')
+  }
+
+  const handleCreateAccount = async () => {
+    if (!newAccountName.trim() || !profile) return
+    const supabase = createClient()
+    const { data: acc } = await supabase
+      .from('accounts')
+      .insert({
+        name: newAccountName.trim(),
+        city: newAccountCity.trim() || null,
+        company_id: profile.company_id,
+        created_by: profile.id,
+        workspace_id: wsId ?? null,
+        status: 'prospect',
+      })
+      .select('id, name, city')
+      .single()
+    if (acc) {
+      setAccounts((prev) => [...prev, acc as AccountOption].sort((a, b) => a.name.localeCompare(b.name)))
+      setSelectedAccountId(acc.id)
+      setShowCreateAccount(false)
+      setNewAccountName('')
+      setNewAccountCity('')
+      setAccountSearch('')
+    }
   }
 
   const toggleAction = (id: string) => {
@@ -737,20 +771,108 @@ export default function ImportPage() {
                   <p className="text-sm text-[#64748B] mb-3">
                     Aucune entreprise détectée. Associez manuellement ce document :
                   </p>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                    <select
-                      value={selectedAccountId}
-                      onChange={(e) => setSelectedAccountId(e.target.value)}
+
+                  {/* Search input */}
+                  <div className="relative mb-2">
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={accountSearch}
+                      onChange={(e) => setAccountSearch(e.target.value)}
+                      placeholder="Rechercher une entreprise…"
                       className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-[#0F172A] focus:outline-none"
                       style={{ background: 'white', border: '1px solid rgba(30,39,97,0.15)' }}
-                    >
-                      <option value="">Sélectionner une entreprise…</option>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name}</option>
-                      ))}
-                    </select>
+                    />
                   </div>
+
+                  {/* Account list */}
+                  {(() => {
+                    const filtered = accounts.filter((a) =>
+                      a.name.toLowerCase().includes(accountSearch.toLowerCase())
+                    )
+                    if (filtered.length > 0) {
+                      return (
+                        <div className="rounded-xl overflow-hidden mb-2" style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid rgba(30,39,97,0.1)' }}>
+                          {filtered.map((a) => (
+                            <button
+                              key={a.id}
+                              type="button"
+                              onClick={() => setSelectedAccountId(a.id)}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors"
+                              style={{
+                                background: selectedAccountId === a.id ? 'rgba(37,99,235,0.08)' : 'white',
+                                borderBottom: '1px solid #F3F4F6',
+                              }}
+                            >
+                              <div style={{ width: 30, height: 30, borderRadius: '50%', background: selectedAccountId === a.id ? '#EFF6FF' : '#F3F4F6', color: selectedAccountId === a.id ? '#2563EB' : '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                                {a.name.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-[#0F172A] truncate">{a.name}</p>
+                                {a.city && <p className="text-xs text-slate-400">{a.city}</p>}
+                              </div>
+                              {selectedAccountId === a.id && <Check className="w-4 h-4 text-[#2563EB] shrink-0" />}
+                            </button>
+                          ))}
+                        </div>
+                      )
+                    }
+                    if (accountSearch) {
+                      return <p className="text-xs text-slate-400 text-center py-2 mb-2">Aucun résultat pour &quot;{accountSearch}&quot;</p>
+                    }
+                    return null
+                  })()}
+
+                  {/* Create new account */}
+                  {!showCreateAccount ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateAccount(true)}
+                      className="flex items-center gap-2 text-sm font-medium py-1"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563EB' }}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Créer une nouvelle entreprise
+                    </button>
+                  ) : (
+                    <div className="mt-2 space-y-2 p-3 rounded-xl" style={{ background: 'white', border: '1px solid rgba(30,39,97,0.15)' }}>
+                      <input
+                        type="text"
+                        value={newAccountName}
+                        onChange={(e) => setNewAccountName(e.target.value)}
+                        placeholder="Nom de l'entreprise *"
+                        className="w-full px-3 py-2 rounded-lg text-sm text-[#0F172A] focus:outline-none"
+                        style={{ background: '#F9FAFB', border: '1px solid #E5E7EB' }}
+                      />
+                      <input
+                        type="text"
+                        value={newAccountCity}
+                        onChange={(e) => setNewAccountCity(e.target.value)}
+                        placeholder="Ville (optionnel)"
+                        className="w-full px-3 py-2 rounded-lg text-sm text-[#0F172A] focus:outline-none"
+                        style={{ background: '#F9FAFB', border: '1px solid #E5E7EB' }}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setShowCreateAccount(false); setNewAccountName(''); setNewAccountCity('') }}
+                          className="flex-1 py-2 text-sm text-slate-500 rounded-lg transition-colors"
+                          style={{ border: '1px solid #E5E7EB', background: 'white' }}
+                        >
+                          Annuler
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCreateAccount}
+                          disabled={!newAccountName.trim()}
+                          className="flex-1 py-2 text-sm font-medium text-white rounded-lg transition-colors"
+                          style={{ background: newAccountName.trim() ? '#2563EB' : '#D1D5DB', cursor: newAccountName.trim() ? 'pointer' : 'not-allowed' }}
+                        >
+                          Créer
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
