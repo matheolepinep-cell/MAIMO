@@ -8,6 +8,7 @@ import { normalizeText } from '@/lib/search-utils'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
 import { indexDocument as runIndexDocument } from '@/lib/document-indexer'
+import { ensureAccountFolder } from '@/lib/folders'
 import type { DocumentAnalysis } from '@/lib/document-analyzer'
 import type { UserProfile } from '@/types/database'
 
@@ -258,6 +259,18 @@ export async function POST(request: Request) {
         })
       } catch (err) {
         console.error('[execute-document] Document indexing error:', err)
+      }
+
+      // Ensure account folder exists and assign document to it
+      if (workspace_id) {
+        try {
+          const folderId = await ensureAccountFolder(firstAccountId, workspace_id, company_id)
+          if (folderId) {
+            await supabase.from('documents').update({ folder_id: folderId }).eq('id', doc.id)
+          }
+        } catch (err) {
+          console.error('[execute-document] ensureAccountFolder error:', err)
+        }
       }
     }
   }

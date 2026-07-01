@@ -4,6 +4,7 @@ import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
+import { ensureAccountFolder } from '@/lib/folders'
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
@@ -104,6 +105,18 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('attach-document embedding error:', err)
     // Non-blocking: document is created, indexing failed
+  }
+
+  // Ensure account folder exists and assign document to it
+  if (workspace_id) {
+    try {
+      const folderId = await ensureAccountFolder(account_id, workspace_id, company_id)
+      if (folderId) {
+        await supabase.from('documents').update({ folder_id: folderId }).eq('id', doc.id)
+      }
+    } catch (err) {
+      console.error('attach-document ensureAccountFolder error:', err)
+    }
   }
 
   return NextResponse.json({ document_id: doc.id, account_id })
