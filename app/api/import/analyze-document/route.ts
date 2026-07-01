@@ -9,6 +9,7 @@ import type { AccountRow } from '@/lib/account-matching'
 import { normalizeText } from '@/lib/search-utils'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embeddings'
+import { indexDocument } from '@/lib/document-indexer'
 import type { UserProfile } from '@/types/database'
 
 
@@ -207,8 +208,6 @@ export async function POST(request: Request) {
   // ── Create document record + index ──────────────────────────────────────────
   let documentId: string | null = null
   if (firstAccountId) {
-    const { data: signedData } = await supabase.storage.from('imports').createSignedUrl(file_path, 3600)
-    const file_url = signedData?.signedUrl ?? file_path
     const ext = file_name.split('.').pop()?.toLowerCase() ?? ''
     const resolvedFileType: 'pdf' | 'docx' | 'xlsx' | 'image' = ['pdf', 'docx', 'xlsx'].includes(ext)
       ? (ext as 'pdf' | 'docx' | 'xlsx')
@@ -221,7 +220,7 @@ export async function POST(request: Request) {
         company_id,
         user_id: user.id,
         file_name,
-        file_url,
+        file_url: `imports:${file_path}`,
         file_type: resolvedFileType,
         title: file_name.replace(/\.[^.]+$/, ''),
         is_deleted: false,
@@ -232,30 +231,20 @@ export async function POST(request: Request) {
 
     if (doc) {
       documentId = doc.id
-      try {
-        const chunks = chunkText(text)
-        if (chunks.length > 0) {
-          const accountName = accountsArr.find((a) => a.id === firstAccountId)?.name ?? 'Inconnu'
-          const displayName = file_name.replace(/\.[^.]+$/, '')
-          const enriched = chunks.map(
-            (c) => `[Entreprise: ${accountName} | Fichier: ${displayName} | Date: ${noteDate} | Type: Document]\n\n${c}`
-          )
-          const embeddings = await embedBatch(enriched)
-          await supabase.from('chunks').insert(
-            enriched.map((c, i) => ({
-              company_id,
-              account_id: firstAccountId,
-              source_type: 'document' as const,
-              source_id: doc.id,
-              content: c,
-              embedding: embeddings[i],
-              workspace_id: workspace_id ?? null,
-              company_name: accountName,
-            }))
-          )
+      if (resolvedFileType !== 'image') {
+        try {
+          await indexDocument({
+            documentId: doc.id,
+            fileUrl: `imports:${file_path}`,
+            fileType: resolvedFileType,
+            accountId: firstAccountId,
+            companyId: company_id,
+            workspaceId: workspace_id ?? null,
+            text, // pre-extracted — skips download + extraction
+          })
+        } catch (err) {
+          console.error('Document indexing error:', err)
         }
-      } catch (err) {
-        console.error('Document indexing error:', err)
       }
     }
   }
