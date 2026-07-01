@@ -320,7 +320,10 @@ export default function DocumentsPage() {
 
   /* ─── Delete document ─── */
   const handleDeleteDocument = async (docId: string) => {
-    await supabase.from('documents').update({ is_deleted: true }).eq('id', docId)
+    await Promise.all([
+      supabase.from('documents').update({ is_deleted: true }).eq('id', docId),
+      supabase.from('chunks').delete().eq('source_id', docId).eq('source_type', 'document'),
+    ])
     loadContent(currentFolderId, currentFolder)
   }
 
@@ -659,8 +662,19 @@ export default function DocumentsPage() {
               </button>
               <button
                 onClick={async () => {
+                  const { data: docs } = await supabase
+                    .from('documents')
+                    .select('id')
+                    .eq('folder_id', deletingFolder.id)
+                    .eq('is_deleted', false)
+                  if (docs && docs.length > 0) {
+                    const ids = docs.map((d: { id: string }) => d.id)
+                    await Promise.all([
+                      supabase.from('documents').update({ is_deleted: true }).in('id', ids),
+                      supabase.from('chunks').delete().in('source_id', ids.map(String)).eq('source_type', 'document'),
+                    ])
+                  }
                   await fetch(`/api/folders?id=${deletingFolder.id}`, { method: 'DELETE' })
-                  await supabase.from('documents').update({ is_deleted: true }).eq('folder_id', deletingFolder.id)
                   setDeletingFolder(null)
                   loadContent(currentFolderId, currentFolder)
                 }}

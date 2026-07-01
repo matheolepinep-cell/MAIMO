@@ -310,8 +310,19 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
   const confirmDeleteFolder = async (folderId: string) => {
     setDeletingFolder(null)
     try {
+      const { data: docs } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('folder_id', folderId)
+        .eq('is_deleted', false)
+      if (docs && docs.length > 0) {
+        const ids = docs.map((d) => d.id)
+        await Promise.all([
+          supabase.from('documents').update({ is_deleted: true }).in('id', ids),
+          supabase.from('chunks').delete().in('source_id', ids.map(String)).eq('source_type', 'document'),
+        ])
+      }
       await fetch(`/api/folders?id=${folderId}`, { method: 'DELETE' })
-      await supabase.from('documents').update({ is_deleted: true }).eq('folder_id', folderId)
     } catch (err) {
       console.error('[FileExplorer] delete folder error:', err)
     }
@@ -320,7 +331,10 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
 
   /* ─── Document delete ─── */
   const handleDeleteDoc = async (docId: string) => {
-    await supabase.from('documents').update({ is_deleted: true }).eq('id', docId)
+    await Promise.all([
+      supabase.from('documents').update({ is_deleted: true }).eq('id', docId),
+      supabase.from('chunks').delete().eq('source_id', docId).eq('source_type', 'document'),
+    ])
     setConfirmDeleteDocId(null)
     onDocumentDelete?.(docId)
     fetchContents()
