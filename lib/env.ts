@@ -23,5 +23,6 @@ export const env = {
   supabaseServiceRole: process.env.SUPABASE_SERVICE_ROLE_KEY!,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY!,
   openaiApiKey: process.env.OPENAI_API_KEY ?? null,
+  mistralApiKey: process.env.MISTRAL_API_KEY ?? null,
   appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.maimoo.fr',
 }
