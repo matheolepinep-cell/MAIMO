@@ -35,15 +35,21 @@ export type DocumentAnalysis = {
   summary: string
 }
 
-export async function analyzeDocument(content: string, fileName: string, fileType: string): Promise<DocumentAnalysis> {
+export async function analyzeDocument(content: string, fileName: string, fileType: string, workspaceName?: string): Promise<DocumentAnalysis> {
   const empty: DocumentAnalysis = { companies: [], contacts: [], notes: [], summary: '' }
 
   try {
     const excerpt = content.slice(0, 8000)
-    console.log('[analyzeDocument] starting, excerpt length:', excerpt.length, 'file:', fileName)
+    console.log('[analyzeDocument] starting, excerpt length:', excerpt.length, 'file:', fileName, 'workspace:', workspaceName)
+
+    const emitterNote = workspaceName
+      ? `IMPORTANT : L'utilisateur travaille POUR ou CHEZ "${workspaceName}". Dans le tableau "companies", n'inclus PAS "${workspaceName}" — liste uniquement les entreprises CLIENTES (destinataires, acheteurs, prospects).`
+      : `Dans le tableau "companies", liste uniquement les entreprises clientes mentionnées (pas l'émetteur du document).`
 
     const prompt = `Tu es un assistant expert en analyse de documents commerciaux.
-Ce contenu a été extrait automatiquement d'un fichier (PDF, Word, image) et peut contenir des caractères parasites, des espaces mal placés ou un encodage imparfait si le document original est scanné. Fais de ton mieux pour reconstituer les informations malgré le bruit éventuel.
+Ce contenu a été extrait automatiquement d'un fichier (PDF, Word, image) et peut contenir des caractères parasites ou un encodage imparfait. Fais de ton mieux malgré le bruit éventuel.
+
+${emitterNote}
 
 Extrais toutes les informations structurées et réponds UNIQUEMENT en JSON avec cette structure exacte :
 {
@@ -74,8 +80,8 @@ Extrais toutes les informations structurées et réponds UNIQUEMENT en JSON avec
 }
 
 Règles :
-- Si plusieurs entreprises sont mentionnées, liste-les toutes.
-- Si le texte est bruité mais qu'un nom d'entreprise ou de contact est partiellement lisible, inclus-le quand même.
+- Si plusieurs entreprises clientes sont mentionnées, liste-les toutes.
+- Si le texte est bruité mais qu'un nom est partiellement lisible, inclus-le quand même.
 - Si aucune information n'est trouvable dans un champ, mets null ou un tableau vide.
 - Ne pas inventer d'informations absentes du texte.
 

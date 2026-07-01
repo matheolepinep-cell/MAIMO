@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const { text, file_name, file_type, company_id } = await request.json()
+  const { text, file_name, file_type, company_id, workspace_id } = await request.json()
   if (!text || !file_name || !company_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
@@ -32,8 +32,16 @@ export async function POST(request: Request) {
 
   const supabase = createSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRole)
 
+  // Fetch workspace name so prompts can exclude it from client detection
+  let workspaceName = ''
+  if (workspace_id) {
+    const { data: ws } = await supabase.from('workspaces').select('name').eq('id', workspace_id).maybeSingle()
+    workspaceName = ws?.name ?? ''
+  }
+  console.log('[preview-document] workspaceName:', workspaceName)
+
   console.log('[preview-document] Starting analysis — file:', file_name, 'text length:', text?.length)
-  const analysis = await analyzeDocument(text, file_name, file_type ?? '')
+  const analysis = await analyzeDocument(text, file_name, file_type ?? '', workspaceName)
   console.log('[preview-document] analyzeDocument done — companies:', analysis.companies.length, 'contacts:', analysis.contacts.length)
 
   const { data: existingAccounts } = await supabase
@@ -70,12 +78,22 @@ export async function POST(request: Request) {
   if (companiesStatus.length === 0) {
     console.log('[preview-document] No companies found — running 2-step detection fallback')
     try {
+      const emitterClause = workspaceName
+        ? `L'utilisateur travaille POUR ou CHEZ "${workspaceName}" — ce n'est PAS le client à identifier.`
+        : `N'identifie pas l'émetteur du document comme client.`
+
       const detectionMsg = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 50,
         messages: [{
           role: 'user',
-          content: `À partir de ce document (qui peut être extrait d'un PDF et contenir des caractères parasites), identifie le nom de l'entreprise cliente principale (le client dont parle ce document, pas notre entreprise). Réponds UNIQUEMENT avec le nom de l'entreprise, rien d'autre. Si tu ne peux vraiment pas déterminer malgré le bruit, réponds "INCONNU".\n\nDocument :\n${text.substring(0, 2000)}`,
+          content: `Tu analyses un document commercial (devis, facture, contrat, compte-rendu...).
+${emitterClause}
+Ta mission : identifier le nom de l'ENTREPRISE CLIENTE (le destinataire, l'acheteur, le prospect) mentionnée dans ce document.
+Réponds UNIQUEMENT avec le nom exact de l'entreprise cliente, rien d'autre. Si tu ne peux pas déterminer, réponds "INCONNU".
+
+Document :
+${text.substring(0, 3000)}`,
         }],
       })
       detectedCompanyNameRaw = detectionMsg.content[0].type === 'text' ? detectionMsg.content[0].text.trim() : 'INCONNU'

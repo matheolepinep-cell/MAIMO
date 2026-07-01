@@ -267,6 +267,7 @@ export default function ImportPage() {
         file_name: file.name,
         file_type: file.name.split('.').pop()?.toLowerCase() ?? '',
         company_id: profile.company_id,
+        workspace_id: wsId ?? null,
       }),
     })
 
