@@ -466,25 +466,32 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
 
   const handleApplyActions = async () => {
     if (!analysisState) return
-    const { docId, actions, selected } = analysisState
+    // Capture all data synchronously before any state mutation to avoid stale closure / Set reference issues
+    const docId = analysisState.docId
+    const actions = analysisState.actions
+    const selectedIndices = Array.from(analysisState.selected) // convert Set → Array immediately
+
     setAnalysisState((prev) => prev ? { ...prev, status: 'applying' } : null)
 
-    const toApply = actions.filter((_, i) => selected.has(i))
+    try {
+      const toApply = actions.filter((_, i) => selectedIndices.includes(i))
 
-    for (const action of toApply) {
-      try {
+      for (const action of toApply) {
         if (action.type === 'index') {
           setIndexingDocIds((prev) => [...prev, docId])
-          await fetch('/api/documents/index', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ documentId: docId }),
-          })
-          setIndexingDocIds((prev) => prev.filter((id) => id !== docId))
+          try {
+            await fetch('/api/documents/index', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ documentId: docId }),
+            })
+          } finally {
+            setIndexingDocIds((prev) => prev.filter((id) => id !== docId))
+          }
         }
 
         if (action.type === 'create_contact') {
-          await supabase.from('contacts').insert({
+          const { error } = await supabase.from('contacts').insert({
             first_name: action.firstName,
             last_name: action.lastName,
             email: action.email ?? null,
@@ -492,35 +499,40 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
             role: action.position ?? null,
             account_id: accountId,
             company_id: companyId,
+            workspace_id: wsId ?? null,
             is_main_contact: false,
           })
+          if (error) console.error('[FileExplorer] create_contact error:', error)
         }
 
         if (action.type === 'create_note') {
-          await supabase.from('notes').insert({
+          const { error } = await supabase.from('notes').insert({
             title: action.title,
             content: action.content,
             account_id: accountId,
             company_id: companyId,
             user_id: userId,
+            workspace_id: wsId ?? null,
             source: 'text',
           })
+          if (error) console.error('[FileExplorer] create_note error:', error)
         }
 
         if (action.type === 'move_folder') {
-          await fetch('/api/folders/move', {
+          const res = await fetch('/api/folders/move', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'document', id: docId, folder_id: action.folderId }),
           })
+          if (!res.ok) console.error('[FileExplorer] move_folder error:', await res.text())
         }
-      } catch (err) {
-        console.error('[FileExplorer] apply action error:', action.type, err)
       }
+    } catch (err) {
+      console.error('[FileExplorer] handleApplyActions unexpected error:', err)
+    } finally {
+      setAnalysisState(null)
+      fetchContents()
     }
-
-    setAnalysisState(null)
-    fetchContents()
   }
 
   /* ─── Move document (click) ─── */
@@ -927,16 +939,19 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
             )}
 
             {/* Footer */}
-            {analysisState.status === 'ready' && (
+            {analysisState.status === 'ready' && (() => {
+              const selCount = Array.from(analysisState.selected).length
+              return (
               <div style={{ display: 'flex', gap: 10, marginTop: 16, flexShrink: 0 }}>
                 <button onClick={() => { setAnalysisState(null); fetchContents() }} style={{ flex: 1, padding: '11px 16px', border: '1px solid #E5E7EB', borderRadius: 10, background: '#ffffff', color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
                   Ignorer
                 </button>
-                <button onClick={handleApplyActions} disabled={analysisState.selected.size === 0} style={{ flex: 1, padding: '11px 16px', border: 'none', borderRadius: 10, background: analysisState.selected.size === 0 ? '#E5E7EB' : '#2563EB', color: analysisState.selected.size === 0 ? '#9CA3AF' : '#ffffff', fontSize: 14, fontWeight: 600, cursor: analysisState.selected.size === 0 ? 'not-allowed' : 'pointer' }}>
-                  Appliquer ({analysisState.selected.size})
+                <button onClick={handleApplyActions} disabled={selCount === 0} style={{ flex: 1, padding: '11px 16px', border: 'none', borderRadius: 10, background: selCount === 0 ? '#E5E7EB' : '#2563EB', color: selCount === 0 ? '#9CA3AF' : '#ffffff', fontSize: 14, fontWeight: 600, cursor: selCount === 0 ? 'not-allowed' : 'pointer' }}>
+                  Appliquer ({selCount})
                 </button>
               </div>
-            )}
+              )
+            })()}
           </div>
         </div>
       )}
