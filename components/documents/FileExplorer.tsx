@@ -22,7 +22,6 @@ import {
   IconList,
   IconExternalLink,
   IconSparkles,
-  IconInfoCircle,
 } from '@tabler/icons-react'
 import { createClient } from '@/lib/supabase/client'
 import { validateFile, sanitizeFilename } from '@/lib/file-validation'
@@ -608,18 +607,6 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
                 textOverflow: 'ellipsis',
               }}>
                 {pendingIndexDoc.name}
-              </span>
-            </div>
-
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: 6,
-              padding: '8px 10px',
-              background: '#FFFBEB', borderRadius: 8,
-              marginBottom: 20, border: '1px solid #FDE68A',
-            }}>
-              <IconInfoCircle size={13} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
-              <span style={{ fontSize: 11, color: '#92400E', lineHeight: 1.5 }}>
-                L'indexation implique un traitement temporaire par nos prestataires IA (Anthropic, OpenAI) encadrés par des garanties RGPD.
               </span>
             </div>
 
