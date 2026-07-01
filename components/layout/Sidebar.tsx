@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown, MessageCircle } from 'lucide-react'
+import { Search, LayoutDashboard, Briefcase, Users, Settings, User, ChevronDown, MessageCircle, Files } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector'
@@ -136,6 +136,7 @@ export function Sidebar() {
           )}
         </div>
 
+        <NavItem href="/app/documents" icon={Files} label="Documents" active={pathname.startsWith('/app/documents')} />
         {!isContributeur && (
           <NavItem href="/app/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/app/messages')} dot={hasUnreadMessages} />
         )}

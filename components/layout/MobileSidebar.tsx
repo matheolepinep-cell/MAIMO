@@ -15,6 +15,7 @@ import {
   IconBuildingStore,
   IconChevronDown,
   IconCheck,
+  IconFiles,
 } from '@tabler/icons-react'
 import { useMobileSidebar } from '@/contexts/MobileSidebarContext'
 import { useUser } from '@/contexts/UserContext'
@@ -66,6 +67,7 @@ export function MobileSidebar() {
     { label: 'Nouvelle note', icon: <IconPencil size={16} />, href: '/app/notes/new' },
     { label: 'Importer', icon: <IconDownload size={16} />, href: '/app/import' },
     { label: 'Portefeuille', icon: <IconBriefcase size={16} />, href: '/app/accounts' },
+    { label: 'Documents', icon: <IconFiles size={16} />, href: '/app/documents' },
     { label: 'Messagerie', icon: <IconMessage size={16} />, href: '/app/messages' },
   ]
 
