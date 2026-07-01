@@ -36,9 +36,13 @@ export type DocumentAnalysis = {
 }
 
 export async function analyzeDocument(content: string, fileName: string, fileType: string): Promise<DocumentAnalysis> {
-  const excerpt = content.slice(0, 8000)
+  const empty: DocumentAnalysis = { companies: [], contacts: [], notes: [], summary: '' }
 
-  const prompt = `Analyse ce document professionnel et extrais toutes les informations structurées. Réponds UNIQUEMENT en JSON avec cette structure exacte :
+  try {
+    const excerpt = content.slice(0, 8000)
+    console.log('[analyzeDocument] starting, excerpt length:', excerpt.length, 'file:', fileName)
+
+    const prompt = `Analyse ce document professionnel et extrais toutes les informations structurées. Réponds UNIQUEMENT en JSON avec cette structure exacte :
 {
   "companies": [{
     "name": string,
@@ -73,25 +77,32 @@ Fichier : ${fileName} (${fileType})
 Contenu :
 ${excerpt}`
 
-  const message = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2048,
-    messages: [{ role: 'user', content: prompt }],
-  })
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    })
 
-  const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '{}'
-  const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+    const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '{}'
+    const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
 
-  try {
-    const result = JSON.parse(cleaned)
-    return {
-      companies: Array.isArray(result.companies) ? result.companies : [],
-      contacts: Array.isArray(result.contacts) ? result.contacts : [],
-      notes: Array.isArray(result.notes) ? result.notes : [],
-      summary: typeof result.summary === 'string' ? result.summary : '',
+    try {
+      const result = JSON.parse(cleaned)
+      const analysis: DocumentAnalysis = {
+        companies: Array.isArray(result.companies) ? result.companies : [],
+        contacts: Array.isArray(result.contacts) ? result.contacts : [],
+        notes: Array.isArray(result.notes) ? result.notes : [],
+        summary: typeof result.summary === 'string' ? result.summary : '',
+      }
+      console.log('[analyzeDocument] done — companies:', analysis.companies.length, 'contacts:', analysis.contacts.length, 'notes:', analysis.notes.length)
+      return analysis
+    } catch (parseErr) {
+      console.error('[analyzeDocument] JSON parse error, raw response:', raw.substring(0, 200), parseErr)
+      return empty
     }
-  } catch {
-    return { companies: [], contacts: [], notes: [], summary: '' }
+  } catch (err) {
+    console.error('[analyzeDocument] Anthropic API error:', err)
+    return empty
   }
 }
 

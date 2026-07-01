@@ -31,7 +31,10 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRole)
+
+  console.log('[preview-document] Starting analysis — file:', file_name, 'text length:', text?.length)
   const analysis = await analyzeDocument(text, file_name, file_type ?? '')
+  console.log('[preview-document] analyzeDocument done — companies:', analysis.companies.length, 'contacts:', analysis.contacts.length)
 
   const { data: existingAccounts } = await supabase
     .from('accounts')
@@ -57,6 +60,7 @@ export async function POST(request: Request) {
     })
 
   const hasActions = companiesStatus.length > 0 || analysis.contacts.length > 0
+  console.log('[preview-document] hasActions:', hasActions, 'companiesStatus:', companiesStatus.length)
 
   // ── 2-step detection fallback when full analysis finds no companies ──────
   let detectedAccountId: string | null = null
@@ -64,6 +68,7 @@ export async function POST(request: Request) {
   let detectedCompanyNameRaw = ''
 
   if (companiesStatus.length === 0) {
+    console.log('[preview-document] No companies found — running 2-step detection fallback')
     try {
       const detectionMsg = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
@@ -74,6 +79,7 @@ export async function POST(request: Request) {
         }],
       })
       detectedCompanyNameRaw = detectionMsg.content[0].type === 'text' ? detectionMsg.content[0].text.trim() : 'INCONNU'
+      console.log('[preview-document] 2-step detection raw:', detectedCompanyNameRaw)
 
       if (detectedCompanyNameRaw && detectedCompanyNameRaw !== 'INCONNU') {
         const { data: exactMatch } = await supabase
@@ -96,11 +102,13 @@ export async function POST(request: Request) {
             if (kwMatch) { detectedAccountId = kwMatch.id; detectedAccountName = kwMatch.name; break }
           }
         }
+        console.log('[preview-document] 2-step match:', { detectedAccountId, detectedAccountName })
       }
     } catch (err) {
       console.error('[preview-document] detection error:', err)
     }
   }
 
+  console.log('[preview-document] Done — hasActions:', hasActions, 'detectedCompanyNameRaw:', detectedCompanyNameRaw)
   return NextResponse.json({ analysis, companiesStatus, hasActions, detectedAccountId, detectedAccountName, detectedCompanyNameRaw })
 }

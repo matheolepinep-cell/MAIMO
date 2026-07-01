@@ -80,6 +80,7 @@ export interface IndexDocumentParams {
 }
 
 export async function indexDocument(params: IndexDocumentParams): Promise<{ chunks: number }> {
+  console.log('[indexDocument] starting — doc:', params.documentId, 'type:', params.fileType, 'hasPreExtractedText:', !!params.text)
   const supabase = createSupabaseAdmin(env.supabaseUrl, env.supabaseServiceRole)
 
   // 1. Obtain text
@@ -88,6 +89,7 @@ export async function indexDocument(params: IndexDocumentParams): Promise<{ chun
     const signedUrl = await resolveStorageUrl(params.fileUrl, supabase)
     text = await extractTextFromUrl(signedUrl, params.fileType)
   }
+  console.log('[indexDocument] text length:', text.length)
 
   // 2. Chunk
   const rawChunks = chunkText(text)
@@ -121,6 +123,7 @@ export async function indexDocument(params: IndexDocumentParams): Promise<{ chun
   const enrichedChunks = rawChunks.map((chunk) => `${prefix}\n\n${chunk}`)
 
   // 5. Generate embeddings
+  console.log('[indexDocument] generating embeddings for', enrichedChunks.length, 'chunks, doc:', params.documentId)
   const embeddings = await embedBatch(enrichedChunks)
 
   // 6. Replace old chunks then insert new ones
@@ -137,12 +140,22 @@ export async function indexDocument(params: IndexDocumentParams): Promise<{ chun
     company_name: accountName,
   }))
 
-  await supabase.from('chunks').insert(rows)
+  const { error: insertErr } = await supabase.from('chunks').insert(rows)
+  if (insertErr) {
+    console.error('[indexDocument] chunks insert error:', insertErr.message)
+  } else {
+    console.log('[indexDocument] inserted', rows.length, 'chunks for doc:', params.documentId)
+  }
 
   // 7. Mark document as indexed
-  await supabase.from('documents')
+  const { error: updateErr } = await supabase.from('documents')
     .update({ is_indexed: true, indexed_at: new Date().toISOString() })
     .eq('id', params.documentId)
+  if (updateErr) {
+    console.error('[indexDocument] is_indexed update error:', updateErr.message)
+  } else {
+    console.log('[indexDocument] document marked as indexed:', params.documentId)
+  }
 
   return { chunks: rows.length }
 }
