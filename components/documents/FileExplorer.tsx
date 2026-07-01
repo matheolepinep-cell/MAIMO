@@ -43,6 +43,22 @@ interface PendingIndexDoc {
   name: string
 }
 
+/* ─── AI Analysis types (mirrors lib/document-analyzer.ts) ─── */
+type DetectedAction =
+  | { type: 'index'; label: string }
+  | { type: 'create_contact'; label: string; firstName: string; lastName: string; email: string | null; phone: string | null; position: string | null }
+  | { type: 'create_note'; label: string; title: string; content: string }
+  | { type: 'move_folder'; label: string; folderId: string; folderName: string }
+
+interface AnalysisState {
+  docId: string
+  docName: string
+  status: 'loading' | 'ready' | 'applying'
+  summary: string
+  actions: DetectedAction[]
+  selected: Set<number>
+}
+
 interface FileExplorerProps {
   accountId: string
   companyId: string
@@ -187,6 +203,9 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
   // Move document
   const [movingDoc, setMovingDoc] = useState<Document | null>(null)
   const [allFolders, setAllFolders] = useState<Folder[]>([])
+
+  // AI Analysis modal
+  const [analysisState, setAnalysisState] = useState<AnalysisState | null>(null)
 
   /* ─── Fetch ─── */
   const fetchContents = useCallback(async () => {
@@ -410,22 +429,98 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     fetchContents()
   }
 
-  /* ─── Indexation confirm ─── */
-  const handleConfirmIndex = async (doc: PendingIndexDoc) => {
+  /* ─── AI Analysis modal ─── */
+  const handleOpenAnalysis = async (doc: PendingIndexDoc) => {
     setPendingIndexDoc(null)
-    setIndexingDocIds(prev => [...prev, doc.id])
+    setAnalysisState({ docId: doc.id, docName: doc.name, status: 'loading', summary: '', actions: [], selected: new Set() })
     try {
-      await fetch('/api/documents/index', {
+      const res = await fetch('/api/documents/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documentId: doc.id }),
       })
+      if (!res.ok) throw new Error('analyze failed')
+      const data = await res.json() as { summary: string; actions: DetectedAction[] }
+      setAnalysisState((prev) => prev ? {
+        ...prev,
+        status: 'ready',
+        summary: data.summary ?? '',
+        actions: data.actions ?? [],
+        selected: new Set((data.actions ?? []).map((_: DetectedAction, i: number) => i)),
+      } : null)
     } catch (err) {
-      console.error('[FileExplorer] indexation error:', err)
-    } finally {
-      setIndexingDocIds(prev => prev.filter(id => id !== doc.id))
-      fetchContents()
+      console.error('[FileExplorer] analysis error:', err)
+      setAnalysisState(null)
     }
+  }
+
+  const toggleAnalysisAction = (idx: number) => {
+    setAnalysisState((prev) => {
+      if (!prev) return prev
+      const selected = new Set(prev.selected)
+      if (selected.has(idx)) selected.delete(idx)
+      else selected.add(idx)
+      return { ...prev, selected }
+    })
+  }
+
+  const handleApplyActions = async () => {
+    if (!analysisState) return
+    const { docId, actions, selected } = analysisState
+    setAnalysisState((prev) => prev ? { ...prev, status: 'applying' } : null)
+
+    const toApply = actions.filter((_, i) => selected.has(i))
+
+    for (const action of toApply) {
+      try {
+        if (action.type === 'index') {
+          setIndexingDocIds((prev) => [...prev, docId])
+          await fetch('/api/documents/index', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ documentId: docId }),
+          })
+          setIndexingDocIds((prev) => prev.filter((id) => id !== docId))
+        }
+
+        if (action.type === 'create_contact') {
+          await supabase.from('contacts').insert({
+            first_name: action.firstName,
+            last_name: action.lastName,
+            email: action.email ?? null,
+            phone: action.phone ?? null,
+            role: action.position ?? null,
+            account_id: accountId,
+            company_id: companyId,
+            is_main_contact: false,
+          })
+        }
+
+        if (action.type === 'create_note') {
+          await supabase.from('notes').insert({
+            title: action.title,
+            content: action.content,
+            account_id: accountId,
+            company_id: companyId,
+            user_id: userId,
+            source: 'text',
+          })
+        }
+
+        if (action.type === 'move_folder') {
+          await fetch('/api/folders/move', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'document', id: docId, folder_id: action.folderId }),
+          })
+        }
+      } catch (err) {
+        console.error('[FileExplorer] apply action error:', action.type, err)
+      }
+    }
+
+    setAnalysisState(null)
+    fetchContents()
   }
 
   /* ─── Move document (click) ─── */
@@ -599,7 +694,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               onDeleteRequest={() => setConfirmDeleteDocId(doc.id)}
               onDeleteConfirm={() => handleDeleteDoc(doc.id)}
               onDeleteCancel={() => setConfirmDeleteDocId(null)}
-              onIndexRequest={() => handleConfirmIndex({ id: doc.id, name: doc.title ?? doc.file_name })}
+              onIndexRequest={() => handleOpenAnalysis({ id: doc.id, name: doc.title ?? doc.file_name })}
               onMoveRequest={() => setMovingDoc(doc)}
               onDragStart={() => handleDragStart('document', doc.id)}
               indexingDocIds={indexingDocIds}
@@ -646,7 +741,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               onDeleteRequest={() => setConfirmDeleteDocId(doc.id)}
               onDeleteConfirm={() => handleDeleteDoc(doc.id)}
               onDeleteCancel={() => setConfirmDeleteDocId(null)}
-              onIndexRequest={() => handleConfirmIndex({ id: doc.id, name: doc.title ?? doc.file_name })}
+              onIndexRequest={() => handleOpenAnalysis({ id: doc.id, name: doc.title ?? doc.file_name })}
               onMoveRequest={() => setMovingDoc(doc)}
               onDragStart={() => handleDragStart('document', doc.id)}
               indexingDocIds={indexingDocIds}
@@ -738,81 +833,110 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
         </div>
       )}
 
-      {/* ─── Indexation confirmation modal ─── */}
-      {pendingIndexDoc && (
-        <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-          zIndex: 9999,
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'center',
-          padding: 16,
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: 16,
-            padding: 28,
-            maxWidth: 420, width: '100%',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-          }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: 12,
-              background: '#EFF6FF',
-              display: 'flex', alignItems: 'center',
-              justifyContent: 'center', marginBottom: 16,
-            }}>
+      {/* ─── Simple index modal (for already-uploaded non-pending docs) ─── */}
+      {pendingIndexDoc && !analysisState && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <IconSparkles size={24} color="#2563EB" />
             </div>
-
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0A0A0A', margin: '0 0 8px 0' }}>
-              Indexer ce document dans l'IA ?
-            </h3>
-
-            <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: '0 0 6px 0' }}>
-              Voulez-vous que ce document entre dans la mémoire de l'IA ? Vous pourrez ensuite l'interroger directement depuis la recherche IA.
-            </p>
-
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '8px 12px',
-              background: '#F9FAFB', borderRadius: 8,
-              marginBottom: 16,
-            }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0A0A0A', margin: '0 0 8px 0' }}>Analyser ce document avec l&apos;IA ?</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#F9FAFB', borderRadius: 8, marginBottom: 16 }}>
               <IconFile size={14} color="#9CA3AF" />
-              <span style={{
-                fontSize: 12, color: '#374151',
-                fontWeight: 500, fontStyle: 'italic',
-                whiteSpace: 'nowrap', overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}>
-                {pendingIndexDoc.name}
-              </span>
+              <span style={{ fontSize: 12, color: '#374151', fontWeight: 500, fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pendingIndexDoc.name}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setPendingIndexDoc(null); fetchContents() }} style={{ flex: 1, padding: '11px 16px', border: '1px solid #E5E7EB', borderRadius: 10, background: '#ffffff', color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                Annuler
+              </button>
+              <button onClick={() => handleOpenAnalysis(pendingIndexDoc)} style={{ flex: 1, padding: '11px 16px', border: 'none', borderRadius: 10, background: '#2563EB', color: '#ffffff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                Analyser
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── AI Analysis modal ─── */}
+      {analysisState && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, padding: 28, maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconSparkles size={18} color="#2563EB" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0A0A0A', margin: 0 }}>Analyse IA</h3>
+                  <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>{analysisState.docName}</p>
+                </div>
+              </div>
+              {analysisState.status !== 'applying' && (
+                <button onClick={() => { setAnalysisState(null); fetchContents() }} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: 4 }}>
+                  <IconX size={16} />
+                </button>
+              )}
             </div>
 
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => { setPendingIndexDoc(null); fetchContents() }}
-                style={{
-                  flex: 1, padding: '11px 16px',
-                  border: '1px solid #E5E7EB', borderRadius: 10,
-                  background: '#ffffff', color: '#374151',
-                  fontSize: 14, fontWeight: 500, cursor: 'pointer',
-                }}
-              >
-                Non, stocker uniquement
-              </button>
-              <button
-                onClick={() => handleConfirmIndex(pendingIndexDoc)}
-                style={{
-                  flex: 1, padding: '11px 16px',
-                  border: 'none', borderRadius: 10,
-                  background: '#2563EB', color: '#ffffff',
-                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                Oui, indexer
-              </button>
-            </div>
+            {/* Loading */}
+            {analysisState.status === 'loading' && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '24px 0' }}>
+                <div style={{ width: 32, height: 32, border: '3px solid #EFF6FF', borderTop: '3px solid #2563EB', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Analyse en cours…</p>
+                <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+              </div>
+            )}
+
+            {/* Ready */}
+            {analysisState.status === 'ready' && (
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {analysisState.summary && (
+                  <div style={{ padding: '12px 14px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Résumé</p>
+                    <p style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, margin: 0 }}>{analysisState.summary}</p>
+                  </div>
+                )}
+                {analysisState.actions.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions suggérées</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {analysisState.actions.map((action, idx) => (
+                        <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: `1px solid ${analysisState.selected.has(idx) ? '#BFDBFE' : '#E5E7EB'}`, background: analysisState.selected.has(idx) ? '#EFF6FF' : '#ffffff', cursor: 'pointer', transition: 'all 0.15s' }}>
+                          <input
+                            type="checkbox"
+                            checked={analysisState.selected.has(idx)}
+                            onChange={() => toggleAnalysisAction(idx)}
+                            style={{ width: 15, height: 15, accentColor: '#2563EB', flexShrink: 0, cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: 13, color: '#374151', flex: 1 }}>{action.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Applying */}
+            {analysisState.status === 'applying' && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '24px 0' }}>
+                <div style={{ width: 32, height: 32, border: '3px solid #EFF6FF', borderTop: '3px solid #2563EB', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Application en cours…</p>
+              </div>
+            )}
+
+            {/* Footer */}
+            {analysisState.status === 'ready' && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 16, flexShrink: 0 }}>
+                <button onClick={() => { setAnalysisState(null); fetchContents() }} style={{ flex: 1, padding: '11px 16px', border: '1px solid #E5E7EB', borderRadius: 10, background: '#ffffff', color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                  Ignorer
+                </button>
+                <button onClick={handleApplyActions} disabled={analysisState.selected.size === 0} style={{ flex: 1, padding: '11px 16px', border: 'none', borderRadius: 10, background: analysisState.selected.size === 0 ? '#E5E7EB' : '#2563EB', color: analysisState.selected.size === 0 ? '#9CA3AF' : '#ffffff', fontSize: 14, fontWeight: 600, cursor: analysisState.selected.size === 0 ? 'not-allowed' : 'pointer' }}>
+                  Appliquer ({analysisState.selected.size})
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
