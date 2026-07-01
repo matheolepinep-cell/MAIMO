@@ -870,10 +870,13 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
       )}
 
       {/* ─── AI Analysis modal ─── */}
-      {analysisState && (
+      {analysisState && (() => {
+        const selCount = Array.from(analysisState.selected).length
+        return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#ffffff', borderRadius: 16, padding: 28, maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
+          <div style={{ background: '#ffffff', borderRadius: 16, padding: 28, maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+
+            {/* Header — fixed, never scrolls */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -891,70 +894,78 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               )}
             </div>
 
-            {/* Loading */}
-            {analysisState.status === 'loading' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '24px 0' }}>
-                <div style={{ width: 32, height: 32, border: '3px solid #EFF6FF', borderTop: '3px solid #2563EB', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Analyse en cours…</p>
-                <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-              </div>
-            )}
+            {/* Body — scrollable, minHeight:0 lets flex shrink properly */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {analysisState.status === 'loading' && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0' }}>
+                  <div style={{ width: 32, height: 32, border: '3px solid #EFF6FF', borderTop: '3px solid #2563EB', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Analyse en cours…</p>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+                </div>
+              )}
 
-            {/* Ready */}
-            {analysisState.status === 'ready' && (
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {analysisState.summary && (
-                  <div style={{ padding: '12px 14px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Résumé</p>
-                    <p style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, margin: 0 }}>{analysisState.summary}</p>
-                  </div>
-                )}
-                {analysisState.actions.length > 0 && (
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions suggérées</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {analysisState.actions.map((action, idx) => (
-                        <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: `1px solid ${analysisState.selected.has(idx) ? '#BFDBFE' : '#E5E7EB'}`, background: analysisState.selected.has(idx) ? '#EFF6FF' : '#ffffff', cursor: 'pointer', transition: 'all 0.15s' }}>
-                          <input
-                            type="checkbox"
-                            checked={analysisState.selected.has(idx)}
-                            onChange={() => toggleAnalysisAction(idx)}
-                            style={{ width: 15, height: 15, accentColor: '#2563EB', flexShrink: 0, cursor: 'pointer' }}
-                          />
-                          <span style={{ fontSize: 13, color: '#374151', flex: 1 }}>{action.label}</span>
-                        </label>
-                      ))}
+              {analysisState.status === 'applying' && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0' }}>
+                  <div style={{ width: 32, height: 32, border: '3px solid #EFF6FF', borderTop: '3px solid #2563EB', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Application en cours…</p>
+                </div>
+              )}
+
+              {analysisState.status === 'ready' && (
+                <>
+                  {analysisState.summary && (
+                    <div style={{ padding: '12px 14px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB', flexShrink: 0 }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Résumé</p>
+                      <p style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, margin: 0 }}>{analysisState.summary}</p>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                  {analysisState.actions.length > 0 && (
+                    <div style={{ flexShrink: 0 }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions suggérées</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {analysisState.actions.map((action, idx) => {
+                          const isChecked = analysisState.selected.has(idx)
+                          return (
+                          <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: `1px solid ${isChecked ? '#BFDBFE' : '#E5E7EB'}`, background: isChecked ? '#EFF6FF' : '#ffffff', cursor: 'pointer', transition: 'all 0.15s' }}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleAnalysisAction(idx)}
+                              style={{ width: 15, height: 15, accentColor: '#2563EB', flexShrink: 0, cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: 13, color: '#374151', flex: 1 }}>{action.label}</span>
+                          </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
-            {/* Applying */}
-            {analysisState.status === 'applying' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '24px 0' }}>
-                <div style={{ width: 32, height: 32, border: '3px solid #EFF6FF', borderTop: '3px solid #2563EB', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Application en cours…</p>
-              </div>
-            )}
-
-            {/* Footer */}
-            {analysisState.status === 'ready' && (() => {
-              const selCount = Array.from(analysisState.selected).length
-              return (
+            {/* Footer — fixed, always visible, never pushed out by content */}
+            {analysisState.status === 'ready' && (
               <div style={{ display: 'flex', gap: 10, marginTop: 16, flexShrink: 0 }}>
-                <button onClick={() => { setAnalysisState(null); fetchContents() }} style={{ flex: 1, padding: '11px 16px', border: '1px solid #E5E7EB', borderRadius: 10, background: '#ffffff', color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                <button
+                  onClick={() => { setAnalysisState(null); fetchContents() }}
+                  style={{ flex: 1, padding: '11px 16px', border: '1px solid #E5E7EB', borderRadius: 10, background: '#ffffff', color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
+                >
                   Ignorer
                 </button>
-                <button onClick={handleApplyActions} disabled={selCount === 0} style={{ flex: 1, padding: '11px 16px', border: 'none', borderRadius: 10, background: selCount === 0 ? '#E5E7EB' : '#2563EB', color: selCount === 0 ? '#9CA3AF' : '#ffffff', fontSize: 14, fontWeight: 600, cursor: selCount === 0 ? 'not-allowed' : 'pointer' }}>
+                <button
+                  onClick={handleApplyActions}
+                  disabled={selCount === 0}
+                  style={{ flex: 1, padding: '11px 16px', border: 'none', borderRadius: 10, background: selCount === 0 ? '#E5E7EB' : '#2563EB', color: selCount === 0 ? '#9CA3AF' : '#ffffff', fontSize: 14, fontWeight: 600, cursor: selCount === 0 ? 'not-allowed' : 'pointer' }}
+                >
                   Appliquer ({selCount})
                 </button>
               </div>
-              )
-            })()}
+            )}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* ─── Move document modal ─── */}
       {movingDoc && (
