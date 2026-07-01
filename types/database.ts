@@ -106,11 +106,15 @@ export interface Document {
   company_id: string
   user_id: string
   note_id: string | null
+  folder_id: string | null
   file_name: string
   file_url: string
+  file_size: number | null
   file_type: 'pdf' | 'docx' | 'xlsx' | 'image'
   title: string | null
   is_deleted: boolean
+  is_indexed: boolean
+  indexed_at: string | null
   created_at: string
 }
 

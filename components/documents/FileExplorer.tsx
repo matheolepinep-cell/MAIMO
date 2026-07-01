@@ -21,7 +21,8 @@ import {
   IconLayoutGrid,
   IconList,
   IconExternalLink,
-  IconShare,
+  IconSparkles,
+  IconInfoCircle,
 } from '@tabler/icons-react'
 import { createClient } from '@/lib/supabase/client'
 import { validateFile, sanitizeFilename } from '@/lib/file-validation'
@@ -34,6 +35,11 @@ interface Folder {
   parent_id: string | null
   account_id: string | null
   created_at: string
+}
+
+interface PendingIndexDoc {
+  id: string
+  name: string
 }
 
 interface FileExplorerProps {
@@ -63,7 +69,7 @@ function fmtDate(d: string): string {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })
 }
 
-/* ─── Icons ─── */
+/* ─── File type helpers ─── */
 function FileTypeIcon({ type, size = 16 }: { type: string; size?: number }) {
   const s = { width: size, height: size }
   if (type === 'pdf') return <IconFileTypePdf style={s} color="#EF4444" />
@@ -81,11 +87,64 @@ function fileTypeBg(type: string): string {
   return '#F5F7FA'
 }
 
+/* ─── IndexBadge ─── */
+function IndexBadge({ docId, isIndexed, indexingDocIds }: { docId: string; isIndexed: boolean; indexingDocIds: string[] }) {
+  const isIndexing = indexingDocIds.includes(docId)
+
+  if (isIndexing) return (
+    <span style={{
+      fontSize: 10, fontWeight: 600,
+      padding: '2px 7px', borderRadius: 10,
+      background: '#EFF6FF', color: '#2563EB',
+      display: 'flex', alignItems: 'center', gap: 4,
+      flexShrink: 0,
+    }}>
+      <span className="animate-spin" style={{
+        width: 8, height: 8, borderRadius: '50%',
+        border: '1.5px solid #2563EB',
+        borderTopColor: 'transparent',
+        display: 'inline-block',
+      }} />
+      Indexation...
+    </span>
+  )
+
+  if (isIndexed) return (
+    <span
+      title="Ce document est dans la mémoire de l'IA"
+      style={{
+        fontSize: 10, fontWeight: 600,
+        padding: '2px 7px', borderRadius: 10,
+        background: '#DCFCE7', color: '#16A34A',
+        display: 'flex', alignItems: 'center', gap: 3,
+        flexShrink: 0,
+      }}
+    >
+      <IconSparkles size={10} />
+      Dans l'IA
+    </span>
+  )
+
+  return (
+    <span
+      title="Ce document n'est pas indexé dans l'IA"
+      style={{
+        fontSize: 10, fontWeight: 500,
+        padding: '2px 7px', borderRadius: 10,
+        background: '#F3F4F6', color: '#9CA3AF',
+        flexShrink: 0,
+      }}
+    >
+      Non indexé
+    </span>
+  )
+}
+
 /* ─── FileExplorer ─── */
 export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpen, onDocumentDelete }: FileExplorerProps) {
   const supabase = createClient()
 
-  // Navigation state
+  // Navigation
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([{ id: null, name: 'Fichiers' }])
 
@@ -118,18 +177,22 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
   const [confirmDeleteFolderId, setConfirmDeleteFolderId] = useState<string | null>(null)
   const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null)
 
+  // Indexation confirmation modal
+  const [pendingIndexDoc, setPendingIndexDoc] = useState<PendingIndexDoc | null>(null)
+
+  // Indexation in progress
+  const [indexingDocIds, setIndexingDocIds] = useState<string[]>([])
+
   /* ─── Fetch ─── */
   const fetchContents = useCallback(async () => {
     setLoading(true)
     try {
-      // Folders in current directory
       const folderParams = new URLSearchParams({ account_id: accountId })
       if (currentFolderId) folderParams.set('parent_id', currentFolderId)
       const fRes = await fetch(`/api/folders?${folderParams}`)
       const fData = await fRes.json()
       setFolders(fData.folders ?? [])
 
-      // Documents in current folder
       let docQ = supabase
         .from('documents')
         .select('*')
@@ -152,13 +215,10 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
 
   useEffect(() => { fetchContents() }, [fetchContents])
 
-  // Close context menu on outside click
   useEffect(() => {
     if (!menuFolderId) return
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuFolderId(null)
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuFolderId(null)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -185,7 +245,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     setBreadcrumbs(prev => prev.slice(0, idx + 1))
   }
 
-  /* ─── Create folder ─── */
+  /* ─── Folder CRUD ─── */
   const handleCreateFolder = async () => {
     const name = newFolderName.trim()
     if (!name) { setCreatingFolder(false); setNewFolderName(''); return }
@@ -194,14 +254,9 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, account_id: accountId, parent_id: currentFolderId, workspace_id: wsId }),
     })
-    if (res.ok) {
-      setCreatingFolder(false)
-      setNewFolderName('')
-      fetchContents()
-    }
+    if (res.ok) { setCreatingFolder(false); setNewFolderName(''); fetchContents() }
   }
 
-  /* ─── Rename folder ─── */
   const handleRename = async () => {
     if (!renamingId || !renameValue.trim()) { setRenamingId(null); return }
     await fetch('/api/folders', {
@@ -213,7 +268,6 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     fetchContents()
   }
 
-  /* ─── Delete folder ─── */
   const handleDeleteFolder = async (id: string) => {
     await fetch(`/api/folders?id=${id}`, { method: 'DELETE' })
     setConfirmDeleteFolderId(null)
@@ -221,7 +275,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     fetchContents()
   }
 
-  /* ─── Delete document ─── */
+  /* ─── Document delete ─── */
   const handleDeleteDoc = async (docId: string) => {
     await supabase.from('documents').update({ is_deleted: true }).eq('id', docId)
     setConfirmDeleteDocId(null)
@@ -254,19 +308,35 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
         file_type: fileType,
         title: safeName.replace(/\.[^.]+$/, ''),
         is_deleted: false,
+        is_indexed: false,
         workspace_id: wsId ?? null,
       }).select().single()
+      // Images are not indexable; for other types show confirmation modal
       if (inserted && fileType !== 'image') {
-        fetch('/api/index-document', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ document_id: inserted.id, file_url: `documents:${filePath}`, file_type: fileType, account_id: accountId, company_id: companyId, workspace_id: wsId }),
-        }).catch(() => {})
+        setPendingIndexDoc({ id: inserted.id, name: file.name })
       }
     }
     e.target.value = ''
     setUploading(false)
     fetchContents()
+  }
+
+  /* ─── Indexation confirm ─── */
+  const handleConfirmIndex = async (doc: PendingIndexDoc) => {
+    setPendingIndexDoc(null)
+    setIndexingDocIds(prev => [...prev, doc.id])
+    try {
+      await fetch('/api/documents/index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: doc.id }),
+      })
+    } catch (err) {
+      console.error('[FileExplorer] indexation error:', err)
+    } finally {
+      setIndexingDocIds(prev => prev.filter(id => id !== doc.id))
+      fetchContents()
+    }
   }
 
   /* ─── Drag and drop ─── */
@@ -294,7 +364,6 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     <div>
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-3 gap-2">
-        {/* Breadcrumb */}
         <div className="flex items-center gap-1 flex-1 min-w-0 flex-wrap">
           {breadcrumbs.map((crumb, idx) => (
             <span key={crumb.id ?? 'root'} className="flex items-center gap-1">
@@ -310,8 +379,6 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
             </span>
           ))}
         </div>
-
-        {/* Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setView(v => v === 'grid' ? 'list' : 'grid')}
@@ -341,7 +408,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
         </div>
       </div>
 
-      {/* Drop zone on root (when inside a subfolder, allow dropping back) */}
+      {/* Drop zone back to parent */}
       {currentFolderId && (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOverId('root') }}
@@ -382,14 +449,12 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
         </div>
       )}
 
-      {/* Empty state */}
       {isEmpty && (
         <div className="py-8 text-center text-sm text-[#94A3B8]">
           Aucun fichier dans ce dossier
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
         <div className="py-6 text-center">
           <span className="w-5 h-5 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin inline-block" />
@@ -431,11 +496,14 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               key={doc.id}
               doc={doc}
               confirmDelete={confirmDeleteDocId === doc.id}
+              isIndexing={indexingDocIds.includes(doc.id)}
               onOpen={() => onDocumentOpen?.(doc)}
               onDeleteRequest={() => setConfirmDeleteDocId(doc.id)}
               onDeleteConfirm={() => handleDeleteDoc(doc.id)}
               onDeleteCancel={() => setConfirmDeleteDocId(null)}
+              onIndexRequest={() => handleConfirmIndex({ id: doc.id, name: doc.title ?? doc.file_name })}
               onDragStart={() => handleDragStart('document', doc.id)}
+              indexingDocIds={indexingDocIds}
               view="grid"
             />
           ))}
@@ -477,14 +545,108 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               key={doc.id}
               doc={doc}
               confirmDelete={confirmDeleteDocId === doc.id}
+              isIndexing={indexingDocIds.includes(doc.id)}
               onOpen={() => onDocumentOpen?.(doc)}
               onDeleteRequest={() => setConfirmDeleteDocId(doc.id)}
               onDeleteConfirm={() => handleDeleteDoc(doc.id)}
               onDeleteCancel={() => setConfirmDeleteDocId(null)}
+              onIndexRequest={() => handleConfirmIndex({ id: doc.id, name: doc.title ?? doc.file_name })}
               onDragStart={() => handleDragStart('document', doc.id)}
+              indexingDocIds={indexingDocIds}
               view="list"
             />
           ))}
+        </div>
+      )}
+
+      {/* ─── Indexation confirmation modal ─── */}
+      {pendingIndexDoc && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 9999,
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 16,
+            padding: 28,
+            maxWidth: 420, width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12,
+              background: '#EFF6FF',
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'center', marginBottom: 16,
+            }}>
+              <IconSparkles size={24} color="#2563EB" />
+            </div>
+
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0A0A0A', margin: '0 0 8px 0' }}>
+              Indexer ce document dans l'IA ?
+            </h3>
+
+            <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: '0 0 6px 0' }}>
+              Voulez-vous que ce document entre dans la mémoire de l'IA ? Vous pourrez ensuite l'interroger directement depuis la recherche IA.
+            </p>
+
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px',
+              background: '#F9FAFB', borderRadius: 8,
+              marginBottom: 16,
+            }}>
+              <IconFile size={14} color="#9CA3AF" />
+              <span style={{
+                fontSize: 12, color: '#374151',
+                fontWeight: 500, fontStyle: 'italic',
+                whiteSpace: 'nowrap', overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {pendingIndexDoc.name}
+              </span>
+            </div>
+
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 6,
+              padding: '8px 10px',
+              background: '#FFFBEB', borderRadius: 8,
+              marginBottom: 20, border: '1px solid #FDE68A',
+            }}>
+              <IconInfoCircle size={13} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 11, color: '#92400E', lineHeight: 1.5 }}>
+                L'indexation implique un traitement temporaire par nos prestataires IA (Anthropic, OpenAI) encadrés par des garanties RGPD.
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { setPendingIndexDoc(null); fetchContents() }}
+                style={{
+                  flex: 1, padding: '11px 16px',
+                  border: '1px solid #E5E7EB', borderRadius: 10,
+                  background: '#ffffff', color: '#374151',
+                  fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                Non, stocker uniquement
+              </button>
+              <button
+                onClick={() => handleConfirmIndex(pendingIndexDoc)}
+                style={{
+                  flex: 1, padding: '11px 16px',
+                  border: 'none', borderRadius: 10,
+                  background: '#2563EB', color: '#ffffff',
+                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Oui, indexer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -521,11 +683,7 @@ function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRe
   if (view === 'grid') {
     return (
       <div
-        draggable
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
+        draggable onDragStart={onDragStart} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
         className="relative rounded-xl p-3 flex flex-col items-center gap-2 cursor-pointer group transition-all"
         style={{
           border: `1.5px solid ${isDragOver ? '#2563EB' : 'rgba(30,39,97,0.07)'}`,
@@ -535,10 +693,7 @@ function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRe
       >
         {isDragOver ? <IconFolderOpen size={32} color="#2563EB" /> : <IconFolder size={32} color="#F59E0B" />}
         {isRenaming ? (
-          <input
-            ref={renameInputRef}
-            value={renameValue}
-            onChange={(e) => onRenameChange(e.target.value)}
+          <input ref={renameInputRef} value={renameValue} onChange={(e) => onRenameChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') onRenameSubmit(); if (e.key === 'Escape') onRenameCancel() }}
             onClick={(e) => e.stopPropagation()}
             className="text-xs text-center w-full bg-white border border-[#2563EB] rounded px-1 focus:outline-none"
@@ -546,14 +701,13 @@ function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRe
         ) : (
           <p className="text-xs font-medium text-[#1E293B] text-center truncate w-full">{folder.name}</p>
         )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onMenuToggle() }}
-          className="absolute top-1.5 right-1.5 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-200"
-        >
+        <button onClick={(e) => { e.stopPropagation(); onMenuToggle() }}
+          className="absolute top-1.5 right-1.5 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-200">
           <IconDots size={12} color="#64748B" />
         </button>
         {isMenuOpen && (
-          <div ref={menuRef} onClick={(e) => e.stopPropagation()} className="absolute top-7 right-1.5 z-20 bg-white rounded-xl shadow-lg py-1 min-w-[120px]" style={{ border: '1px solid #E2E8F0' }}>
+          <div ref={menuRef} onClick={(e) => e.stopPropagation()}
+            className="absolute top-7 right-1.5 z-20 bg-white rounded-xl shadow-lg py-1 min-w-[120px]" style={{ border: '1px solid #E2E8F0' }}>
             <button onClick={onRenameStart} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-[#1E293B] hover:bg-gray-50">
               <IconPencil size={12} /> Renommer
             </button>
@@ -577,11 +731,7 @@ function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRe
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
+      draggable onDragStart={onDragStart} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
       className="flex items-center gap-2.5 px-3 py-2 rounded-xl group cursor-pointer transition-all"
       style={{
         border: `1px solid ${isDragOver ? '#2563EB' : 'rgba(30,39,97,0.07)'}`,
@@ -591,10 +741,7 @@ function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRe
     >
       {isDragOver ? <IconFolderOpen size={18} color="#2563EB" /> : <IconFolder size={18} color="#F59E0B" />}
       {isRenaming ? (
-        <input
-          ref={renameInputRef}
-          value={renameValue}
-          onChange={(e) => onRenameChange(e.target.value)}
+        <input ref={renameInputRef} value={renameValue} onChange={(e) => onRenameChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') onRenameSubmit(); if (e.key === 'Escape') onRenameCancel() }}
           onClick={(e) => e.stopPropagation()}
           className="flex-1 text-sm bg-white border border-[#2563EB] rounded px-1 focus:outline-none"
@@ -627,24 +774,27 @@ function FolderCard({ folder, isMenuOpen, isRenaming, renameValue, renameInputRe
 interface DocCardProps {
   doc: Document
   confirmDelete: boolean
+  isIndexing: boolean
   onOpen: () => void
   onDeleteRequest: () => void
   onDeleteConfirm: () => void
   onDeleteCancel: () => void
+  onIndexRequest: () => void
   onDragStart: () => void
+  indexingDocIds: string[]
   view: 'grid' | 'list'
 }
 
-function DocCard({ doc, confirmDelete, onOpen, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onDragStart, view }: DocCardProps) {
+function DocCard({ doc, confirmDelete, isIndexing, onOpen, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onIndexRequest, onDragStart, indexingDocIds, view }: DocCardProps) {
   const label = doc.title ?? doc.file_name
-  const size = (doc as Document & { file_size?: number }).file_size
+  const size = doc.file_size
+  const canIndex = doc.file_type !== 'image' && !doc.is_indexed && !isIndexing
 
   if (view === 'grid') {
     return (
       <div
-        draggable
-        onDragStart={onDragStart}
-        className="relative rounded-xl p-3 flex flex-col items-center gap-2 cursor-pointer group transition-all hover:shadow-sm"
+        draggable onDragStart={onDragStart}
+        className="relative rounded-xl p-3 flex flex-col items-center gap-1.5 cursor-pointer group transition-all hover:shadow-sm"
         style={{ border: '1px solid rgba(30,39,97,0.07)', background: '#FAFAFA' }}
         onClick={onOpen}
       >
@@ -653,6 +803,11 @@ function DocCard({ doc, confirmDelete, onOpen, onDeleteRequest, onDeleteConfirm,
         </div>
         <p className="text-xs font-medium text-[#1E293B] text-center truncate w-full" title={label}>{label}</p>
         <p className="text-[10px] text-[#94A3B8]">{fmtDate(doc.created_at)}</p>
+        {doc.file_type !== 'image' && (
+          <div style={{ marginTop: 2, display: 'flex', justifyContent: 'center' }}>
+            <IndexBadge docId={doc.id} isIndexed={doc.is_indexed} indexingDocIds={indexingDocIds} />
+          </div>
+        )}
         {confirmDelete ? (
           <div onClick={(e) => e.stopPropagation()} className="absolute inset-0 bg-white/95 rounded-xl flex flex-col items-center justify-center gap-2 z-10">
             <p className="text-[11px] text-center text-[#1E293B] px-2">Supprimer ce fichier ?</p>
@@ -662,12 +817,16 @@ function DocCard({ doc, confirmDelete, onOpen, onDeleteRequest, onDeleteConfirm,
             </div>
           </div>
         ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); onDeleteRequest() }}
-            className="absolute top-1.5 right-1.5 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 text-[#94A3B8] hover:text-red-400"
-          >
-            <IconTrash size={12} />
-          </button>
+          <div className="absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+            {canIndex && (
+              <button onClick={onIndexRequest} className="p-1 rounded hover:bg-blue-50" title="Indexer dans l'IA">
+                <IconSparkles size={12} color="#2563EB" />
+              </button>
+            )}
+            <button onClick={onDeleteRequest} className="p-1 rounded hover:bg-red-50 text-[#94A3B8] hover:text-red-400">
+              <IconTrash size={12} />
+            </button>
+          </div>
         )}
       </div>
     )
@@ -675,8 +834,7 @@ function DocCard({ doc, confirmDelete, onOpen, onDeleteRequest, onDeleteConfirm,
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
+      draggable onDragStart={onDragStart}
       className="flex items-center gap-2 rounded-xl group transition-all hover:bg-gray-50"
       style={{ border: '1px solid rgba(30,39,97,0.07)' }}
     >
@@ -689,6 +847,9 @@ function DocCard({ doc, confirmDelete, onOpen, onDeleteRequest, onDeleteConfirm,
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span className="text-[10px] text-[#94A3B8]">{fmtDate(doc.created_at)}</span>
             {size != null && <span className="text-[10px] text-[#94A3B8]">· {formatFileSize(size)}</span>}
+            {doc.file_type !== 'image' && (
+              <IndexBadge docId={doc.id} isIndexed={doc.is_indexed} indexingDocIds={indexingDocIds} />
+            )}
           </div>
         </div>
       </button>
@@ -702,9 +863,20 @@ function DocCard({ doc, confirmDelete, onOpen, onDeleteRequest, onDeleteConfirm,
             <button onClick={onDeleteCancel} className="px-2 py-0.5 text-[10px] font-medium text-[#64748B] bg-gray-100 rounded-lg">✕</button>
           </div>
         ) : (
-          <button onClick={onDeleteRequest} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors">
-            <IconTrash size={13} />
-          </button>
+          <>
+            {canIndex && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onIndexRequest() }}
+                className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                title="Indexer dans l'IA"
+              >
+                <IconSparkles size={13} color="#2563EB" />
+              </button>
+            )}
+            <button onClick={onDeleteRequest} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors">
+              <IconTrash size={13} />
+            </button>
+          </>
         )}
       </div>
     </div>
