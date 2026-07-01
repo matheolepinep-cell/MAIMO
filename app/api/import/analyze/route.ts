@@ -72,13 +72,16 @@ export async function POST(request: Request) {
     env.supabaseUrl, env.supabaseServiceRole
   )
 
+  console.log('[import/analyze] Downloading file', { file_path, file_name })
   const { data: fileBlob, error: dlError } = await supabase.storage.from('imports').download(file_path)
   if (dlError || !fileBlob) {
-    return NextResponse.json({ error: 'Impossible de télécharger le fichier.' }, { status: 500 })
+    console.error('[import/analyze] Storage download failed', { file_path, error: dlError?.message })
+    return NextResponse.json({ error: 'Impossible de télécharger le fichier.', detail: dlError?.message }, { status: 500 })
   }
 
   const ext = getExt(file_path)
   const buffer = Buffer.from(await fileBlob.arrayBuffer())
+  console.log('[import/analyze] File downloaded', { ext, bufferSize: buffer.length })
 
   // ── SPREADSHEET flow ──────────────────────────────────────────────────────
   if (['xlsx', 'xls', 'csv'].includes(ext)) {
@@ -122,13 +125,29 @@ export async function POST(request: Request) {
 
   // ── DOCUMENT flow (PDF / DOCX / image) ───────────────────────────────────
   try {
+    console.log('[import/analyze] Starting text extraction', { ext, file_name, bufferSize: buffer.length })
     const text = await extractText(buffer, ext, file_name)
+    console.log('[import/analyze] Text extracted', { length: text?.length, preview: text?.substring(0, 120) })
+
     if (!text.trim()) {
+      console.warn('[import/analyze] Empty text after extraction', { ext, file_name })
       return NextResponse.json({ error: 'Impossible d\'extraire le texte du document.' }, { status: 422 })
     }
     return NextResponse.json({ type: 'document', text, file_path, file_name })
   } catch (err) {
-    console.error('Extract error:', err)
-    return NextResponse.json({ error: 'Erreur lors de l\'extraction du texte.' }, { status: 500 })
+    const e = err as Error
+    console.error('[import/analyze] Extraction failed', {
+      name: e?.name,
+      message: e?.message,
+      stack: e?.stack,
+      ext,
+      file_name,
+      bufferSize: buffer.length,
+    })
+    return NextResponse.json({
+      error: e?.message ?? 'Erreur lors de l\'extraction du texte.',
+      step: 'text_extraction',
+      ext,
+    }, { status: 500 })
   }
 }
