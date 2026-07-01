@@ -1,6 +1,39 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFParser = require('pdf2json')
 
+function cleanPDFText(raw: string): string {
+  return raw
+    // Strip pdf2json page-break markers
+    .replace(/----------------Page \(\d+\) Break----------------/g, '\n')
+    // Decode common HTML entities that pdf2json sometimes emits
+    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    // Remove control chars except newline/tab
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Normalize whitespace
+    .replace(/\r\n|\r/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function extractTextFromBuffer(buffer: Buffer): string {
+  // Raw BT…ET text-block extraction as last-resort fallback
+  const content = buffer.toString('latin1')
+  const blocks = content.match(/BT[\s\S]*?ET/g) ?? []
+  return blocks
+    .join('\n')
+    .replace(/\(([^)]+)\)\s*Tj/g, '$1 ')
+    .replace(/\(([^)]+)\)\s*TJ/g, '$1 ')
+    .replace(/[^\x20-\x7E\n]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export async function extractTextFromPDF(
   buffer: Buffer,
   fileName?: string
@@ -16,23 +49,32 @@ export async function extractTextFromPDF(
 
       pdfParser.on('pdfParser_dataError', (errData: { parserError: Error }) => {
         console.error('[pdf-extract] parse error:', errData.parserError?.message ?? errData.parserError)
-        done(`[Document PDF non extractible : ${fileName ?? 'fichier'}]`)
+        // Try buffer fallback before giving up
+        const fallback = extractTextFromBuffer(buffer)
+        console.log('[pdf-extract] fallback after parse error, length:', fallback.length)
+        done(fallback.length > 50 ? fallback : `[Document PDF non extractible : ${fileName ?? 'fichier'}]`)
       })
 
       pdfParser.on('pdfParser_dataReady', () => {
         try {
           const raw = pdfParser.getRawTextContent() as string
-          // Strip pdf2json page-break markers, trim whitespace
-          const text = raw
-            .replace(/----------------Page \(\d+\) Break----------------/g, '\n')
-            .replace(/\r\n/g, '\n')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim()
-          console.log('[pdf-extract] extracted length:', text.length, 'preview:', text.substring(0, 80))
-          if (!text || text.length < 50) {
-            done(`[Document PDF scanné sans texte extractible : ${fileName ?? 'fichier'}]`)
+          console.log('[pdf-extract] raw length:', raw?.length, 'raw preview:', JSON.stringify(raw?.substring(0, 500)))
+
+          const text = cleanPDFText(raw ?? '')
+          console.log('[pdf-extract] cleaned length:', text.length, 'preview:', text.substring(0, 200))
+
+          if (text.length < 100) {
+            console.log('[pdf-extract] pdf2json produced too little text, trying buffer extraction')
+            const fallback = extractTextFromBuffer(buffer)
+            console.log('[pdf-extract] buffer fallback length:', fallback.length)
+            if (fallback.length > 50) {
+              done(fallback)
+              return
+            }
+            done(text.length > 0 ? text : `[Document PDF scanné sans texte extractible : ${fileName ?? 'fichier'}]`)
             return
           }
+
           done(text)
         } catch (err) {
           console.error('[pdf-extract] getRawTextContent error:', err)

@@ -227,6 +227,31 @@ export default function ImportPage() {
     const { data: accs } = await accQ
     setAccounts((accs ?? []) as AccountOption[])
 
+    // If PDF extraction yielded only a placeholder / too-short text, skip AI analysis
+    // and go straight to manual association so the user can still attach the document
+    if (data.poorTextQuality) {
+      setStep('idle')
+      setFile(null)
+      setAnalysisResult({
+        summary: '',
+        companiesCreated: [],
+        companiesUpdated: [],
+        contactsCreated: [],
+        notesCreated: 0,
+        firstAccountId: null,
+        firstCompanyName: null,
+        multipleCompanies: false,
+        needsAccount: true,
+        _filePath: path,
+        _text: data.text,
+        _fileName: file?.name ?? path.split('/').pop() ?? 'document',
+        _detectedAccountId: null,
+        _detectedAccountName: null,
+        _detectedCompanyNameRaw: '',
+      })
+      return
+    }
+
     const previewRes = await fetch('/api/import/preview-document', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

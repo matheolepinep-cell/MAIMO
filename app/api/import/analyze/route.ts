@@ -131,7 +131,13 @@ export async function POST(request: Request) {
       console.warn('[import/analyze] Empty text after extraction', { ext, file_name })
       return NextResponse.json({ error: 'Impossible d\'extraire le texte du document.' }, { status: 422 })
     }
-    return NextResponse.json({ type: 'document', text, file_path, file_name })
+
+    // If the extracted text is a placeholder (scanned PDF fallback) or too short to be useful,
+    // return it with a flag so the frontend skips AI analysis and goes straight to manual association
+    const isPlaceholder = text.startsWith('[') || text.length < 80
+    console.log('[import/analyze] Text quality check', { length: text.length, isPlaceholder })
+
+    return NextResponse.json({ type: 'document', text, file_path, file_name, poorTextQuality: isPlaceholder })
   } catch (err) {
     const e = err as Error
     console.error('[import/analyze] Extraction failed', {
