@@ -297,6 +297,37 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     fetchContents()
   }
 
+  /* ─── Ensure account folder exists in global Documents page ─── */
+  const ensureAccountFolder = async () => {
+    if (!wsId) return
+    const { data: existing } = await supabase
+      .from('folders')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('folder_type', 'account')
+      .eq('account_id', accountId)
+      .is('parent_id', null)
+      .maybeSingle()
+    if (!existing) {
+      const { data: account } = await supabase
+        .from('accounts')
+        .select('name')
+        .eq('id', accountId)
+        .single()
+      if (account) {
+        await supabase.from('folders').insert({
+          company_id: companyId,
+          name: account.name,
+          folder_type: 'account',
+          parent_id: null,
+          account_id: accountId,
+          workspace_id: wsId,
+          created_by: userId,
+        })
+      }
+    }
+  }
+
   /* ─── Upload ─── */
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
@@ -331,6 +362,8 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     }
     e.target.value = ''
     setUploading(false)
+    // Ensure account folder exists in global Documents page
+    ensureAccountFolder()
     fetchContents()
   }
 
