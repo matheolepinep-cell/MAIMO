@@ -62,6 +62,8 @@ type AnalysisResult = {
   _detectedAccountId?: string | null
   _detectedAccountName?: string | null
   _detectedCompanyNameRaw?: string
+  // PDF text quality flag
+  _poorTextQuality?: boolean
 }
 
 type AccountOption = { id: string; name: string; city?: string | null }
@@ -203,6 +205,8 @@ export default function ImportPage() {
       body: JSON.stringify({ file_path: path, file_name: file.name, company_id: profile.company_id }),
     })
 
+    console.log('[import/frontend] analyze status:', res.status)
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       setError(data.error ?? 'Impossible de lire le fichier. Réessayez.')
@@ -211,6 +215,7 @@ export default function ImportPage() {
     }
 
     const data = await res.json()
+    console.log('[import/frontend] analyze result:', JSON.stringify({ type: data.type, textLength: data.text?.length, poorTextQuality: data.poorTextQuality }))
 
     if (data.type === 'spreadsheet') {
       setStep('idle')
@@ -230,6 +235,7 @@ export default function ImportPage() {
     // If PDF extraction yielded only a placeholder / too-short text, skip AI analysis
     // and go straight to manual association so the user can still attach the document
     if (data.poorTextQuality) {
+      console.log('[import/frontend] poorTextQuality=true, showing manual association modal')
       setStep('idle')
       setFile(null)
       setAnalysisResult({
@@ -248,6 +254,7 @@ export default function ImportPage() {
         _detectedAccountId: null,
         _detectedAccountName: null,
         _detectedCompanyNameRaw: '',
+        _poorTextQuality: true,
       })
       return
     }
@@ -278,32 +285,29 @@ export default function ImportPage() {
     const preview = await previewRes.json()
 
     if (!preview.hasActions) {
+      // No AI actions detected — always show manual association modal so the
+      // document can still be attached to an account instead of silently disappearing.
       const rawName: string = preview.detectedCompanyNameRaw ?? ''
-      if (rawName && rawName !== 'INCONNU') {
-        // Detection found a company name but no full-analysis actions — skip confirming,
-        // jump straight to the manual-association result modal
-        setAnalysisResult({
-          summary: '',
-          companiesCreated: [],
-          companiesUpdated: [],
-          contactsCreated: [],
-          notesCreated: 0,
-          firstAccountId: null,
-          firstCompanyName: null,
-          multipleCompanies: false,
-          needsAccount: true,
-          _filePath: path,
-          _text: data.text,
-          _fileName: file?.name ?? path.split('/').pop() ?? 'document',
-          _detectedAccountId: preview.detectedAccountId ?? null,
-          _detectedAccountName: preview.detectedAccountName ?? null,
-          _detectedCompanyNameRaw: rawName,
-        })
-        if (preview.detectedAccountId) setSelectedAccountId(preview.detectedAccountId)
-        else setAccountSearch(rawName)
-      } else {
-        setSuccessMsg('Document importé avec succès.')
-      }
+      console.log('[import/frontend] hasActions=false, rawName:', rawName, '— showing needsAccount modal')
+      setAnalysisResult({
+        summary: '',
+        companiesCreated: [],
+        companiesUpdated: [],
+        contactsCreated: [],
+        notesCreated: 0,
+        firstAccountId: null,
+        firstCompanyName: null,
+        multipleCompanies: false,
+        needsAccount: true,
+        _filePath: path,
+        _text: data.text,
+        _fileName: file?.name ?? path.split('/').pop() ?? 'document',
+        _detectedAccountId: preview.detectedAccountId ?? null,
+        _detectedAccountName: preview.detectedAccountName ?? null,
+        _detectedCompanyNameRaw: rawName,
+      })
+      if (preview.detectedAccountId) setSelectedAccountId(preview.detectedAccountId)
+      else if (rawName && rawName !== 'INCONNU') setAccountSearch(rawName)
       setFile(null)
       return
     }
@@ -840,6 +844,12 @@ export default function ImportPage() {
               {analysisResult.needsAccount && (
                 <div className="rounded-xl p-4"
                   style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.1)' }}>
+                  {analysisResult._poorTextQuality && (
+                    <div className="flex items-start gap-2 mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-700">Le texte de ce PDF n&apos;a pas pu être extrait correctement. Associez-le manuellement à une entreprise.</p>
+                    </div>
+                  )}
                   {analysisResult._detectedAccountId && analysisResult._detectedAccountName ? (
                     <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
                       <Building2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
