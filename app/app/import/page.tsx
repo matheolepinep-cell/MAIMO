@@ -58,6 +58,10 @@ type AnalysisResult = {
   _filePath?: string
   _text?: string
   _fileName?: string
+  // auto-detection fields
+  _detectedAccountId?: string | null
+  _detectedAccountName?: string | null
+  _detectedCompanyNameRaw?: string
 }
 
 type AccountOption = { id: string; name: string; city?: string | null }
@@ -85,6 +89,9 @@ type PendingPreview = {
   companiesStatus: CompanyStatus[]
   filePath: string
   text: string
+  detectedAccountId: string | null
+  detectedAccountName: string | null
+  detectedCompanyNameRaw: string
 }
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -246,7 +253,32 @@ export default function ImportPage() {
     const preview = await previewRes.json()
 
     if (!preview.hasActions) {
-      setSuccessMsg('Document importé avec succès.')
+      const rawName: string = preview.detectedCompanyNameRaw ?? ''
+      if (rawName && rawName !== 'INCONNU') {
+        // Detection found a company name but no full-analysis actions — skip confirming,
+        // jump straight to the manual-association result modal
+        setAnalysisResult({
+          summary: '',
+          companiesCreated: [],
+          companiesUpdated: [],
+          contactsCreated: [],
+          notesCreated: 0,
+          firstAccountId: null,
+          firstCompanyName: null,
+          multipleCompanies: false,
+          needsAccount: true,
+          _filePath: path,
+          _text: data.text,
+          _fileName: file?.name ?? path.split('/').pop() ?? 'document',
+          _detectedAccountId: preview.detectedAccountId ?? null,
+          _detectedAccountName: preview.detectedAccountName ?? null,
+          _detectedCompanyNameRaw: rawName,
+        })
+        if (preview.detectedAccountId) setSelectedAccountId(preview.detectedAccountId)
+        else setAccountSearch(rawName)
+      } else {
+        setSuccessMsg('Document importé avec succès.')
+      }
       setFile(null)
       return
     }
@@ -288,7 +320,7 @@ export default function ImportPage() {
       }] : []),
     ]
 
-    setPendingPreview({ analysis: preview.analysis, companiesStatus: preview.companiesStatus, filePath: path, text: data.text })
+    setPendingPreview({ analysis: preview.analysis, companiesStatus: preview.companiesStatus, filePath: path, text: data.text, detectedAccountId: preview.detectedAccountId ?? null, detectedAccountName: preview.detectedAccountName ?? null, detectedCompanyNameRaw: preview.detectedCompanyNameRaw ?? '' })
     setConfirmActions(actions)
     setStep('confirming')
   }
@@ -309,6 +341,9 @@ export default function ImportPage() {
     const savedFilePath = pendingPreview.filePath
     const savedText = pendingPreview.text
     const savedFileName = file?.name ?? pendingPreview.filePath.split('/').pop() ?? 'document'
+    const savedDetectedAccountId = pendingPreview.detectedAccountId
+    const savedDetectedAccountName = pendingPreview.detectedAccountName
+    const savedDetectedCompanyNameRaw = pendingPreview.detectedCompanyNameRaw
 
     const selectedCompanyNames = confirmActions
       .filter((a) => (a.kind === 'company_new' || a.kind === 'company_update') && a.enabled)
@@ -348,7 +383,19 @@ export default function ImportPage() {
     }
 
     const result = await res.json()
-    setAnalysisResult({ ...result, _filePath: savedFilePath, _text: savedText, _fileName: savedFileName })
+    setAnalysisResult({
+      ...result,
+      _filePath: savedFilePath,
+      _text: savedText,
+      _fileName: savedFileName,
+      _detectedAccountId: savedDetectedAccountId,
+      _detectedAccountName: savedDetectedAccountName,
+      _detectedCompanyNameRaw: savedDetectedCompanyNameRaw,
+    })
+    if (result.needsAccount) {
+      if (savedDetectedAccountId) setSelectedAccountId(savedDetectedAccountId)
+      else if (savedDetectedCompanyNameRaw && savedDetectedCompanyNameRaw !== 'INCONNU') setAccountSearch(savedDetectedCompanyNameRaw)
+    }
     if ((result.companiesCreated?.length ?? 0) > 0 || (result.companiesUpdated?.length ?? 0) > 0) {
       markOnboardingStep(1)
     }
@@ -768,9 +815,21 @@ export default function ImportPage() {
               {analysisResult.needsAccount && (
                 <div className="rounded-xl p-4"
                   style={{ background: 'rgba(240,244,255,0.8)', border: '1px solid rgba(30,39,97,0.1)' }}>
-                  <p className="text-sm text-[#64748B] mb-3">
-                    Aucune entreprise détectée. Associez manuellement ce document :
-                  </p>
+                  {analysisResult._detectedAccountId && analysisResult._detectedAccountName ? (
+                    <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                      <Building2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <p className="text-xs font-medium text-emerald-700">Entreprise détectée : <strong>{analysisResult._detectedAccountName}</strong></p>
+                    </div>
+                  ) : analysisResult._detectedCompanyNameRaw && analysisResult._detectedCompanyNameRaw !== 'INCONNU' ? (
+                    <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                      <Building2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <p className="text-xs font-medium text-amber-700">Entreprise probable : <strong>{analysisResult._detectedCompanyNameRaw}</strong> (non trouvée dans votre base)</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#64748B] mb-3">
+                      Aucune entreprise détectée. Associez manuellement ce document :
+                    </p>
+                  )}
 
                   {/* Search input */}
                   <div className="relative mb-2">

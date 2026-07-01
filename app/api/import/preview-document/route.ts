@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import Anthropic from '@anthropic-ai/sdk'
 import { getAuthenticatedUser } from '@/lib/auth-server'
 import { env } from '@/lib/env'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { analyzeDocument } from '@/lib/document-analyzer'
 import { findMatchingAccount } from '@/lib/account-matching'
 import type { AccountRow } from '@/lib/account-matching'
+
+const anthropic = new Anthropic({ apiKey: env.anthropicApiKey })
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser()
@@ -55,5 +58,49 @@ export async function POST(request: Request) {
 
   const hasActions = companiesStatus.length > 0 || analysis.contacts.length > 0
 
-  return NextResponse.json({ analysis, companiesStatus, hasActions })
+  // ── 2-step detection fallback when full analysis finds no companies ──────
+  let detectedAccountId: string | null = null
+  let detectedAccountName: string | null = null
+  let detectedCompanyNameRaw = ''
+
+  if (companiesStatus.length === 0) {
+    try {
+      const detectionMsg = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 50,
+        messages: [{
+          role: 'user',
+          content: `À partir de ce document, identifie le nom de l'entreprise cliente principale (pas notre entreprise, mais le client dont parle ce document). Réponds UNIQUEMENT avec le nom exact de l'entreprise, rien d'autre. Si tu ne peux pas déterminer, réponds "INCONNU".\n\nDocument :\n${text.substring(0, 2000)}`,
+        }],
+      })
+      detectedCompanyNameRaw = detectionMsg.content[0].type === 'text' ? detectionMsg.content[0].text.trim() : 'INCONNU'
+
+      if (detectedCompanyNameRaw && detectedCompanyNameRaw !== 'INCONNU') {
+        const { data: exactMatch } = await supabase
+          .from('accounts').select('id, name')
+          .eq('company_id', company_id)
+          .ilike('name', detectedCompanyNameRaw)
+          .limit(1).maybeSingle()
+
+        if (exactMatch) {
+          detectedAccountId = exactMatch.id
+          detectedAccountName = exactMatch.name
+        } else {
+          const keywords = detectedCompanyNameRaw.split(/\s+/).filter((w: string) => w.length > 3)
+          for (const keyword of keywords) {
+            const { data: kwMatch } = await supabase
+              .from('accounts').select('id, name')
+              .eq('company_id', company_id)
+              .ilike('name', `%${keyword}%`)
+              .limit(1).maybeSingle()
+            if (kwMatch) { detectedAccountId = kwMatch.id; detectedAccountName = kwMatch.name; break }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[preview-document] detection error:', err)
+    }
+  }
+
+  return NextResponse.json({ analysis, companiesStatus, hasActions, detectedAccountId, detectedAccountName, detectedCompanyNameRaw })
 }
