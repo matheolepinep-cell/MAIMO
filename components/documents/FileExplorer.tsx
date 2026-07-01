@@ -262,10 +262,28 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
   const handleCreateFolder = async () => {
     const name = newFolderName.trim()
     if (!name) { setCreatingFolder(false); setNewFolderName(''); return }
+
+    // When creating at root of a fiche client, nest under the global account folder
+    // so it appears correctly in the Documents page hierarchy
+    let parentId = currentFolderId
+    if (!currentFolderId && wsId) {
+      await ensureAccountFolder()
+      const { data: accountFolder } = await supabase
+        .from('folders')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('folder_type', 'account')
+        .eq('account_id', accountId)
+        .eq('workspace_id', wsId)
+        .is('parent_id', null)
+        .maybeSingle()
+      if (accountFolder) parentId = accountFolder.id
+    }
+
     const res = await fetch('/api/folders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, account_id: accountId, parent_id: currentFolderId, workspace_id: wsId }),
+      body: JSON.stringify({ name, account_id: accountId, parent_id: parentId, workspace_id: wsId }),
     })
     if (res.ok) { setCreatingFolder(false); setNewFolderName(''); fetchContents() }
   }

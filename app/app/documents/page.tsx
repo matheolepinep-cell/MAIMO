@@ -108,6 +108,7 @@ export default function DocumentsPage() {
   const supabase = createClient()
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+  const [currentFolder, setCurrentFolder] = useState<GlobalFolder | null>(null)
   const [breadcrumb, setBreadcrumb] = useState<GlobalFolder[]>([])
   const [folders, setFolders] = useState<GlobalFolder[]>([])
   const [documents, setDocuments] = useState<GlobalDocument[]>([])
@@ -122,7 +123,7 @@ export default function DocumentsPage() {
   const didInit = useRef(false)
 
   /* ─── Load content ─── */
-  const loadContent = useCallback(async (folderId: string | null = currentFolderId) => {
+  const loadContent = useCallback(async (folderId: string | null, folderObj: GlobalFolder | null = null) => {
     if (!profile) return
     const companyId = profile.company_id
 
@@ -135,8 +136,21 @@ export default function DocumentsPage() {
       .order('folder_type')
       .order('name')
     if (wsId) folderQ = folderQ.eq('workspace_id', wsId)
-    if (folderId) folderQ = folderQ.eq('parent_id', folderId)
-    else folderQ = folderQ.is('parent_id', null)
+
+    if (!folderId) {
+      // Root: only show general/account folders + custom folders created from this page
+      // (exclude custom folders from fiche clients that have account_id but parent_id null)
+      folderQ = folderQ
+        .is('parent_id', null)
+        .or('folder_type.eq.general,folder_type.eq.account,and(folder_type.eq.custom,account_id.is.null)')
+    } else if (folderObj?.folder_type === 'account' && folderObj.account_id) {
+      // Inside an account folder: show direct sub-folders + legacy root-level fiche client folders
+      folderQ = folderQ.or(
+        `parent_id.eq.${folderId},and(account_id.eq.${folderObj.account_id},parent_id.is.null,folder_type.eq.custom)`
+      )
+    } else {
+      folderQ = folderQ.eq('parent_id', folderId)
+    }
     const { data: folderData } = await folderQ
 
     const enriched: GlobalFolder[] = await Promise.all(
@@ -212,12 +226,13 @@ export default function DocumentsPage() {
   useEffect(() => {
     if (!profile || didInit.current) return
     didInit.current = true
-    initializeFolders().then(() => loadContent(null))
+    initializeFolders().then(() => loadContent(null, null))
   }, [profile, initializeFolders, loadContent])
 
   /* ─── Navigation ─── */
   const navigateTo = (folderId: string | null, folder?: GlobalFolder) => {
     setCurrentFolderId(folderId)
+    setCurrentFolder(folder ?? null)
     if (folderId === null) {
       setBreadcrumb([])
     } else if (folder) {
@@ -228,7 +243,7 @@ export default function DocumentsPage() {
         setBreadcrumb([...breadcrumb, folder])
       }
     }
-    loadContent(folderId)
+    loadContent(folderId, folder ?? null)
   }
 
   /* ─── Create folder ─── */
@@ -247,7 +262,7 @@ export default function DocumentsPage() {
     })
     setNewFolderName('')
     setIsCreatingFolder(false)
-    loadContent(currentFolderId)
+    loadContent(currentFolderId, currentFolder)
   }
 
   /* ─── Upload ─── */
@@ -281,7 +296,7 @@ export default function DocumentsPage() {
     }
     e.target.value = ''
     setUploading(false)
-    loadContent(currentFolderId)
+    loadContent(currentFolderId, currentFolder)
   }
 
   /* ─── Open document (signed URL) ─── */
@@ -300,13 +315,13 @@ export default function DocumentsPage() {
       body: JSON.stringify({ type: 'document', id: movingDoc.id, folder_id: targetFolderId }),
     })
     setMovingDoc(null)
-    loadContent(currentFolderId)
+    loadContent(currentFolderId, currentFolder)
   }
 
   /* ─── Delete document ─── */
   const handleDeleteDocument = async (docId: string) => {
     await supabase.from('documents').update({ is_deleted: true }).eq('id', docId)
-    loadContent(currentFolderId)
+    loadContent(currentFolderId, currentFolder)
   }
 
   /* ─── Reindex ─── */
@@ -320,7 +335,7 @@ export default function DocumentsPage() {
       })
     } finally {
       setIndexingDocIds((prev) => prev.filter((id) => id !== docId))
-      loadContent(currentFolderId)
+      loadContent(currentFolderId, currentFolder)
     }
   }
 
@@ -647,7 +662,7 @@ export default function DocumentsPage() {
                   await fetch(`/api/folders?id=${deletingFolder.id}`, { method: 'DELETE' })
                   await supabase.from('documents').update({ is_deleted: true }).eq('folder_id', deletingFolder.id)
                   setDeletingFolder(null)
-                  loadContent(currentFolderId)
+                  loadContent(currentFolderId, currentFolder)
                 }}
                 style={{ flex: 1, padding: '11px 16px', border: 'none', borderRadius: 10, background: '#DC2626', color: '#ffffff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
               >
