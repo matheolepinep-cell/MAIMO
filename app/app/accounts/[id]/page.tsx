@@ -19,6 +19,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb'
 import { Modal } from '@/components/ui/Modal'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { NoteCard } from '@/components/notes/NoteCard'
+import { FileExplorer } from '@/components/documents/FileExplorer'
 import type { Account, Contact, Note, Document, SearchSource } from '@/types/database'
 import { detectConflicts, type ConflictResult } from '@/lib/conflicts'
 import { validateFile, sanitizeFilename } from '@/lib/file-validation'
@@ -1076,149 +1077,16 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           </SectionCard>
 
           {/* Documents */}
-          <SectionCard
-            title={`Documents (${documents.length})`}
-            actions={
-              <div className="flex items-center gap-2">
-                <select value={docSort} onChange={(e) => setDocSort(e.target.value as 'recent' | 'oldest' | 'az' | 'type')} className="hidden lg:block text-[11px] text-[#6B6B6B] bg-transparent border-none focus:outline-none cursor-pointer">
-                  <option value="recent">Date (récent)</option>
-                  <option value="oldest">Date (ancien)</option>
-                  <option value="az">A → Z</option>
-                  <option value="type">Type</option>
-                </select>
-                <label
-                  className="flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-medium cursor-pointer transition-all duration-150 text-white"
-                  style={{ background: '#2563EB' }}
-                >
-                  {docUploading
-                    ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    : <><Upload className="w-3 h-3 mr-0.5" />Ajouter</>
-                  }
-                  <input type="file" multiple className="hidden" onChange={handleStandaloneDocUpload} disabled={docUploading} />
-                </label>
-              </div>
-            }
-          >
-            {/* Search bar */}
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
-              <input
-                type="text"
-                value={docSearch}
-                onChange={(e) => { setDocSearch(e.target.value); setDocPage(1) }}
-                placeholder="Rechercher un document..."
-                className="w-full pl-8 pr-8 py-2.5 rounded-xl text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none"
-                style={{ background: '#F5F7FA', border: '1px solid #E5EAF5', borderRadius: 10 }}
+          <SectionCard title="Fichiers">
+            {profile && (
+              <FileExplorer
+                accountId={id}
+                companyId={profile.company_id}
+                userId={profile.id}
+                wsId={wsId ?? null}
+                onDocumentOpen={handleOpenDocument}
+                onDocumentDelete={(docId) => setDocuments(prev => prev.filter(d => d.id !== docId))}
               />
-              {docSearch && (
-                <button onClick={() => { setDocSearch(''); setDocPage(1) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Type filter pills */}
-            <div className="flex gap-2 flex-wrap mb-3">
-              {(['all', 'pdf', 'docx', 'xlsx', 'image'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => { setDocTypeFilter(t); setDocPage(1) }}
-                  className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-150"
-                  style={docTypeFilter === t
-                    ? { background: '#0A0A0A', color: 'white' }
-                    : { background: '#F5F5F5', color: '#6B6B6B' }
-                  }
-                >
-                  {t === 'all' ? 'Tous' : t === 'pdf' ? 'PDF' : t === 'docx' ? 'Word' : t === 'xlsx' ? 'Excel' : 'Images'}
-                </button>
-              ))}
-            </div>
-
-            {/* Document list */}
-            {filteredDocs.length === 0 ? (
-              <p className="text-sm text-[#64748B]">{documents.length === 0 ? 'Aucun document.' : 'Aucun résultat.'}</p>
-            ) : (
-              <>
-                <div className="space-y-1.5">
-                  {pagedDocs.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center gap-1 rounded-xl transition-all duration-150 hover:bg-gray-50 group"
-                      style={{ border: '1px solid rgba(30,39,97,0.07)' }}
-                    >
-                      {/* Clickable open area */}
-                      <button
-                        onClick={() => handleOpenDocument(doc)}
-                        disabled={previewLoadingDocId === doc.id}
-                        className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left min-w-0"
-                      >
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                          style={{ background: docTypeBg(doc.file_type) }}>
-                          {previewLoadingDocId === doc.id
-                            ? <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: docTypeColor(doc.file_type), borderTopColor: 'transparent' }} />
-                            : doc.file_type === 'image'
-                              ? <ImageIcon className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
-                              : <FileText className="w-4 h-4" style={{ color: docTypeColor(doc.file_type) }} />
-                          }
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-[#1E293B] truncate">{doc.title ?? doc.file_name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            <p className="text-[10px] text-[#94A3B8]">{fmtDay(doc.created_at)}</p>
-                            {doc.user_id && membersMap[doc.user_id] && (
-                              <p className="text-[10px] text-[#94A3B8]">· {membersMap[doc.user_id].split(' ')[0]}</p>
-                            )}
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${doc.note_id ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-[#94A3B8]'}`}>
-                              {doc.note_id ? 'Lié' : 'Seul'}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                      {/* Actions */}
-                      <div className="flex items-center gap-0.5 pr-1.5 shrink-0">
-                        <button
-                          onClick={() => { setInitialShareOpen(true); handleOpenDocument(doc) }}
-                          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0A0A0A] hover:bg-[#F5F5F5] transition-all duration-150"
-                          title="Partager"
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                        </button>
-                        {confirmDeleteDocId === doc.id ? (
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => { handleDeleteDocument(doc.id); setConfirmDeleteDocId(null) }} className="px-2 py-1 text-[10px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600">Sup.</button>
-                            <button onClick={() => setConfirmDeleteDocId(null)} className="px-2 py-1 text-[10px] font-medium text-[#64748B] bg-gray-100 rounded-lg hover:bg-gray-200">✕</button>
-                          </div>
-                        ) : (
-                          <button onClick={() => setConfirmDeleteDocId(doc.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Pagination docs */}
-                {docsTotalPages > 1 && (
-                  <div className="flex items-center justify-end gap-2 mt-2">
-                    <button
-                      onClick={() => setDocPage((p) => Math.max(1, p - 1))}
-                      disabled={docPage === 1}
-                      className="p-0.5 rounded text-[#6B6B6B] disabled:opacity-30 hover:text-[#0A0A0A] transition-colors"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-[11px] text-[#6B6B6B]">Page {docPage} / {docsTotalPages}</span>
-                    <button
-                      onClick={() => setDocPage((p) => Math.min(docsTotalPages, p + 1))}
-                      disabled={docPage === docsTotalPages}
-                      className="p-0.5 rounded text-[#6B6B6B] disabled:opacity-30 hover:text-[#0A0A0A] transition-colors"
-                    >
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </>
             )}
           </SectionCard>
 
