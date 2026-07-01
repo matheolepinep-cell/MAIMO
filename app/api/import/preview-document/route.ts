@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         max_tokens: 50,
         messages: [{
           role: 'user',
-          content: `À partir de ce document, identifie le nom de l'entreprise cliente principale (pas notre entreprise, mais le client dont parle ce document). Réponds UNIQUEMENT avec le nom exact de l'entreprise, rien d'autre. Si tu ne peux pas déterminer, réponds "INCONNU".\n\nDocument :\n${text.substring(0, 2000)}`,
+          content: `À partir de ce document (qui peut être extrait d'un PDF et contenir des caractères parasites), identifie le nom de l'entreprise cliente principale (le client dont parle ce document, pas notre entreprise). Réponds UNIQUEMENT avec le nom de l'entreprise, rien d'autre. Si tu ne peux vraiment pas déterminer malgré le bruit, réponds "INCONNU".\n\nDocument :\n${text.substring(0, 2000)}`,
         }],
       })
       detectedCompanyNameRaw = detectionMsg.content[0].type === 'text' ? detectionMsg.content[0].text.trim() : 'INCONNU'

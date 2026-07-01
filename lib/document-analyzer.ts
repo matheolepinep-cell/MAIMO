@@ -42,7 +42,10 @@ export async function analyzeDocument(content: string, fileName: string, fileTyp
     const excerpt = content.slice(0, 8000)
     console.log('[analyzeDocument] starting, excerpt length:', excerpt.length, 'file:', fileName)
 
-    const prompt = `Analyse ce document professionnel et extrais toutes les informations structurées. Réponds UNIQUEMENT en JSON avec cette structure exacte :
+    const prompt = `Tu es un assistant expert en analyse de documents commerciaux.
+Ce contenu a été extrait automatiquement d'un fichier (PDF, Word, image) et peut contenir des caractères parasites, des espaces mal placés ou un encodage imparfait si le document original est scanné. Fais de ton mieux pour reconstituer les informations malgré le bruit éventuel.
+
+Extrais toutes les informations structurées et réponds UNIQUEMENT en JSON avec cette structure exacte :
 {
   "companies": [{
     "name": string,
@@ -70,7 +73,11 @@ export async function analyzeDocument(content: string, fileName: string, fileTyp
   "summary": string
 }
 
-Si plusieurs entreprises sont mentionnées, liste-les toutes. Si aucune information n'est trouvée pour un champ, mets null. Ne pas inventer d'informations.
+Règles :
+- Si plusieurs entreprises sont mentionnées, liste-les toutes.
+- Si le texte est bruité mais qu'un nom d'entreprise ou de contact est partiellement lisible, inclus-le quand même.
+- Si aucune information n'est trouvable dans un champ, mets null ou un tableau vide.
+- Ne pas inventer d'informations absentes du texte.
 
 Fichier : ${fileName} (${fileType})
 
