@@ -21,6 +21,7 @@ import {
   IconArrowRight,
   IconAlertTriangle,
   IconX,
+  IconSearch,
 } from '@tabler/icons-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -120,7 +121,10 @@ export default function DocumentsPage() {
   const [indexingDocIds, setIndexingDocIds] = useState<string[]>([])
   const [deletingFolder, setDeletingFolder] = useState<{ id: string; name: string; docCount: number } | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<{ documents: GlobalDocument[]; isSearching: boolean } | null>(null)
   const didInit = useRef(false)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /* ─── Load content ─── */
   const loadContent = useCallback(async (folderId: string | null, folderObj: GlobalFolder | null = null) => {
@@ -342,6 +346,67 @@ export default function DocumentsPage() {
     }
   }
 
+  /* ─── Search ─── */
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    if (!searchQuery.trim() || !profile) {
+      setSearchResults(null)
+      return
+    }
+    setSearchResults({ documents: [], isSearching: true })
+    searchTimerRef.current = setTimeout(async () => {
+      const q = searchQuery.trim()
+      const companyId = profile.company_id
+
+      const { data: byName } = await supabase
+        .from('documents')
+        .select('id, file_name, file_url, file_type, file_size, folder_id, account_id, is_indexed, created_at')
+        .eq('company_id', companyId)
+        .eq('is_deleted', false)
+        .ilike('file_name', `%${q}%`)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      const { data: chunkMatches } = await supabase
+        .from('chunks')
+        .select('source_id')
+        .eq('company_id', companyId)
+        .eq('source_type', 'document')
+        .ilike('content', `%${q}%`)
+        .limit(30)
+
+      const nameIds = new Set((byName ?? []).map((d) => d.id as string))
+      const extraIds = [...new Set((chunkMatches ?? []).map((c) => c.source_id as string))].filter((id) => !nameIds.has(id))
+
+      let extra: GlobalDocument[] = []
+      if (extraIds.length > 0) {
+        const { data: extraDocs } = await supabase
+          .from('documents')
+          .select('id, file_name, file_url, file_type, file_size, folder_id, account_id, is_indexed, created_at')
+          .eq('company_id', companyId)
+          .eq('is_deleted', false)
+          .in('id', extraIds)
+          .order('created_at', { ascending: false })
+        extra = (extraDocs ?? []) as GlobalDocument[]
+      }
+
+      const combined = [...((byName ?? []) as GlobalDocument[]), ...extra]
+      const accountIds = [...new Set(combined.map((d) => d.account_id).filter(Boolean) as string[])]
+      let accMap: Record<string, string> = {}
+      if (accountIds.length > 0) {
+        const { data: accs } = await supabase.from('accounts').select('id, name').in('id', accountIds)
+        accMap = Object.fromEntries(((accs ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]))
+      }
+
+      setSearchResults({
+        documents: combined.map((d) => ({ ...d, account_name: d.account_id ? accMap[d.account_id] : undefined })),
+        isSearching: false,
+      })
+    }, 400)
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, profile])
+
   /* ─── Render ─── */
   return (
     <div style={{ padding: '24px', maxWidth: 1000, margin: '0 auto' }}>
@@ -386,6 +451,28 @@ export default function DocumentsPage() {
         </div>
       </div>
 
+      {/* Search bar */}
+      <div style={{ position: 'relative', marginBottom: 16 }}>
+        <IconSearch size={15} color="#9CA3AF" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Rechercher par nom de fichier ou contenu…"
+          style={{ width: '100%', paddingLeft: 36, paddingRight: searchQuery ? 36 : 12, paddingTop: 10, paddingBottom: 10, fontSize: 13, border: '1px solid #E5E7EB', borderRadius: 10, outline: 'none', background: '#FAFAFA', boxSizing: 'border-box', color: '#0A0A0A' }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.background = '#fff' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.background = '#FAFAFA' }}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 2 }}
+          >
+            <IconX size={14} />
+          </button>
+        )}
+      </div>
+
       {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: '#6B7280', marginBottom: 16, flexWrap: 'wrap' }}>
         <button
@@ -408,7 +495,7 @@ export default function DocumentsPage() {
       </div>
 
       {/* Inline folder creation */}
-      {isCreatingFolder && (
+      {!searchResults && isCreatingFolder && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', marginBottom: 12, background: '#EFF6FF', borderRadius: 8, border: '1.5px solid #2563EB' }}>
           <IconFolder size={16} color="#2563EB" />
           <input
@@ -425,8 +512,65 @@ export default function DocumentsPage() {
         </div>
       )}
 
+      {/* ── Search results ── */}
+      {searchResults && (
+        <div style={{ border: '1px solid #F3F4F6', borderRadius: 12, overflow: 'hidden' }}>
+          {searchResults.isSearching ? (
+            <div style={{ padding: '48px 20px', textAlign: 'center', color: '#9CA3AF' }}>
+              <div style={{ fontSize: 14 }}>Recherche en cours…</div>
+            </div>
+          ) : searchResults.documents.length === 0 ? (
+            <div style={{ padding: '48px 20px', textAlign: 'center', color: '#9CA3AF' }}>
+              <IconSearch size={40} color="#E5E7EB" style={{ marginBottom: 12 }} />
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#374151' }}>Aucun résultat</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Essayez d&apos;autres mots-clés</div>
+            </div>
+          ) : (
+            searchResults.documents.map((doc) => (
+              <div
+                key={doc.id}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid #F9FAFB', background: '#ffffff', transition: 'background 0.15s' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+              >
+                <FileTypeIcon type={doc.file_type} size={18} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#0A0A0A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.file_name}</div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {doc.file_size && <span>{formatFileSize(doc.file_size)}</span>}
+                    <span>· {formatDate(doc.created_at)}</span>
+                    {doc.account_name && (
+                      <>
+                        <span>·</span>
+                        <button onClick={() => doc.account_id && router.push(`/app/accounts/${doc.account_id}`)} style={{ background: 'none', border: 'none', padding: 0, color: '#2563EB', cursor: 'pointer', fontSize: 11 }}>
+                          {doc.account_name}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <IndexBadge docId={doc.id} isIndexed={doc.is_indexed} indexingDocIds={indexingDocIds} />
+                <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                  <button onClick={() => openDocument(doc.id)} style={{ padding: 6, borderRadius: 6, background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }} title="Prévisualiser">
+                    <IconEye size={14} />
+                  </button>
+                  {doc.file_type !== 'image' && !doc.is_indexed && (
+                    <button onClick={() => handleIndex(doc.id)} style={{ padding: 6, borderRadius: 6, background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer' }} title="Indexer dans l'IA">
+                      <IconSparkles size={14} />
+                    </button>
+                  )}
+                  <button onClick={() => handleDeleteDocument(doc.id)} style={{ padding: 6, borderRadius: 6, background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }} title="Supprimer">
+                    <IconTrash size={14} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* ── List view ── */}
-      {viewMode === 'list' && (
+      {!searchResults && viewMode === 'list' && (
         <div style={{ border: '1px solid #F3F4F6', borderRadius: 12, overflow: 'hidden' }}>
           {folders.map((folder) => (
             <div
@@ -542,7 +686,7 @@ export default function DocumentsPage() {
       )}
 
       {/* ── Grid view ── */}
-      {viewMode === 'grid' && (
+      {!searchResults && viewMode === 'grid' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
           {folders.map((folder) => (
             <div
