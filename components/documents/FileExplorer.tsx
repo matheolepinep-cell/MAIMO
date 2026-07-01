@@ -23,6 +23,7 @@ import {
   IconExternalLink,
   IconSparkles,
   IconAlertTriangle,
+  IconArrowRight,
 } from '@tabler/icons-react'
 import { createClient } from '@/lib/supabase/client'
 import { validateFile, sanitizeFilename } from '@/lib/file-validation'
@@ -183,6 +184,10 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
   // Indexation in progress
   const [indexingDocIds, setIndexingDocIds] = useState<string[]>([])
 
+  // Move document
+  const [movingDoc, setMovingDoc] = useState<Document | null>(null)
+  const [allFolders, setAllFolders] = useState<Folder[]>([])
+
   /* ─── Fetch ─── */
   const fetchContents = useCallback(async () => {
     setLoading(true)
@@ -210,6 +215,12 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
 
       const { data: docs } = await docQ
       setDocuments(docs ?? [])
+
+      // Load all folders for move modal
+      const allFolderParams = new URLSearchParams({ account_id: accountId })
+      const allFRes = await fetch(`/api/folders?${allFolderParams}`)
+      const allFData = await allFRes.json()
+      setAllFolders(allFData.folders ?? [])
     } finally {
       setLoading(false)
     }
@@ -385,6 +396,18 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
     }
   }
 
+  /* ─── Move document (click) ─── */
+  const handleMoveDocument = async (targetFolderId: string | null) => {
+    if (!movingDoc) return
+    await fetch('/api/folders/move', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'document', id: movingDoc.id, folder_id: targetFolderId }),
+    })
+    setMovingDoc(null)
+    fetchContents()
+  }
+
   /* ─── Drag and drop ─── */
   const handleDragStart = (type: 'folder' | 'document', id: string) => {
     setDraggingItem({ type, id })
@@ -545,6 +568,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               onDeleteConfirm={() => handleDeleteDoc(doc.id)}
               onDeleteCancel={() => setConfirmDeleteDocId(null)}
               onIndexRequest={() => handleConfirmIndex({ id: doc.id, name: doc.title ?? doc.file_name })}
+              onMoveRequest={() => setMovingDoc(doc)}
               onDragStart={() => handleDragStart('document', doc.id)}
               indexingDocIds={indexingDocIds}
               view="grid"
@@ -591,6 +615,7 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
               onDeleteConfirm={() => handleDeleteDoc(doc.id)}
               onDeleteCancel={() => setConfirmDeleteDocId(null)}
               onIndexRequest={() => handleConfirmIndex({ id: doc.id, name: doc.title ?? doc.file_name })}
+              onMoveRequest={() => setMovingDoc(doc)}
               onDragStart={() => handleDragStart('document', doc.id)}
               indexingDocIds={indexingDocIds}
               view="list"
@@ -759,6 +784,46 @@ export function FileExplorer({ accountId, companyId, userId, wsId, onDocumentOpe
           </div>
         </div>
       )}
+
+      {/* ─── Move document modal ─── */}
+      {movingDoc && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: '#0A0A0A' }}>Déplacer vers un dossier</h3>
+              <button onClick={() => setMovingDoc(null)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: 4 }}>
+                <IconX size={16} />
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: '#6B7280', margin: '0 0 12px 0', fontStyle: 'italic' }}>{movingDoc.title ?? movingDoc.file_name}</p>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <button
+                onClick={() => handleMoveDocument(null)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#F9FAFB', cursor: 'pointer', marginBottom: 6, textAlign: 'left' }}
+              >
+                <IconFolder size={16} color="#9CA3AF" />
+                <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>Racine (sans dossier)</span>
+              </button>
+              {allFolders.map((folder) => (
+                <button
+                  key={folder.id}
+                  onClick={() => handleMoveDocument(folder.id)}
+                  disabled={folder.id === movingDoc.folder_id}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, border: '1px solid transparent', background: folder.id === movingDoc.folder_id ? '#F3F4F6' : '#ffffff', cursor: folder.id === movingDoc.folder_id ? 'not-allowed' : 'pointer', marginBottom: 4, textAlign: 'left', opacity: folder.id === movingDoc.folder_id ? 0.5 : 1 }}
+                  onMouseEnter={(e) => { if (folder.id !== movingDoc.folder_id) e.currentTarget.style.background = '#EFF6FF' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = folder.id === movingDoc.folder_id ? '#F3F4F6' : '#ffffff' }}
+                >
+                  <IconFolder size={16} color="#F59E0B" />
+                  <span style={{ fontSize: 13, color: '#374151' }}>{folder.name}</span>
+                  {folder.id === movingDoc.folder_id && (
+                    <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 'auto' }}>Actuel</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -869,12 +934,13 @@ interface DocCardProps {
   onDeleteConfirm: () => void
   onDeleteCancel: () => void
   onIndexRequest: () => void
+  onMoveRequest: () => void
   onDragStart: () => void
   indexingDocIds: string[]
   view: 'grid' | 'list'
 }
 
-function DocCard({ doc, confirmDelete, isIndexing, onOpen, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onIndexRequest, onDragStart, indexingDocIds, view }: DocCardProps) {
+function DocCard({ doc, confirmDelete, isIndexing, onOpen, onDeleteRequest, onDeleteConfirm, onDeleteCancel, onIndexRequest, onMoveRequest, onDragStart, indexingDocIds, view }: DocCardProps) {
   const label = doc.title ?? doc.file_name
   const size = doc.file_size
   const canIndex = doc.file_type !== 'image' && !doc.is_indexed && !isIndexing
@@ -912,6 +978,9 @@ function DocCard({ doc, confirmDelete, isIndexing, onOpen, onDeleteRequest, onDe
                 <IconSparkles size={12} color="#2563EB" />
               </button>
             )}
+            <button onClick={onMoveRequest} className="p-1 rounded hover:bg-blue-50 text-[#94A3B8] hover:text-[#2563EB]" title="Déplacer">
+              <IconArrowRight size={12} />
+            </button>
             <button onClick={onDeleteRequest} className="p-1 rounded hover:bg-red-50 text-[#94A3B8] hover:text-red-400">
               <IconTrash size={12} />
             </button>
@@ -962,6 +1031,13 @@ function DocCard({ doc, confirmDelete, isIndexing, onOpen, onDeleteRequest, onDe
                 <IconSparkles size={13} color="#2563EB" />
               </button>
             )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onMoveRequest() }}
+              className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#2563EB] hover:bg-blue-50 transition-colors"
+              title="Déplacer vers un autre dossier"
+            >
+              <IconArrowRight size={13} />
+            </button>
             <button onClick={onDeleteRequest} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors">
               <IconTrash size={13} />
             </button>
